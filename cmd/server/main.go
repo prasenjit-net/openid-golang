@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/prasenjit/openid-golang/internal/config"
 	"github.com/prasenjit/openid-golang/internal/handlers"
 	"github.com/prasenjit/openid-golang/internal/middleware"

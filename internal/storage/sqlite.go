@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/prasenjit/openid-golang/internal/models"
 )
 
