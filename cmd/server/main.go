@@ -16,6 +16,7 @@ import (
 	"github.com/prasenjit-net/openid-golang/internal/config"
 	"github.com/prasenjit-net/openid-golang/internal/handlers"
 	"github.com/prasenjit-net/openid-golang/internal/middleware"
+	"github.com/prasenjit-net/openid-golang/internal/setup"
 	"github.com/prasenjit-net/openid-golang/internal/storage"
 	"github.com/prasenjit-net/openid-golang/internal/ui"
 )
@@ -25,11 +26,19 @@ var Version = "dev"
 
 func main() {
 	// Parse command line flags
-	version := flag.Bool("version", false, "Print version and exit")
+	versionFlag := flag.Bool("version", false, "Print version and exit")
+	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
 	flag.Parse()
 
-	if *version {
+	if *versionFlag {
 		fmt.Printf("OpenID Connect Server v%s\n", Version)
+		os.Exit(0)
+	}
+
+	if *setupFlag {
+		if err := setup.Run(); err != nil {
+			log.Fatalf("Setup failed: %v", err)
+		}
 		os.Exit(0)
 	}
 

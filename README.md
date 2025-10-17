@@ -27,6 +27,30 @@ All documentation is organized in the **`docs/`** folder:
 
 ## 🚀 Quick Start
 
+### Option 1: Using the Setup Wizard (Recommended)
+
+Download the binary from [GitHub Releases](https://github.com/prasenjit-net/openid-golang/releases) and run:
+
+```bash
+# Make it executable (Linux/macOS)
+chmod +x openid-server-*
+
+# Run the setup wizard
+./openid-server-linux-amd64 --setup
+
+# Start the server
+./openid-server-linux-amd64
+```
+
+The setup wizard will:
+- Generate RSA key pairs for JWT signing
+- Create configuration file (.env)
+- Initialize the database
+- Create an admin user
+- Optionally create your first OAuth client
+
+### Option 2: Manual Setup (Development)
+
 ```bash
 # 1. Setup (generates keys, downloads dependencies)
 ./setup.sh
@@ -85,11 +109,35 @@ Access the admin UI at http://localhost:8080/
 
 ## 📋 Prerequisites
 
-- Go 1.21 or higher
-- OpenSSL (for key generation)
-- SQLite (for development) or PostgreSQL (for production)
+- No prerequisites for binary distribution! The `--setup` wizard handles everything.
+- For development: Go 1.21 or higher
 
 ## 🛠️ Installation
+
+### Binary Distribution (Recommended for Production)
+
+1. Download the latest binary for your platform from [GitHub Releases](https://github.com/prasenjit-net/openid-golang/releases)
+
+2. Run the interactive setup wizard:
+```bash
+# Linux/macOS
+chmod +x openid-server-*
+./openid-server-* --setup
+
+# Windows
+openid-server-windows-amd64.exe --setup
+```
+
+3. Start the server:
+```bash
+# Linux/macOS
+./openid-server-*
+
+# Windows
+openid-server-windows-amd64.exe
+```
+
+### Development Setup
 
 Run the automated setup script:
 
