@@ -95,5 +95,5 @@ func (h *Handlers) JWKS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	jwksJSON, _ := crypto.MarshalJWKS(jwks)
 	w.WriteHeader(http.StatusOK)
-	w.Write(jwksJSON)
+	_, _ = w.Write(jwksJSON)
 }

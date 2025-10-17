@@ -177,9 +177,9 @@ func (s *SQLiteStorage) GetClientByID(id string) (*models.Client, error) {
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(redirectURIs), &client.RedirectURIs)
-	json.Unmarshal([]byte(grantTypes), &client.GrantTypes)
-	json.Unmarshal([]byte(responseTypes), &client.ResponseTypes)
+	_ = json.Unmarshal([]byte(redirectURIs), &client.RedirectURIs)
+	_ = json.Unmarshal([]byte(grantTypes), &client.GrantTypes)
+	_ = json.Unmarshal([]byte(responseTypes), &client.ResponseTypes)
 
 	return client, nil
 }

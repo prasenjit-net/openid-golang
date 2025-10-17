@@ -128,7 +128,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: authCode.ExpiresAt,
 		CreatedAt: authCode.CreatedAt,
 	}
-	h.storage.CreateSession(session)
+	_ = h.storage.CreateSession(session)
 
 	// Redirect back to client with authorization code
 	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", redirectURI, authCode.Code, state)
@@ -181,7 +181,7 @@ func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
 
 func redirectWithError(w http.ResponseWriter, redirectURI, errorCode, description, state string) {

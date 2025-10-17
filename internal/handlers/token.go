@@ -82,7 +82,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.R
 
 	// Check if code is expired
 	if authCode.IsExpired() {
-		h.storage.DeleteAuthorizationCode(req.Code)
+		_ = h.storage.DeleteAuthorizationCode(req.Code)
 		writeError(w, http.StatusBadRequest, "invalid_grant", "Authorization code expired")
 		return
 	}
@@ -120,7 +120,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.R
 
 	// Create tokens
 	token := models.NewToken(client.ID, user.ID, authCode.Scope, h.config.JWT.ExpiryMinutes)
-	if err := h.storage.CreateToken(token); err != nil {
+	if createErr := h.storage.CreateToken(token); createErr != nil {
 		writeError(w, http.StatusInternalServerError, "server_error", "Failed to create token")
 		return
 	}
@@ -133,7 +133,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.R
 	}
 
 	// Delete authorization code (one-time use)
-	h.storage.DeleteAuthorizationCode(req.Code)
+	_ = h.storage.DeleteAuthorizationCode(req.Code)
 
 	// Return token response
 	response := TokenResponse{
@@ -170,7 +170,7 @@ func (h *Handlers) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reques
 
 	// Create new tokens
 	newToken := models.NewToken(client.ID, user.ID, oldToken.Scope, h.config.JWT.ExpiryMinutes)
-	if err := h.storage.CreateToken(newToken); err != nil {
+	if createErr := h.storage.CreateToken(newToken); createErr != nil {
 		writeError(w, http.StatusInternalServerError, "server_error", "Failed to create token")
 		return
 	}
@@ -183,7 +183,7 @@ func (h *Handlers) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Delete old token
-	h.storage.DeleteToken(oldToken.AccessToken)
+	_ = h.storage.DeleteToken(oldToken.AccessToken)
 
 	// Return token response
 	response := TokenResponse{

@@ -39,7 +39,7 @@ func NewHandlers(cfg *config.Config, store storage.Storage) *Handlers {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // writeError writes a JSON error response

@@ -33,7 +33,7 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	_ = json.NewEncoder(w).Encode(stats)
 }
 
 // ListUsers returns all users
@@ -55,7 +55,7 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	_ = json.NewEncoder(w).Encode(users)
 }
 
 // CreateUser creates a new user
@@ -88,7 +88,7 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user)
 }
 
 // DeleteUser deletes a user
@@ -122,7 +122,7 @@ func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(clients)
+	_ = json.NewEncoder(w).Encode(clients)
 }
 
 // CreateClient creates a new OAuth client
@@ -154,7 +154,7 @@ func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(client)
+	_ = json.NewEncoder(w).Encode(client)
 }
 
 // DeleteClient deletes an OAuth client
@@ -183,7 +183,7 @@ func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(settings)
+	_ = json.NewEncoder(w).Encode(settings)
 }
 
 // UpdateSettings updates server settings
@@ -201,7 +201,7 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Validate and save settings to database
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Settings updated successfully"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Settings updated successfully"})
 }
 
 // GetKeys returns signing keys
@@ -222,7 +222,7 @@ func (h *AdminHandler) GetKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(keys)
+	_ = json.NewEncoder(w).Encode(keys)
 }
 
 // RotateKeys rotates signing keys
@@ -234,7 +234,7 @@ func (h *AdminHandler) RotateKeys(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Generate new keys and mark old keys as inactive
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Keys rotated successfully"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Keys rotated successfully"})
 }
 
 // GetSetupStatus returns whether initial setup is complete
@@ -251,7 +251,7 @@ func (h *AdminHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 // CompleteSetup performs initial setup
@@ -276,7 +276,7 @@ func (h *AdminHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Create admin user, save settings, generate initial keys
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Setup completed successfully"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Setup completed successfully"})
 }
 
 // Login handles admin authentication
@@ -302,7 +302,7 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 			"token": "dummy-session-token",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
