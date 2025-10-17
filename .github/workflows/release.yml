@@ -231,12 +231,37 @@ jobs:
       run: |
         go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
         
-    - name: Build binary (macOS/Windows native)
-      if: runner.os == 'Darwin' || runner.os == 'Windows'
+    - name: Build binary (macOS native)
+      if: runner.os == 'Darwin'
       env:
         CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
       run: |
+        echo "Building for macOS: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }}"
         go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        ls -lh ${{ matrix.binary }}
+        
+    - name: Build binary (Windows native)
+      if: runner.os == 'Windows'
+      env:
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        echo "Building for Windows: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }}"
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        dir ${{ matrix.binary }}
+        
+    - name: Verify binary exists before upload
+      shell: bash
+      run: |
+        if [ ! -f "${{ matrix.binary }}" ]; then
+          echo "Error: Binary ${{ matrix.binary }} was not created!"
+          exit 1
+        fi
+        echo "Binary found: ${{ matrix.binary }}"
+        ls -lh ${{ matrix.binary }} || dir ${{ matrix.binary }}
         
     - name: Upload artifact
       uses: actions/upload-artifact@v4
