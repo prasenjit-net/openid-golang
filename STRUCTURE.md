@@ -131,12 +131,12 @@ Since code is in `internal/`, import paths in Go files are:
 
 ```go
 import (
-    "github.com/prasenjit/openid-golang/internal/config"
-    "github.com/prasenjit/openid-golang/internal/crypto"
-    "github.com/prasenjit/openid-golang/internal/handlers"
-    "github.com/prasenjit/openid-golang/internal/middleware"
-    "github.com/prasenjit/openid-golang/internal/models"
-    "github.com/prasenjit/openid-golang/internal/storage"
+    "github.com/prasenjit-net/openid-golang/internal/config"
+    "github.com/prasenjit-net/openid-golang/internal/crypto"
+    "github.com/prasenjit-net/openid-golang/internal/handlers"
+    "github.com/prasenjit-net/openid-golang/internal/middleware"
+    "github.com/prasenjit-net/openid-golang/internal/models"
+    "github.com/prasenjit-net/openid-golang/internal/storage"
 )
 ```
 

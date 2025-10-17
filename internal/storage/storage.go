@@ -3,8 +3,8 @@ package storage
 import (
 	"fmt"
 
-	"github.com/prasenjit/openid-golang/internal/config"
-	"github.com/prasenjit/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/config"
+	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
 // Storage defines the interface for data persistence

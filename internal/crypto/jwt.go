@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/prasenjit/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
 // JWTManager handles JWT token generation and validation

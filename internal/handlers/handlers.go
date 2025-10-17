@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/prasenjit/openid-golang/internal/config"
-	"github.com/prasenjit/openid-golang/internal/crypto"
-	"github.com/prasenjit/openid-golang/internal/storage"
+	"github.com/prasenjit-net/openid-golang/internal/config"
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
+	"github.com/prasenjit-net/openid-golang/internal/storage"
 )
 
 // Handlers holds all HTTP handlers

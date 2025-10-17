@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/prasenjit/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
 // Authorize handles the authorization endpoint (GET /authorize)

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prasenjit/openid-golang/internal/storage"
+	"github.com/prasenjit-net/openid-golang/internal/storage"
 )
 
 // AdminHandler handles admin API endpoints

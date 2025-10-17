@@ -12,7 +12,7 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   goimports:
-    local-prefixes: github.com/prasenjit/openid-golang
+    local-prefixes: github.com/prasenjit-net/openid-golang
   govet:
     enable:
       - shadow

@@ -1,4 +1,4 @@
-module github.com/prasenjit/openid-golang
+module github.com/prasenjit-net/openid-golang
 
 go 1.21
 

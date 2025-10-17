@@ -7,7 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/prasenjit/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
 // SQLiteStorage implements Storage interface using SQLite

@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/prasenjit/openid-golang/internal/crypto"
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
 )
 
 // DiscoveryResponse represents OpenID Connect Discovery response

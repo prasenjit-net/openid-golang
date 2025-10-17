@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/prasenjit/openid-golang/internal/crypto"
-	"github.com/prasenjit/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
+	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
 // TokenRequest represents a token request

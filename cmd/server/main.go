@@ -13,11 +13,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/prasenjit/openid-golang/internal/config"
-	"github.com/prasenjit/openid-golang/internal/handlers"
-	"github.com/prasenjit/openid-golang/internal/middleware"
-	"github.com/prasenjit/openid-golang/internal/storage"
-	"github.com/prasenjit/openid-golang/internal/ui"
+	"github.com/prasenjit-net/openid-golang/internal/config"
+	"github.com/prasenjit-net/openid-golang/internal/handlers"
+	"github.com/prasenjit-net/openid-golang/internal/middleware"
+	"github.com/prasenjit-net/openid-golang/internal/storage"
+	"github.com/prasenjit-net/openid-golang/internal/ui"
 )
 
 // Version is set by the build process

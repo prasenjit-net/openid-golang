@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/prasenjit/openid-golang/internal/config"
-	"github.com/prasenjit/openid-golang/internal/crypto"
-	"github.com/prasenjit/openid-golang/internal/models"
-	"github.com/prasenjit/openid-golang/internal/storage"
+	"github.com/prasenjit-net/openid-golang/internal/config"
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
+	"github.com/prasenjit-net/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/internal/storage"
 )
 
 func main() {
