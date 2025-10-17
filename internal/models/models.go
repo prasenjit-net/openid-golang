@@ -22,28 +22,28 @@ type User struct {
 
 // Client represents an OAuth2/OIDC client
 type Client struct {
-	ID           string    `json:"client_id"`
-	Secret       string    `json:"client_secret,omitempty"`
-	Name         string    `json:"name"`
-	RedirectURIs []string  `json:"redirect_uris"`
-	GrantTypes   []string  `json:"grant_types"`
-	ResponseTypes []string `json:"response_types"`
-	Scope        string    `json:"scope"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID            string    `json:"client_id"`
+	Secret        string    `json:"client_secret,omitempty"`
+	Name          string    `json:"name"`
+	RedirectURIs  []string  `json:"redirect_uris"`
+	GrantTypes    []string  `json:"grant_types"`
+	ResponseTypes []string  `json:"response_types"`
+	Scope         string    `json:"scope"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // AuthorizationCode represents an authorization code
 type AuthorizationCode struct {
-	Code         string    `json:"code"`
-	ClientID     string    `json:"client_id"`
-	UserID       string    `json:"user_id"`
-	RedirectURI  string    `json:"redirect_uri"`
-	Scope        string    `json:"scope"`
-	Nonce        string    `json:"nonce,omitempty"`
-	CodeChallenge string   `json:"code_challenge,omitempty"`
-	CodeChallengeMethod string `json:"code_challenge_method,omitempty"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	Code                string    `json:"code"`
+	ClientID            string    `json:"client_id"`
+	UserID              string    `json:"user_id"`
+	RedirectURI         string    `json:"redirect_uri"`
+	Scope               string    `json:"scope"`
+	Nonce               string    `json:"nonce,omitempty"`
+	CodeChallenge       string    `json:"code_challenge,omitempty"`
+	CodeChallengeMethod string    `json:"code_challenge_method,omitempty"`
+	ExpiresAt           time.Time `json:"expires_at"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // Token represents an access or refresh token

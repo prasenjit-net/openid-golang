@@ -10,8 +10,8 @@ import (
 // Simple test client to verify the OpenID Connect flow
 func main() {
 	// Configuration
-	clientID := "your-client-id"           // Get this from seed output
-	clientSecret := "your-client-secret"   // Get this from seed output
+	clientID := "your-client-id"         // Get this from seed output
+	clientSecret := "your-client-secret" // Get this from seed output
 	redirectURI := "http://localhost:9090/callback"
 	issuer := "http://localhost:8080"
 
@@ -29,7 +29,7 @@ func main() {
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")
 		state := r.URL.Query().Get("state")
-		
+
 		if code == "" {
 			errorCode := r.URL.Query().Get("error")
 			errorDesc := r.URL.Query().Get("error_description")
@@ -39,7 +39,7 @@ func main() {
 
 		fmt.Printf("\n✓ Received authorization code: %s\n", code)
 		fmt.Printf("✓ State: %s\n", state)
-		
+
 		fmt.Fprintf(w, `
 			<html>
 			<body>
@@ -60,7 +60,7 @@ curl -X POST %s/token \
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		authURL := fmt.Sprintf("%s/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=openid%%20profile%%20email&state=test123",
 			issuer, clientID, redirectURI)
-		
+
 		fmt.Fprintf(w, `
 			<html>
 			<body>
