@@ -1,40 +1,39 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import './Login.css';
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    // Automatically redirect to OAuth authorization endpoint
+    initiateOAuthFlow();
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const generateRandomString = (length: number): string => {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  };
 
-    try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+  const initiateOAuthFlow = () => {
+    // Generate state and nonce for security
+    const state = generateRandomString(16);
+    const nonce = generateRandomString(16);
 
-      if (!response.ok) {
-        throw new Error('Invalid credentials');
-      }
+    // Save state and nonce in session storage for verification
+    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_nonce', nonce);
 
-      const data = await response.json();
-      localStorage.setItem('admin_token', data.token);
-      navigate('/admin');
-    } catch (err) {
-      setError('Invalid username or password');
-    } finally {
-      setLoading(false);
-    }
+    // Build authorization URL
+    const authParams = new URLSearchParams({
+      client_id: 'admin-ui',
+      redirect_uri: `${window.location.origin}/admin/callback`,
+      response_type: 'id_token',
+      scope: 'openid profile email',
+      state: state,
+      nonce: nonce,
+    });
+
+    // Redirect to authorization endpoint
+    window.location.href = `/authorize?${authParams.toString()}`;
   };
 
   return (
@@ -45,36 +44,10 @@ const Login = () => {
           <p>OpenID Connect Server Administration</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && <div className="error-message">{error}</div>}
-
-          <div className="form-group">
-            <label>Username</label>
-            <input
-              type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              placeholder="Enter your username"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn-login" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+        <div className="login-loading">
+          <div className="spinner"></div>
+          <p>Redirecting to authentication...</p>
+        </div>
 
         <div className="login-footer">
           <p>Secure authentication powered by OpenID Connect</p>

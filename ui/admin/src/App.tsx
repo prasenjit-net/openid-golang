@@ -7,6 +7,7 @@ import Clients from './pages/Clients';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
 import Login from './pages/Login';
+import OAuthCallback from './pages/OAuthCallback';
 import { useState, useEffect } from 'react';
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
         ) : !isAuthenticated ? (
           <>
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/callback" element={<OAuthCallback />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </>
         ) : (
