@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
 	"github.com/prasenjit-net/openid-golang/internal/storage"
 )
 
@@ -296,15 +297,29 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Validate credentials and generate session token
-	if req.Username == "admin" && req.Password == "admin" {
-		response := map[string]string{
-			"token": "dummy-session-token",
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(response)
+	// Get user from storage
+	user, err := h.store.GetUserByUsername(req.Username)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+	// Check if user exists
+	if user == nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate password using bcrypt
+	if !crypto.ValidatePassword(req.Password, user.PasswordHash) {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// TODO: Generate proper session token with expiration
+	response := map[string]string{
+		"token": "dummy-session-token",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(response)
 }

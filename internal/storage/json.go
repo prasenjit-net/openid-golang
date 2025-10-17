@@ -17,9 +17,15 @@ type JSONStorage struct {
 	data     *JSONData
 }
 
+// JSONUser represents a user with password hash for JSON storage
+type JSONUser struct {
+	*models.User
+	PasswordHash string `json:"password_hash"`
+}
+
 // JSONData holds all the data
 type JSONData struct {
-	Users              map[string]*models.User              `json:"users"`
+	Users              map[string]*JSONUser                 `json:"users"`
 	Clients            map[string]*models.Client            `json:"clients"`
 	AuthorizationCodes map[string]*models.AuthorizationCode `json:"authorization_codes"`
 	Tokens             map[string]*models.Token             `json:"tokens"`
@@ -31,7 +37,7 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 	storage := &JSONStorage{
 		filePath: filePath,
 		data: &JSONData{
-			Users:              make(map[string]*models.User),
+			Users:              make(map[string]*JSONUser),
 			Clients:            make(map[string]*models.Client),
 			AuthorizationCodes: make(map[string]*models.AuthorizationCode),
 			Tokens:             make(map[string]*models.Token),
@@ -96,7 +102,13 @@ func (j *JSONStorage) CreateUser(user *models.User) error {
 
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
-	j.data.Users[user.ID] = user
+
+	// Store as JSONUser with password hash
+	jsonUser := &JSONUser{
+		User:         user,
+		PasswordHash: user.PasswordHash,
+	}
+	j.data.Users[user.ID] = jsonUser
 	return j.save()
 }
 
@@ -104,8 +116,11 @@ func (j *JSONStorage) GetUserByUsername(username string) (*models.User, error) {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 
-	for _, user := range j.data.Users {
-		if user.Username == username {
+	for _, jsonUser := range j.data.Users {
+		if jsonUser.Username == username {
+			// Restore password hash from JSON storage
+			user := jsonUser.User
+			user.PasswordHash = jsonUser.PasswordHash
 			return user, nil
 		}
 	}
@@ -116,10 +131,13 @@ func (j *JSONStorage) GetUserByID(id string) (*models.User, error) {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 
-	user, exists := j.data.Users[id]
+	jsonUser, exists := j.data.Users[id]
 	if !exists {
 		return nil, nil
 	}
+	// Restore password hash from JSON storage
+	user := jsonUser.User
+	user.PasswordHash = jsonUser.PasswordHash
 	return user, nil
 }
 
@@ -127,8 +145,11 @@ func (j *JSONStorage) GetUserByEmail(email string) (*models.User, error) {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 
-	for _, user := range j.data.Users {
-		if user.Email == email {
+	for _, jsonUser := range j.data.Users {
+		if jsonUser.Email == email {
+			// Restore password hash from JSON storage
+			user := jsonUser.User
+			user.PasswordHash = jsonUser.PasswordHash
 			return user, nil
 		}
 	}
