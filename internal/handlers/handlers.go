@@ -1,0 +1,51 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/prasenjit/openid-golang/internal/config"
+	"github.com/prasenjit/openid-golang/internal/crypto"
+	"github.com/prasenjit/openid-golang/internal/storage"
+)
+
+// Handlers holds all HTTP handlers
+type Handlers struct {
+	config     *config.Config
+	storage    storage.Storage
+	jwtManager *crypto.JWTManager
+}
+
+// NewHandlers creates a new handlers instance
+func NewHandlers(cfg *config.Config, store storage.Storage) *Handlers {
+	jwtManager, err := crypto.NewJWTManager(
+		cfg.JWT.PrivateKeyPath,
+		cfg.JWT.PublicKeyPath,
+		cfg.JWT.Issuer,
+		cfg.JWT.ExpiryMinutes,
+	)
+	if err != nil {
+		panic("Failed to initialize JWT manager: " + err.Error())
+	}
+
+	return &Handlers{
+		config:     cfg,
+		storage:    store,
+		jwtManager: jwtManager,
+	}
+}
+
+// writeJSON writes a JSON response
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
+}
+
+// writeError writes a JSON error response
+func writeError(w http.ResponseWriter, status int, err, description string) {
+	writeJSON(w, status, map[string]string{
+		"error":             err,
+		"error_description": description,
+	})
+}
