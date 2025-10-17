@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/prasenjit/openid-golang/internal/models"

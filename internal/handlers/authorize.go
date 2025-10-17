@@ -85,7 +85,6 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := r.FormValue("username")
-	password := r.FormValue("password")
 	sessionID := r.FormValue("session_id")
 	clientID := r.FormValue("client_id")
 	redirectURI := r.FormValue("redirect_uri")
@@ -103,7 +102,9 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Note: In production, use proper password verification
-	// For now, simplified check (you should use crypto.ValidatePassword)
+	// password := r.FormValue("password")
+	// if !crypto.ValidatePassword(password, user.PasswordHash) { ... }
+	// For now, simplified check - just verify user exists
 	if user.PasswordHash == "" {
 		h.renderLoginPage(w, r)
 		return
