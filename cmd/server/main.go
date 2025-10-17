@@ -15,6 +15,7 @@ import (
 	"github.com/prasenjit/openid-golang/internal/handlers"
 	"github.com/prasenjit/openid-golang/internal/middleware"
 	"github.com/prasenjit/openid-golang/internal/storage"
+	"github.com/prasenjit/openid-golang/internal/ui"
 )
 
 func main() {
@@ -33,9 +34,10 @@ func main() {
 
 	// Initialize handlers
 	h := handlers.NewHandlers(cfg, store)
+	adminHandler := handlers.NewAdminHandler(store)
 
 	// Setup router
-	router := setupRouter(h)
+	router := setupRouter(h, adminHandler)
 
 	// Apply middleware
 	handler := middleware.Logging(
@@ -81,7 +83,7 @@ func main() {
 	log.Println("Server stopped")
 }
 
-func setupRouter(h *handlers.Handlers) *mux.Router {
+func setupRouter(h *handlers.Handlers, adminHandler *handlers.AdminHandler) *mux.Router {
 	router := mux.NewRouter()
 
 	// OpenID Connect Discovery
@@ -96,6 +98,25 @@ func setupRouter(h *handlers.Handlers) *mux.Router {
 	// Authentication endpoints
 	router.HandleFunc("/login", h.Login).Methods("GET", "POST")
 	router.HandleFunc("/consent", h.Consent).Methods("GET", "POST")
+
+	// Admin API endpoints
+	router.HandleFunc("/api/admin/stats", adminHandler.GetStats).Methods("GET")
+	router.HandleFunc("/api/admin/users", adminHandler.ListUsers).Methods("GET")
+	router.HandleFunc("/api/admin/users", adminHandler.CreateUser).Methods("POST")
+	router.HandleFunc("/api/admin/users/{id}", adminHandler.DeleteUser).Methods("DELETE")
+	router.HandleFunc("/api/admin/clients", adminHandler.ListClients).Methods("GET")
+	router.HandleFunc("/api/admin/clients", adminHandler.CreateClient).Methods("POST")
+	router.HandleFunc("/api/admin/clients/{id}", adminHandler.DeleteClient).Methods("DELETE")
+	router.HandleFunc("/api/admin/settings", adminHandler.GetSettings).Methods("GET")
+	router.HandleFunc("/api/admin/settings", adminHandler.UpdateSettings).Methods("PUT")
+	router.HandleFunc("/api/admin/keys", adminHandler.GetKeys).Methods("GET")
+	router.HandleFunc("/api/admin/keys/rotate", adminHandler.RotateKeys).Methods("POST")
+	router.HandleFunc("/api/admin/setup/status", adminHandler.GetSetupStatus).Methods("GET")
+	router.HandleFunc("/api/admin/setup", adminHandler.CompleteSetup).Methods("POST")
+	router.HandleFunc("/api/admin/login", adminHandler.Login).Methods("POST")
+
+	// TODO: Serve embedded admin UI static files
+	router.PathPrefix("/").Handler(http.FileServer(ui.GetAdminUI()))
 
 	// Health check
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

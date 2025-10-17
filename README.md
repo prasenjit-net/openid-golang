@@ -1,6 +1,6 @@
 # OpenID Connect Identity Server
 
-A lightweight OpenID Connect (OIDC) identity provider implementation in Go.
+A lightweight OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
 
 > 💡 **Tip:** Run `./show-docs.sh` to see the complete documentation structure!
 
@@ -16,6 +16,7 @@ All documentation is organized in the **`docs/`** folder:
 - **[Implementation Details](docs/IMPLEMENTATION.md)** - Technical details
 - **[Project Summary](docs/PROJECT_SUMMARY.md)** - What's been built
 - **[Documentation Index](docs/INDEX.md)** - Complete documentation hub
+- **[Admin UI Documentation](ui/admin/README.md)** - React admin interface guide
 
 ## 🚀 Quick Start
 
@@ -28,9 +29,14 @@ go run scripts/seed.go
 
 # 3. Start the server
 ./test.sh
+
+# OR - Build with embedded admin UI
+./build.sh
+./bin/openid-server
 ```
 
 Visit http://localhost:8080/health to verify the server is running.
+Access the admin UI at http://localhost:8080/
 
 ## ✨ Features
 
@@ -42,6 +48,13 @@ Visit http://localhost:8080/health to verify the server is running.
 - JWT-based ID tokens (RS256 signing)
 - Client authentication and management
 - User authentication with bcrypt password hashing
+- **React Admin UI** with:
+  - User management
+  - OAuth client registration and management
+  - Server settings configuration
+  - Signing key rotation
+  - Initial setup wizard
+  - Dashboard with statistics
 
 ## Project Structure
 
