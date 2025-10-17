@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewUser(t *testing.T) {
-	user := NewUser("testuser", "test@example.com", "hashed_password")
+	user := NewUser("testuser", "test@example.com", "hashed_password", RoleUser)
 
 	if user.ID == "" {
 		t.Error("User ID should not be empty")
@@ -16,6 +16,30 @@ func TestNewUser(t *testing.T) {
 	}
 	if user.Email != "test@example.com" {
 		t.Errorf("Expected email 'test@example.com', got '%s'", user.Email)
+	}
+}
+
+func TestUserRoles(t *testing.T) {
+	adminUser := NewAdminUser("admin", "admin@example.com", "hashed_password")
+	if !adminUser.IsAdmin() {
+		t.Error("Admin user should have admin role")
+	}
+	if adminUser.Role != RoleAdmin {
+		t.Errorf("Expected role 'admin', got '%s'", adminUser.Role)
+	}
+	if !adminUser.HasRole(RoleAdmin) {
+		t.Error("Admin user should have admin role")
+	}
+
+	regularUser := NewRegularUser("user", "user@example.com", "hashed_password")
+	if regularUser.IsAdmin() {
+		t.Error("Regular user should not have admin role")
+	}
+	if regularUser.Role != RoleUser {
+		t.Errorf("Expected role 'user', got '%s'", regularUser.Role)
+	}
+	if !regularUser.HasRole(RoleUser) {
+		t.Error("Regular user should have user role")
 	}
 }
 

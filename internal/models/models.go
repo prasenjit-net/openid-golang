@@ -6,18 +6,37 @@ import (
 	"github.com/google/uuid"
 )
 
+// UserRole represents the role of a user
+type UserRole string
+
+const (
+	RoleUser  UserRole = "user"
+	RoleAdmin UserRole = "admin"
+)
+
 // User represents a user in the system
 type User struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"`
+	Role         UserRole  `json:"role"`
 	Name         string    `json:"name"`
 	GivenName    string    `json:"given_name,omitempty"`
 	FamilyName   string    `json:"family_name,omitempty"`
 	Picture      string    `json:"picture,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// IsAdmin returns true if the user has admin role
+func (u *User) IsAdmin() bool {
+	return u.Role == RoleAdmin
+}
+
+// HasRole checks if the user has the specified role
+func (u *User) HasRole(role UserRole) bool {
+	return u.Role == role
 }
 
 // Client represents an OAuth2/OIDC client
@@ -68,16 +87,27 @@ type Session struct {
 }
 
 // NewUser creates a new user with generated ID
-func NewUser(username, email, passwordHash string) *User {
+func NewUser(username, email, passwordHash string, role UserRole) *User {
 	now := time.Now()
 	return &User{
 		ID:           uuid.New().String(),
 		Username:     username,
 		Email:        email,
 		PasswordHash: passwordHash,
+		Role:         role,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
+}
+
+// NewAdminUser creates a new user with admin role
+func NewAdminUser(username, email, passwordHash string) *User {
+	return NewUser(username, email, passwordHash, RoleAdmin)
+}
+
+// NewRegularUser creates a new user with regular user role
+func NewRegularUser(username, email, passwordHash string) *User {
+	return NewUser(username, email, passwordHash, RoleUser)
 }
 
 // NewClient creates a new client with generated ID and secret

@@ -305,14 +305,14 @@ func createAdminUser(reader *bufio.Reader) error {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Create user using NewUser to ensure ID is generated
-	user := models.NewUser(username, email, string(hashedPassword))
+	// Create admin user using NewAdminUser to ensure ID is generated and role is set
+	user := models.NewAdminUser(username, email, string(hashedPassword))
 
 	if err := store.CreateUser(user); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	fmt.Printf("✓ Admin user '%s' created successfully\n", username)
+	fmt.Printf("✓ Admin user '%s' created successfully (role: admin)\n", username)
 	return nil
 }
 

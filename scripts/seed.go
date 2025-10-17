@@ -27,7 +27,7 @@ func main() {
 
 	// Create test user
 	passwordHash, _ := crypto.HashPassword("password123")
-	user := models.NewUser("testuser", "test@example.com", passwordHash)
+	user := models.NewRegularUser("testuser", "test@example.com", passwordHash)
 	user.Name = "Test User"
 	user.GivenName = "Test"
 	user.FamilyName = "User"

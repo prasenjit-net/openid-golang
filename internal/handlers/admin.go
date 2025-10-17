@@ -316,6 +316,12 @@ func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if user has admin role
+	if !user.IsAdmin() {
+		http.Error(w, "Access denied: Admin privileges required", http.StatusForbidden)
+		return
+	}
+
 	// TODO: Generate proper session token with expiration
 	response := map[string]string{
 		"token": "dummy-session-token",
