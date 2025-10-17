@@ -19,11 +19,14 @@ on:
         default: false
 
 jobs:
-  release:
-    name: Create Release
+  version:
+    name: Version Bump
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      new_version: ${{ steps.calc_version.outputs.new_version }}
+      current_version: ${{ steps.get_version.outputs.current_version }}
       
     steps:
     - name: Checkout code
@@ -88,6 +91,48 @@ jobs:
         git push origin main
         git push origin "v${{ steps.calc_version.outputs.new_version }}"
         
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-amd64
+            goos: linux
+            goarch: amd64
+            binary: openid-server-linux-amd64
+          - os: ubuntu-latest
+            platform: linux-arm64
+            goos: linux
+            goarch: arm64
+            binary: openid-server-linux-arm64
+            cc: aarch64-linux-gnu-gcc
+          - os: macos-latest
+            platform: darwin-amd64
+            goos: darwin
+            goarch: amd64
+            binary: openid-server-darwin-amd64
+          - os: macos-latest
+            platform: darwin-arm64
+            goos: darwin
+            goarch: arm64
+            binary: openid-server-darwin-arm64
+          - os: windows-latest
+            platform: windows-amd64
+            goos: windows
+            goarch: amd64
+            binary: openid-server-windows-amd64.exe
+            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: v${{ needs.version.outputs.new_version }}
+        
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -108,34 +153,89 @@ jobs:
       working-directory: ui/admin
       run: npm run build
       
-    - name: Prepare build directory
+    - name: Prepare build directory (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
       run: |
         mkdir -p internal/ui/admin
         cp -r ui/admin/dist internal/ui/admin/
         
-    - name: Build binaries for all platforms
+    - name: Prepare build directory (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path internal/ui/admin
+        Copy-Item -Path ui/admin/dist -Destination internal/ui/admin/ -Recurse
+        
+    - name: Install cross-compilation tools (Linux ARM64)
+      if: matrix.platform == 'linux-arm64'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu
+        
+    - name: Build binary (Linux native)
+      if: matrix.platform == 'linux-amd64'
+      env:
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        
+    - name: Build binary (Linux ARM64 cross-compile)
+      if: matrix.platform == 'linux-arm64'
+      env:
+        CGO_ENABLED: 1
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CC: ${{ matrix.cc }}
+      run: |
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        
+    - name: Build binary (macOS/Windows native)
+      if: runner.os == 'Darwin' || runner.os == 'Windows'
+      env:
+        CGO_ENABLED: 1
+      run: |
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.platform }}
+        path: ${{ matrix.binary }}
+        retention-days: 1
+        
+  release:
+    name: Create Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: v${{ needs.version.outputs.new_version }}
+        fetch-depth: 0
+        
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist-artifacts
+        
+    - name: Prepare release directory
       run: |
         mkdir -p dist
-        
-        # Linux AMD64
-        GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-linux-amd64 ./cmd/server
-        
-        # Linux ARM64
-        GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-linux-arm64 ./cmd/server
-        
-        # macOS AMD64
-        GOOS=darwin GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-darwin-amd64 ./cmd/server
-        
-        # macOS ARM64 (Apple Silicon)
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-darwin-arm64 ./cmd/server
-        
-        # Windows AMD64
-        GOOS=windows GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-windows-amd64.exe ./cmd/server
+        find dist-artifacts -type f -exec cp {} dist/ \;
+        ls -la dist/
         
     - name: Create checksums
       working-directory: dist
       run: |
         sha256sum * > checksums.txt
+        cat checksums.txt
         
     - name: Generate changelog
       id: changelog
@@ -154,8 +254,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ steps.calc_version.outputs.new_version }}
-        name: Release v${{ steps.calc_version.outputs.new_version }}
+        tag_name: v${{ needs.version.outputs.new_version }}
+        name: Release v${{ needs.version.outputs.new_version }}
         body: |
           ## What's Changed
           
@@ -163,15 +263,15 @@ jobs:
           
           ## Downloads
           
-          ### Linux
+          ### Linux (with CGO/SQLite support)
           - AMD64: `openid-server-linux-amd64`
           - ARM64: `openid-server-linux-arm64`
           
-          ### macOS
+          ### macOS (with CGO/SQLite support)
           - Intel: `openid-server-darwin-amd64`
           - Apple Silicon: `openid-server-darwin-arm64`
           
-          ### Windows
+          ### Windows (with CGO/SQLite support)
           - AMD64: `openid-server-windows-amd64.exe`
           
           ## Installation
@@ -184,7 +284,7 @@ jobs:
           
           See `checksums.txt` for SHA256 checksums of all binaries.
           
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.get_version.outputs.current_version }}...v${{ steps.calc_version.outputs.new_version }}
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ needs.version.outputs.current_version }}...v${{ needs.version.outputs.new_version }}
         files: |
           dist/*
         draft: false
@@ -195,14 +295,14 @@ jobs:
       run: |
         echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **Version**: v${{ steps.calc_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: v${{ needs.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Type**: ${{ github.event.inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Pre-release**: ${{ github.event.inputs.pre_release }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Tag**: v${{ steps.calc_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag**: v${{ needs.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Binaries Built" >> $GITHUB_STEP_SUMMARY
-        echo "- Linux AMD64" >> $GITHUB_STEP_SUMMARY
-        echo "- Linux ARM64" >> $GITHUB_STEP_SUMMARY
-        echo "- macOS AMD64" >> $GITHUB_STEP_SUMMARY
-        echo "- macOS ARM64" >> $GITHUB_STEP_SUMMARY
-        echo "- Windows AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "### Binaries Built (all with CGO/SQLite support)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Linux AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Linux ARM64" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Windows AMD64" >> $GITHUB_STEP_SUMMARY
