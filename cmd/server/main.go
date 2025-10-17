@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,7 +19,21 @@ import (
 	"github.com/prasenjit/openid-golang/internal/ui"
 )
 
+// Version is set by the build process
+var Version = "dev"
+
 func main() {
+	// Parse command line flags
+	version := flag.Bool("version", false, "Print version and exit")
+	flag.Parse()
+
+	if *version {
+		fmt.Printf("OpenID Connect Server v%s\n", Version)
+		os.Exit(0)
+	}
+
+	log.Printf("Starting OpenID Connect Server v%s", Version)
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {

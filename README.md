@@ -1,5 +1,10 @@
 # OpenID Connect Identity Server
 
+[![CI](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml/badge.svg)](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](go.mod)
+[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](LICENSE)
+
 A lightweight OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
 
 > 💡 **Tip:** Run `./show-docs.sh` to see the complete documentation structure!
@@ -17,6 +22,8 @@ All documentation is organized in the **`docs/`** folder:
 - **[Project Summary](docs/PROJECT_SUMMARY.md)** - What's been built
 - **[Documentation Index](docs/INDEX.md)** - Complete documentation hub
 - **[Admin UI Documentation](ui/admin/README.md)** - React admin interface guide
+- **[CI/CD Documentation](docs/CI_CD.md)** - Continuous Integration and Deployment
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 
 ## 🚀 Quick Start
 

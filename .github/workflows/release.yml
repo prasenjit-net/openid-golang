@@ -1,0 +1,208 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      pre_release:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Get current version
+      id: get_version
+      run: |
+        if [ -f VERSION ]; then
+          CURRENT_VERSION=$(cat VERSION)
+        else
+          CURRENT_VERSION="0.0.0"
+        fi
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+        
+    - name: Calculate new version
+      id: calc_version
+      run: |
+        CURRENT="${{ steps.get_version.outputs.current_version }}"
+        IFS='.' read -r -a parts <<< "$CURRENT"
+        MAJOR="${parts[0]}"
+        MINOR="${parts[1]}"
+        PATCH="${parts[2]}"
+        
+        case "${{ github.event.inputs.version_bump }}" in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+        esac
+        
+        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+        
+    - name: Update VERSION file
+      run: |
+        echo "${{ steps.calc_version.outputs.new_version }}" > VERSION
+        git add VERSION
+        git commit -m "chore: bump version to ${{ steps.calc_version.outputs.new_version }}"
+        
+    - name: Create and push tag
+      run: |
+        git tag -a "v${{ steps.calc_version.outputs.new_version }}" -m "Release v${{ steps.calc_version.outputs.new_version }}"
+        git push origin main
+        git push origin "v${{ steps.calc_version.outputs.new_version }}"
+        
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: ui/admin/package-lock.json
+        
+    - name: Install UI dependencies
+      working-directory: ui/admin
+      run: npm ci
+      
+    - name: Build UI
+      working-directory: ui/admin
+      run: npm run build
+      
+    - name: Prepare build directory
+      run: |
+        mkdir -p internal/ui/admin
+        cp -r ui/admin/dist internal/ui/admin/
+        
+    - name: Build binaries for all platforms
+      run: |
+        mkdir -p dist
+        
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-linux-amd64 ./cmd/server
+        
+        # Linux ARM64
+        GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-linux-arm64 ./cmd/server
+        
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-darwin-amd64 ./cmd/server
+        
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-darwin-arm64 ./cmd/server
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.calc_version.outputs.new_version }}" -o dist/openid-server-windows-amd64.exe ./cmd/server
+        
+    - name: Create checksums
+      working-directory: dist
+      run: |
+        sha256sum * > checksums.txt
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        else
+          CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        fi
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.calc_version.outputs.new_version }}
+        name: Release v${{ steps.calc_version.outputs.new_version }}
+        body: |
+          ## What's Changed
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Downloads
+          
+          ### Linux
+          - AMD64: `openid-server-linux-amd64`
+          - ARM64: `openid-server-linux-arm64`
+          
+          ### macOS
+          - Intel: `openid-server-darwin-amd64`
+          - Apple Silicon: `openid-server-darwin-arm64`
+          
+          ### Windows
+          - AMD64: `openid-server-windows-amd64.exe`
+          
+          ## Installation
+          
+          1. Download the appropriate binary for your platform
+          2. Make it executable (Linux/macOS): `chmod +x openid-server-*`
+          3. Run: `./openid-server-*` (or `openid-server-windows-amd64.exe` on Windows)
+          
+          ## Checksums
+          
+          See `checksums.txt` for SHA256 checksums of all binaries.
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.get_version.outputs.current_version }}...v${{ steps.calc_version.outputs.new_version }}
+        files: |
+          dist/*
+        draft: false
+        prerelease: ${{ github.event.inputs.pre_release }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Summary
+      run: |
+        echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: v${{ steps.calc_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Type**: ${{ github.event.inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Pre-release**: ${{ github.event.inputs.pre_release }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag**: v${{ steps.calc_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Binaries Built" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux ARM64" >> $GITHUB_STEP_SUMMARY
+        echo "- macOS AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "- macOS ARM64" >> $GITHUB_STEP_SUMMARY
+        echo "- Windows AMD64" >> $GITHUB_STEP_SUMMARY
