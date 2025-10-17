@@ -144,11 +144,11 @@ func setupKeys(reader *bufio.Reader) error {
 }
 
 func setupConfig(reader *bufio.Reader) error {
-	envPath := ".env"
+	configPath := "config.toml"
 
-	// Check if .env exists
-	if fileExists(envPath) {
-		fmt.Printf("Configuration file already exists at %s\n", envPath)
+	// Check if config.toml exists
+	if fileExists(configPath) {
+		fmt.Printf("Configuration file already exists at %s\n", configPath)
 		fmt.Print("Do you want to reconfigure? (y/N): ")
 		answer, _ := reader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
@@ -174,27 +174,30 @@ func setupConfig(reader *bufio.Reader) error {
 		port = "8080"
 	}
 
-	// Get database type
-	fmt.Print("Database type (sqlite/postgres, default: sqlite): ")
-	dbType, _ := reader.ReadString('\n')
-	dbType = strings.TrimSpace(strings.ToLower(dbType))
-	if dbType == "" {
-		dbType = "sqlite"
+	// Get storage type
+	fmt.Print("Storage type (json/mongodb, default: json): ")
+	storageType, _ := reader.ReadString('\n')
+	storageType = strings.TrimSpace(strings.ToLower(storageType))
+	if storageType == "" {
+		storageType = "json"
 	}
 
-	// Get database connection
-	var dbConnection string
-	if dbType == "sqlite" {
-		fmt.Print("Database file path (default: ./openid.db): ")
-		dbConnection, _ = reader.ReadString('\n')
-		dbConnection = strings.TrimSpace(dbConnection)
-		if dbConnection == "" {
-			dbConnection = "./openid.db"
+	// Get storage configuration
+	var jsonFilePath, mongoURI string
+	if storageType == "json" {
+		fmt.Print("JSON file path (default: data.json): ")
+		jsonFilePath, _ = reader.ReadString('\n')
+		jsonFilePath = strings.TrimSpace(jsonFilePath)
+		if jsonFilePath == "" {
+			jsonFilePath = "data.json"
 		}
-	} else {
-		fmt.Print("Database connection string: ")
-		dbConnection, _ = reader.ReadString('\n')
-		dbConnection = strings.TrimSpace(dbConnection)
+	} else if storageType == "mongodb" {
+		fmt.Print("MongoDB connection URI (default: mongodb://localhost:27017/openid): ")
+		mongoURI, _ = reader.ReadString('\n')
+		mongoURI = strings.TrimSpace(mongoURI)
+		if mongoURI == "" {
+			mongoURI = "mongodb://localhost:27017/openid"
+		}
 	}
 
 	// Get issuer URL
@@ -209,23 +212,38 @@ func setupConfig(reader *bufio.Reader) error {
 		issuer = customIssuer
 	}
 
-	// Create .env file
-	envContent := fmt.Sprintf(`# OpenID Connect Server Configuration
-SERVER_HOST=%s
-SERVER_PORT=%s
-DB_TYPE=%s
-DB_CONNECTION=%s
-JWT_PRIVATE_KEY=config/keys/private.key
-JWT_PUBLIC_KEY=config/keys/public.key
-JWT_EXPIRY_MINUTES=60
-ISSUER=%s
-`, host, port, dbType, dbConnection, issuer)
+	// Create config.toml file
+	configContent := fmt.Sprintf(`# OpenID Connect Server Configuration
+issuer = "%s"
 
-	if err := os.WriteFile(envPath, []byte(envContent), 0644); err != nil {
-		return fmt.Errorf("failed to write .env file: %w", err)
+[server]
+host = "%s"
+port = %s
+
+[storage]
+type = "%s"
+`, issuer, host, port, storageType)
+
+	if storageType == "json" {
+		configContent += fmt.Sprintf(`json_file_path = "%s"
+`, jsonFilePath)
+	} else if storageType == "mongodb" {
+		configContent += fmt.Sprintf(`mongo_uri = "%s"
+`, mongoURI)
 	}
 
-	fmt.Printf("✓ Configuration saved to %s\n", envPath)
+	configContent += `
+[jwt]
+private_key_path = "config/keys/private.key"
+public_key_path = "config/keys/public.key"
+expiry_minutes = 60
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		return fmt.Errorf("failed to write config.toml file: %w", err)
+	}
+
+	fmt.Printf("✓ Configuration saved to %s\n", configPath)
 	return nil
 }
 

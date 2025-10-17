@@ -21,7 +21,7 @@ func NewHandlers(cfg *config.Config, store storage.Storage) *Handlers {
 	jwtManager, err := crypto.NewJWTManager(
 		cfg.JWT.PrivateKeyPath,
 		cfg.JWT.PublicKeyPath,
-		cfg.JWT.Issuer,
+		cfg.Issuer,
 		cfg.JWT.ExpiryMinutes,
 	)
 	if err != nil {

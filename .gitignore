@@ -20,6 +20,8 @@ go.work
 
 # Binary output
 /openid-golang
+/openid-server
+/server
 /bin/
 dist/
 
@@ -35,6 +37,8 @@ dist/
 .env
 .env.local
 config.local.yaml
+config.toml
+data.json
 
 # Logs
 *.log

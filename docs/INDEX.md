@@ -9,11 +9,13 @@ This project contains comprehensive documentation:
 1. **[README.md](../README.md)** - Project overview and features
 2. **[GETTING_STARTED.md](GETTING_STARTED.md)** - Detailed step-by-step setup guide ⭐ START HERE
 3. **[QUICKSTART.md](QUICKSTART.md)** - Quick reference for experienced developers
-4. **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - What's been built and why
-5. **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical implementation details
-6. **[API.md](API.md)** - Complete API reference
-7. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and diagrams
-8. **[TESTING.md](TESTING.md)** - Testing guide and examples
+4. **[STORAGE.md](STORAGE.md)** - Storage backends guide (MongoDB & JSON)
+5. **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - What's been built and why
+6. **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Technical implementation details
+7. **[API.md](API.md)** - Complete API reference
+8. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and diagrams
+9. **[TESTING.md](TESTING.md)** - Testing guide and examples
+10. **[CI_CD.md](CI_CD.md)** - CI/CD workflows and automation
 
 📋 See **[STRUCTURE.md](../STRUCTURE.md)** for complete project structure overview.
 
@@ -43,10 +45,11 @@ openid-golang/
 │   ├── handlers/                   # HTTP handlers
 │   ├── middleware/                 # HTTP middleware
 │   ├── models/                     # Data models
-│   └── storage/                    # Database layer
+│   └── storage/                    # Storage backends (MongoDB, JSON)
 ├── scripts/seed.go                 # Database seeding
 ├── examples/test-client.go         # OAuth test client
 ├── docs/                           # Documentation
+├── config.toml.example             # Configuration example
 ├── setup.sh                        # Setup script ⭐
 ├── test.sh                         # Quick test script ⭐
 └── Makefile                        # Build commands
@@ -63,7 +66,8 @@ openid-golang/
 - ✅ Discovery Endpoint
 - ✅ JWKS Endpoint
 - ✅ Client Authentication
-- ✅ SQLite Storage
+- ✅ Flexible Storage (MongoDB or JSON file)
+- ✅ No CGO dependency - Pure Go
 
 ## 🔑 Test Credentials
 
@@ -113,18 +117,29 @@ curl http://localhost:8080/health   # Health check
 
 ## 🔧 Configuration
 
-Edit `.env` file:
+Edit `config.toml` file:
 
-```bash
-SERVER_HOST=0.0.0.0                 # Bind address
-SERVER_PORT=8080                    # Port number
-DB_TYPE=sqlite                      # Database type
-DB_CONNECTION=./openid.db           # Database path
-JWT_PRIVATE_KEY=config/keys/private.key
-JWT_PUBLIC_KEY=config/keys/public.key
-JWT_EXPIRY_MINUTES=60               # Token lifetime
-ISSUER=http://localhost:8080        # Issuer URL
+```toml
+issuer = "http://localhost:8080"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[storage]
+type = "json"                       # or "mongodb"
+json_file_path = "data.json"
+# mongo_uri = "mongodb://localhost:27017/openid"
+
+[jwt]
+private_key_path = "config/keys/private.key"
+public_key_path = "config/keys/public.key"
+expiry_minutes = 60
 ```
+
+Or use environment variables (legacy support).
+
+See [STORAGE.md](STORAGE.md) for storage backend options.
 
 ## 📊 Code Statistics
 

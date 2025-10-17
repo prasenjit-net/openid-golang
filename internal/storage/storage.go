@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/prasenjit-net/openid-golang/internal/config"
 	"github.com/prasenjit-net/openid-golang/internal/models"
@@ -41,12 +41,24 @@ type Storage interface {
 
 // NewStorage creates a new storage instance based on configuration
 func NewStorage(cfg *config.Config) (Storage, error) {
-	switch cfg.Database.Type {
-	case "sqlite":
-		return NewSQLiteStorage(cfg.Database.Connection)
-	case "postgres":
-		return nil, fmt.Errorf("postgres storage not yet implemented")
+	switch cfg.Storage.Type {
+	case "mongodb":
+		// Parse database name from MongoDB URI
+		// Expected format: mongodb://host:port/database
+		uri := cfg.Storage.MongoURI
+		dbName := "openid" // default
+		if idx := strings.LastIndex(uri, "/"); idx != -1 && idx < len(uri)-1 {
+			dbName = uri[idx+1:]
+			// Remove query parameters if present
+			if qIdx := strings.Index(dbName, "?"); qIdx != -1 {
+				dbName = dbName[:qIdx]
+			}
+		}
+		return NewMongoDBStorage(uri, dbName)
+	case "json":
+		return NewJSONStorage(cfg.Storage.JSONFilePath)
 	default:
-		return nil, fmt.Errorf("unsupported storage type: %s", cfg.Database.Type)
+		// Default to JSON storage for backward compatibility
+		return NewJSONStorage("data.json")
 	}
 }

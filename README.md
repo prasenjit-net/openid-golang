@@ -17,6 +17,7 @@ All documentation is organized in the **`docs/`** folder:
 - **[Quick Start](docs/QUICKSTART.md)** - Quick reference for experienced developers
 - **[API Documentation](docs/API.md)** - Complete API reference
 - **[Architecture](docs/ARCHITECTURE.md)** - System architecture and diagrams
+- **[Storage Backends](docs/STORAGE.md)** - MongoDB and JSON storage options
 - **[Testing Guide](docs/TESTING.md)** - How to test the server
 - **[Implementation Details](docs/IMPLEMENTATION.md)** - Technical details
 - **[Project Summary](docs/PROJECT_SUMMARY.md)** - What's been built
@@ -35,36 +36,45 @@ Download the binary from [GitHub Releases](https://github.com/prasenjit-net/open
 # Make it executable (Linux/macOS)
 chmod +x openid-server-*
 
-# Run the setup wizard
+# Run the setup wizard (REQUIRED - first time only)
 ./openid-server-linux-amd64 --setup
 
 # Start the server
 ./openid-server-linux-amd64
 ```
 
-The setup wizard will:
-- Generate RSA key pairs for JWT signing
-- Create configuration file (.env)
-- Initialize the database
+The `--setup` wizard is **mandatory** and will:
+- Generate RSA key pairs for JWT signing (no OpenSSL required!)
+- Create configuration file (config.toml) interactively
+- Choose storage backend (MongoDB or JSON file)
+- Initialize storage
 - Create an admin user
 - Optionally create your first OAuth client
 
-### Option 2: Manual Setup (Development)
+After setup, just run `./openid-server-linux-amd64` to start the server.
+
+### Option 2: Development Setup
 
 ```bash
-# 1. Setup (generates keys, downloads dependencies)
+# 1. Run the setup script (does everything including --setup wizard)
 ./setup.sh
 
-# 2. Create test data (user and OAuth client)
+# This will:
+# - Download Go dependencies
+# - Build the binary
+# - Run the interactive setup wizard
+# - Generate keys, create config.toml, admin user, etc.
+
+# 2. Create test data (optional)
 go run scripts/seed.go
 
 # 3. Start the server
-./test.sh
-
-# OR - Build with embedded admin UI
-./build.sh
 ./bin/openid-server
+# OR
+make run
 ```
+
+**Note:** The `setup.sh` script automatically runs `--setup` for you, so everything is configured in one step. No OpenSSL dependency required!
 
 Visit http://localhost:8080/health to verify the server is running.
 Access the admin UI at http://localhost:8080/
@@ -79,6 +89,10 @@ Access the admin UI at http://localhost:8080/
 - JWT-based ID tokens (RS256 signing)
 - Client authentication and management
 - User authentication with bcrypt password hashing
+- **Flexible Storage Backends:**
+  - MongoDB for production (scalable, high-performance)
+  - JSON file storage for development and small deployments
+  - No CGO dependency - pure Go implementation
 - **React Admin UI** with:
   - User management
   - OAuth client registration and management
@@ -109,8 +123,10 @@ Access the admin UI at http://localhost:8080/
 
 ## 📋 Prerequisites
 
-- No prerequisites for binary distribution! The `--setup` wizard handles everything.
-- For development: Go 1.21 or higher
+- **For Production (Binary)**: No prerequisites! Everything is self-contained.
+- **For Development**: Go 1.21 or higher
+
+**Note:** No OpenSSL required - RSA keys are generated using pure Go crypto!
 
 ## 🛠️ Installation
 
@@ -148,24 +164,61 @@ Run the automated setup script:
 This will:
 - Create necessary directories
 - Generate RSA key pairs for JWT signing
-- Create `.env` configuration file
+- Create `config.toml` configuration file
 - Download Go dependencies
 - Build the application
 
 ## 🔧 Configuration
 
-Configure via `.env` file or environment variables:
+### Using config.toml (Recommended)
+
+Create a `config.toml` file (see `config.toml.example`):
+
+```toml
+issuer = "http://localhost:8080"
+
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[storage]
+type = "json"  # or "mongodb"
+json_file_path = "data.json"
+# For MongoDB:
+# type = "mongodb"
+# mongo_uri = "mongodb://localhost:27017/openid"
+
+[jwt]
+private_key_path = "config/keys/private.key"
+public_key_path = "config/keys/public.key"
+expiry_minutes = 60
+```
+
+### Using Environment Variables (Legacy)
+
+You can still use environment variables:
 
 ```bash
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
-DB_TYPE=sqlite
-DB_CONNECTION=./openid.db
+STORAGE_TYPE=json
+JSON_FILE_PATH=data.json
+# or for MongoDB:
+# STORAGE_TYPE=mongodb
+# MONGO_URI=mongodb://localhost:27017/openid
 JWT_PRIVATE_KEY=config/keys/private.key
 JWT_PUBLIC_KEY=config/keys/public.key
 JWT_EXPIRY_MINUTES=60
 ISSUER=http://localhost:8080
 ```
+
+### Storage Options
+
+See [Storage Documentation](docs/STORAGE.md) for detailed information about MongoDB and JSON storage backends.
+
+**Quick comparison:**
+- **JSON Storage** (`--json-store` flag or `type = "json"`): Simple file-based storage, perfect for development and small deployments
+- **MongoDB Storage** (`type = "mongodb"`): Production-grade database, recommended for high-traffic production environments
 
 ## 🧪 Testing
 

@@ -1,49 +1,53 @@
 #!/bin/bash
 
-echo "Setting up OpenID Connect Identity Server..."
+echo "Setting up OpenID Connect Development Environment..."
+echo ""
 
 # Create directories
-echo "Creating directories..."
+echo "Step 1: Creating directories..."
 mkdir -p config/keys
 mkdir -p bin
 
-# Generate RSA keys
-echo "Generating RSA key pair..."
-if [ ! -f config/keys/private.key ]; then
-    openssl genrsa -out config/keys/private.key 4096
-    openssl rsa -in config/keys/private.key -pubout -out config/keys/public.key
-    echo "✓ RSA keys generated"
-else
-    echo "✓ RSA keys already exist"
-fi
-
-# Copy environment file if it doesn't exist
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo "✓ Created .env file from .env.example"
-else
-    echo "✓ .env file already exists"
-fi
-
 # Download dependencies
-echo "Downloading Go dependencies..."
+echo ""
+echo "Step 2: Downloading Go dependencies..."
 go mod download
 go mod tidy
 echo "✓ Dependencies downloaded"
 
 # Build the application
-echo "Building application..."
+echo ""
+echo "Step 3: Building application..."
 go build -o bin/openid-server cmd/server/main.go
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed!"
+    exit 1
+fi
 echo "✓ Application built successfully"
 
+# Run the setup wizard
 echo ""
-echo "Setup complete! 🎉"
+echo "Step 4: Running setup wizard..."
+echo "This will generate keys, create config.toml, and set up users/clients."
 echo ""
-echo "To create a test user and client, run:"
-echo "  go run scripts/seed.go"
+./bin/openid-server --setup
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Setup wizard failed or was cancelled"
+    exit 1
+fi
+
 echo ""
-echo "To start the server, run:"
-echo "  make run"
-echo "  or"
-echo "  ./bin/openid-server"
+echo "=========================================="
+echo "Development Environment Setup Complete! 🎉"
+echo "=========================================="
+echo ""
+echo "Next steps for development:"
+echo "  1. Create test data: go run scripts/seed.go"
+echo "  2. Start the server: make run"
+echo "     or: ./bin/openid-server"
+echo ""
+echo "Configuration file: config.toml"
+echo "RSA keys: config/keys/"
 echo ""

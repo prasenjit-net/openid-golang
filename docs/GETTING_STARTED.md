@@ -3,11 +3,14 @@
 ## Prerequisites ✓
 
 Before you begin, ensure you have:
-- [ ] Go 1.21 or higher installed
-- [ ] OpenSSL installed (usually pre-installed on Linux)
+- [ ] Go 1.21 or higher installed (for development setup)
+- [ ] Optional: MongoDB if you want to use MongoDB storage
 - [ ] A terminal/command line
 - [ ] A web browser
-- [ ] curl (optional, for testing)
+
+**Note:** 
+- For production deployment, download pre-built binaries - no dependencies required!
+- No OpenSSL needed - RSA keys generated using pure Go crypto!
 
 ## Step 1: Install Go
 
@@ -35,36 +38,42 @@ Expected output: `go version go1.21.x linux/amd64` (or similar)
 cd /home/prasenjit/CodeProjects/openid-golang
 ```
 
-## Step 3: Run Setup
+## Step 3: Run Development Setup
 
-The setup script will prepare everything:
+The setup script will prepare **everything** for development:
 
 ```bash
 ./setup.sh
 ```
 
-This will:
-1. ✓ Create `config/keys/` directory
-2. ✓ Generate RSA private key (4096-bit)
-3. ✓ Generate RSA public key
-4. ✓ Create `.env` file from template
-5. ✓ Download Go dependencies
-6. ✓ Build the application to `bin/openid-server`
+This comprehensive script will:
+1. ✓ Create directories
+2. ✓ Download Go dependencies  
+3. ✓ Build the application
+4. ✓ **Run the interactive setup wizard** which:
+   - Generates RSA key pairs (4096-bit) using pure Go crypto
+   - Creates `config.toml` with your configuration
+   - Sets up storage (JSON or MongoDB)
+   - Creates admin user
+   - Creates OAuth clients (optional)
 
-**Output example:**
-```
-Setting up OpenID Connect Identity Server...
-Creating directories...
-Generating RSA key pair...
-✓ RSA keys generated
-✓ Created .env file from .env.example
-Downloading Go dependencies...
-✓ Dependencies downloaded
-Building application...
-✓ Application built successfully
+**You'll be prompted for:**
+- Server configuration (host, port)
+- Storage type (JSON file or MongoDB)
+- Admin user credentials
+- OAuth client details (optional)
 
-Setup complete! 🎉
+**Output at completion:**
 ```
+==========================================
+Development Environment Setup Complete! 🎉
+==========================================
+
+Configuration file: config.toml
+RSA keys: config/keys/
+```
+
+**Note:** Everything is done in one step - no need to run `--setup` separately!
 
 ## Step 4: Seed the Database
 
@@ -92,35 +101,26 @@ You can also create custom clients by modifying `scripts/seed.go`.
 
 ## Step 5: Start the Server
 
-Choose one of these methods:
+Now that setup is complete, starting the server is simple:
 
-### Option A: Using Makefile
-```bash
-make run
-```
-
-### Option B: Using the built binary
 ```bash
 ./bin/openid-server
-```
-
-### Option C: Using go run
-```bash
-go run cmd/server/main.go
-```
-
-### Option D: Using the test script
-```bash
-./test.sh
+# OR
+make run
 ```
 
 **Expected output:**
 ```
+Starting OpenID Connect Server vdev
+Using JSON file storage: data.json
 Starting OpenID Connect server on 0.0.0.0:8080
 Issuer: http://localhost:8080
 ```
 
 ✅ **Server is now running!**
+
+**If you see an error about missing config.toml:**
+This means setup wasn't completed. Run `./bin/openid-server --setup` first.
 
 ## Step 6: Verify It's Working
 
@@ -267,7 +267,7 @@ Server stopped
 ### Error: "bind: address already in use"
 Port 8080 is already in use. Either:
 - Stop the other application using port 8080
-- Change the port in `.env`: `SERVER_PORT=8081`
+- Change the port in `config.toml`: `port = 8081` under `[server]` section
 
 ### Error: "no such file or directory: config/keys/private.key"
 Run the setup script: `./setup.sh`
@@ -278,8 +278,14 @@ Run the seed script: `go run scripts/seed.go`
 ### Error: "invalid client credentials"
 Make sure you're using the correct Client ID and Client Secret from the seed output.
 
-### Database is locked
-Stop all running instances of the server and try again.
+### Error: "failed to connect to MongoDB"
+If using MongoDB storage:
+- Ensure MongoDB is running: `sudo systemctl status mongod`
+- Check the connection URI in `config.toml`
+- Or switch to JSON storage: edit `config.toml` and set `type = "json"`
+
+### Can't find config.toml
+The server will work with environment variables as a fallback. Copy `config.toml.example` to `config.toml` and customize it.
 
 ## What's Next?
 
@@ -303,9 +309,10 @@ Now that you have a working OpenID Connect server:
 
 4. **Production Deployment**
    - Enable HTTPS
-   - Switch to PostgreSQL
+   - Use MongoDB for production storage
    - Add rate limiting
    - Implement proper session management
+   - See `docs/STORAGE.md` for storage backend options
    - See `QUICKSTART.md` for production checklist
 
 ## Quick Reference
@@ -334,10 +341,15 @@ make build                    # Build binary
 ```
 
 ### Files to Edit
-- `.env` - Configuration
+- `config.toml` - Configuration (server, storage, JWT settings)
 - `scripts/seed.go` - Test data
 - `internal/handlers/*.go` - Business logic
 - `internal/models/models.go` - Data models
+
+### Storage Options
+- **JSON File** (default): Simple file-based storage in `data.json`
+- **MongoDB**: Production-grade database storage
+- See `docs/STORAGE.md` for details
 
 ## Success! 🎉
 

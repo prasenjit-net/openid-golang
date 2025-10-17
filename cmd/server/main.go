@@ -28,6 +28,7 @@ func main() {
 	// Parse command line flags
 	versionFlag := flag.Bool("version", false, "Print version and exit")
 	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
+	jsonStoreFlag := flag.Bool("json-store", false, "Use JSON file storage instead of MongoDB")
 	flag.Parse()
 
 	if *versionFlag {
@@ -44,10 +45,39 @@ func main() {
 
 	log.Printf("Starting OpenID Connect Server v%s", Version)
 
+	// Check if config.toml exists
+	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
+		log.Println("❌ Configuration file not found!")
+		log.Println("")
+		log.Println("Please run the setup wizard first:")
+		log.Println("  ./openid-server --setup")
+		log.Println("")
+		log.Println("This will:")
+		log.Println("  - Generate RSA keys for JWT signing")
+		log.Println("  - Create config.toml with your preferences")
+		log.Println("  - Choose storage backend (MongoDB or JSON)")
+		log.Println("  - Create admin user and OAuth clients")
+		log.Println("")
+		os.Exit(1)
+	}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Override storage type if --json-store flag is provided
+	if *jsonStoreFlag {
+		cfg.Storage.Type = "json"
+		if cfg.Storage.JSONFilePath == "" {
+			cfg.Storage.JSONFilePath = "data.json"
+		}
+		log.Printf("Using JSON file storage: %s", cfg.Storage.JSONFilePath)
+	} else if cfg.Storage.Type == "mongodb" {
+		log.Printf("Using MongoDB storage: %s", cfg.Storage.MongoURI)
+	} else {
+		log.Printf("Using JSON file storage: %s", cfg.Storage.JSONFilePath)
 	}
 
 	// Initialize storage

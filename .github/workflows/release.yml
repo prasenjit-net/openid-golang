@@ -149,7 +149,6 @@ jobs:
             goos: linux
             goarch: arm64
             binary: openid-server-linux-arm64
-            cc: aarch64-linux-gnu-gcc
           - os: macos-latest
             platform: darwin-amd64
             goos: darwin
@@ -206,52 +205,13 @@ jobs:
         New-Item -ItemType Directory -Force -Path internal/ui/admin
         Copy-Item -Path ui/admin/dist/* -Destination internal/ui/admin/ -Recurse
         
-    - name: Install cross-compilation tools (Linux ARM64)
-      if: matrix.platform == 'linux-arm64'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
-        
-    - name: Build binary (Linux native)
-      if: matrix.platform == 'linux-amd64'
+    - name: Build binary
       env:
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
         go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
-        
-    - name: Build binary (Linux ARM64 cross-compile)
-      if: matrix.platform == 'linux-arm64'
-      env:
-        CGO_ENABLED: 1
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        CC: ${{ matrix.cc }}
-      run: |
-        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
-        
-    - name: Build binary (macOS native)
-      if: runner.os == 'Darwin'
-      env:
-        CGO_ENABLED: 1
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        echo "Building for macOS: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }}"
-        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
-        ls -lh ${{ matrix.binary }}
-        
-    - name: Build binary (Windows native)
-      if: runner.os == 'Windows'
-      env:
-        CGO_ENABLED: 1
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        echo "Building for Windows: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }}"
-        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
-        dir ${{ matrix.binary }}
         
     - name: Verify binary exists before upload
       shell: bash

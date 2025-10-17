@@ -4,46 +4,96 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 // Config holds the application configuration
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	Issuer   string
+	Server  ServerConfig  `toml:"server"`
+	Storage StorageConfig `toml:"storage"`
+	JWT     JWTConfig     `toml:"jwt"`
+	Issuer  string        `toml:"issuer"`
 }
 
 // ServerConfig holds server-related configuration
 type ServerConfig struct {
-	Host string
-	Port int
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
 }
 
-// DatabaseConfig holds database-related configuration
-type DatabaseConfig struct {
-	Type       string // sqlite, postgres
-	Connection string
+// StorageConfig holds storage-related configuration
+type StorageConfig struct {
+	Type         string `toml:"type"`           // mongodb or json
+	MongoURI     string `toml:"mongo_uri"`      // MongoDB connection URI
+	JSONFilePath string `toml:"json_file_path"` // Path to JSON file for json storage
 }
 
 // JWTConfig holds JWT-related configuration
 type JWTConfig struct {
-	PrivateKeyPath string
-	PublicKeyPath  string
-	Issuer         string
-	ExpiryMinutes  int
+	PrivateKeyPath string `toml:"private_key_path"`
+	PublicKeyPath  string `toml:"public_key_path"`
+	ExpiryMinutes  int    `toml:"expiry_minutes"`
 }
 
-// Load loads configuration from environment variables with defaults
+// Load loads configuration from config.toml or environment variables
 func Load() (*Config, error) {
+	// Try to load from config.toml first
+	if _, err := os.Stat("config.toml"); err == nil {
+		return LoadFromTOML("config.toml")
+	}
+
+	// Fallback to environment variables
+	return loadFromEnv()
+}
+
+// LoadFromTOML loads configuration from a TOML file
+func LoadFromTOML(filePath string) (*Config, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var cfg Config
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	// Set defaults for any missing values
+	if cfg.Server.Host == "" {
+		cfg.Server.Host = "0.0.0.0"
+	}
+	if cfg.Server.Port == 0 {
+		cfg.Server.Port = 8080
+	}
+	if cfg.Storage.Type == "" {
+		cfg.Storage.Type = "json"
+	}
+	if cfg.Storage.JSONFilePath == "" {
+		cfg.Storage.JSONFilePath = "data.json"
+	}
+	if cfg.JWT.ExpiryMinutes == 0 {
+		cfg.JWT.ExpiryMinutes = 60
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
+}
+
+// loadFromEnv loads configuration from environment variables (backward compatibility)
+func loadFromEnv() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "0.0.0.0"),
 			Port: getEnvAsInt("SERVER_PORT", 8080),
 		},
-		Database: DatabaseConfig{
-			Type:       getEnv("DB_TYPE", "sqlite"),
-			Connection: getEnv("DB_CONNECTION", "./openid.db"),
+		Storage: StorageConfig{
+			Type:         getEnv("STORAGE_TYPE", "json"),
+			MongoURI:     getEnv("MONGO_URI", "mongodb://localhost:27017/openid"),
+			JSONFilePath: getEnv("JSON_FILE_PATH", "data.json"),
 		},
 		JWT: JWTConfig{
 			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY", "config/keys/private.key"),
@@ -52,8 +102,6 @@ func Load() (*Config, error) {
 		},
 		Issuer: getEnv("ISSUER", "http://localhost:8080"),
 	}
-
-	cfg.JWT.Issuer = cfg.Issuer
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -72,8 +120,16 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("issuer cannot be empty")
 	}
 
-	if c.Database.Type != "sqlite" && c.Database.Type != "postgres" {
-		return fmt.Errorf("unsupported database type: %s", c.Database.Type)
+	if c.Storage.Type != "mongodb" && c.Storage.Type != "json" {
+		return fmt.Errorf("unsupported storage type: %s (must be 'mongodb' or 'json')", c.Storage.Type)
+	}
+
+	if c.Storage.Type == "mongodb" && c.Storage.MongoURI == "" {
+		return fmt.Errorf("mongo_uri is required when storage type is 'mongodb'")
+	}
+
+	if c.Storage.Type == "json" && c.Storage.JSONFilePath == "" {
+		return fmt.Errorf("json_file_path is required when storage type is 'json'")
 	}
 
 	return nil
