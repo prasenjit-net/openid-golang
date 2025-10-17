@@ -124,6 +124,20 @@ func NewClient(name string, redirectURIs []string) *Client {
 	}
 }
 
+// NewAdminUIClient creates a client for the admin UI using implicit flow
+func NewAdminUIClient(issuerURL string) *Client {
+	return &Client{
+		ID:            "admin-ui",
+		Secret:        "", // No secret needed for implicit flow
+		Name:          "Admin UI",
+		RedirectURIs:  []string{issuerURL + "/admin/callback"},
+		GrantTypes:    []string{"implicit"},
+		ResponseTypes: []string{"id_token", "token id_token"},
+		Scope:         "openid profile email",
+		CreatedAt:     time.Now(),
+	}
+}
+
 // NewAuthorizationCode creates a new authorization code
 func NewAuthorizationCode(clientID, userID, redirectURI, scope string) *AuthorizationCode {
 	return &AuthorizationCode{

@@ -36,8 +36,9 @@ func (h *Handlers) Authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if responseType != "code" {
-		redirectWithError(w, redirectURI, "unsupported_response_type", "Only 'code' response type is supported", state)
+	// Support both authorization code flow and implicit flow
+	if responseType != "code" && responseType != "id_token" && responseType != "token id_token" {
+		redirectWithError(w, redirectURI, "unsupported_response_type", "Only 'code', 'id_token', and 'token id_token' response types are supported", state)
 		return
 	}
 
@@ -65,8 +66,8 @@ func (h *Handlers) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	// Store authorization request in session (simplified - should use proper session storage)
 	// For now, redirect to login with parameters
-	loginURL := fmt.Sprintf("/login?session_id=%s&client_id=%s&redirect_uri=%s&scope=%s&state=%s&nonce=%s&code_challenge=%s&code_challenge_method=%s",
-		sessionID, clientID, url.QueryEscape(redirectURI), url.QueryEscape(scope), state, nonce, codeChallenge, codeChallengeMethod)
+	loginURL := fmt.Sprintf("/login?session_id=%s&client_id=%s&redirect_uri=%s&response_type=%s&scope=%s&state=%s&nonce=%s&code_challenge=%s&code_challenge_method=%s",
+		sessionID, clientID, url.QueryEscape(redirectURI), url.QueryEscape(responseType), url.QueryEscape(scope), state, nonce, codeChallenge, codeChallengeMethod)
 
 	http.Redirect(w, r, loginURL, http.StatusFound)
 }
@@ -89,6 +90,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.FormValue("session_id")
 	clientID := r.FormValue("client_id")
 	redirectURI := r.FormValue("redirect_uri")
+	responseType := r.FormValue("response_type")
 	scope := r.FormValue("scope")
 	state := r.FormValue("state")
 	nonce := r.FormValue("nonce")
@@ -111,6 +113,41 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get client for token generation
+	client, err := h.storage.GetClientByID(clientID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "server_error", "Failed to get client")
+		return
+	}
+
+	// Handle implicit flow (id_token or token id_token)
+	if responseType == "id_token" || responseType == "token id_token" {
+		// Generate ID token
+		idToken, err := h.jwtManager.GenerateIDToken(user, clientID, nonce)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate ID token")
+			return
+		}
+
+		// Build redirect URL with fragment
+		fragment := fmt.Sprintf("id_token=%s&state=%s", idToken, state)
+
+		// If response_type includes 'token', also generate access token
+		if responseType == "token id_token" {
+			accessToken, err := h.jwtManager.GenerateAccessToken(user, client.ID, scope)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate access token")
+				return
+			}
+			fragment += fmt.Sprintf("&access_token=%s&token_type=Bearer&expires_in=3600", accessToken)
+		}
+
+		redirectURL := fmt.Sprintf("%s#%s", redirectURI, fragment)
+		http.Redirect(w, r, redirectURL, http.StatusFound)
+		return
+	}
+
+	// Handle authorization code flow
 	// Create authorization code
 	authCode := models.NewAuthorizationCode(clientID, user.ID, redirectURI, scope)
 	authCode.Nonce = nonce
@@ -165,6 +202,7 @@ func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
         <input type="hidden" name="session_id" value="%s">
         <input type="hidden" name="client_id" value="%s">
         <input type="hidden" name="redirect_uri" value="%s">
+        <input type="hidden" name="response_type" value="%s">
         <input type="hidden" name="scope" value="%s">
         <input type="hidden" name="state" value="%s">
         <input type="hidden" name="nonce" value="%s">
@@ -177,7 +215,7 @@ func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 	`, query.Get("session_id"), query.Get("client_id"), query.Get("redirect_uri"),
-		query.Get("scope"), query.Get("state"), query.Get("nonce"),
+		query.Get("response_type"), query.Get("scope"), query.Get("state"), query.Get("nonce"),
 		query.Get("code_challenge"), query.Get("code_challenge_method"))
 
 	w.Header().Set("Content-Type", "text/html")

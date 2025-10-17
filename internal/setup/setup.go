@@ -259,7 +259,17 @@ func initializeDatabase() error {
 	}
 	defer store.Close()
 
+	// Create admin UI client automatically for implicit flow
+	adminUIClient := models.NewAdminUIClient(cfg.Issuer)
+	if err := store.CreateClient(adminUIClient); err != nil {
+		// If client already exists, that's okay
+		if !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("failed to create admin UI client: %w", err)
+		}
+	}
+
 	fmt.Println("✓ Database initialized successfully")
+	fmt.Println("✓ Admin UI client created (client_id: admin-ui)")
 	return nil
 }
 

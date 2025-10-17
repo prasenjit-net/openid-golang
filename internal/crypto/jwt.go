@@ -95,6 +95,30 @@ func (jm *JWTManager) ValidateToken(tokenString string) (*IDTokenClaims, error) 
 	return nil, fmt.Errorf("invalid token")
 }
 
+// AccessTokenClaims represents OAuth 2.0 Access Token claims
+type AccessTokenClaims struct {
+	jwt.RegisteredClaims
+	Scope string `json:"scope,omitempty"`
+}
+
+// GenerateAccessToken generates an OAuth 2.0 access token
+func (jm *JWTManager) GenerateAccessToken(user *models.User, clientID, scope string) (string, error) {
+	now := time.Now()
+	claims := AccessTokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jm.issuer,
+			Subject:   user.ID,
+			Audience:  jwt.ClaimStrings{clientID},
+			ExpiresAt: jwt.NewNumericDate(now.Add(jm.expiry)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+		Scope: scope,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(jm.privateKey)
+}
+
 // GetPublicKey returns the public key
 func (jm *JWTManager) GetPublicKey() *rsa.PublicKey {
 	return jm.publicKey
