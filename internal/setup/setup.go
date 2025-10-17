@@ -18,6 +18,10 @@ import (
 	"github.com/prasenjit-net/openid-golang/internal/storage"
 )
 
+const (
+	yesAnswer = "yes"
+)
+
 // Run executes the interactive setup wizard
 func Run() error {
 	fmt.Println("🚀 OpenID Connect Server Setup Wizard")
@@ -82,7 +86,7 @@ func setupKeys(reader *bufio.Reader) error {
 		fmt.Print("Do you want to regenerate them? (y/N): ")
 		answer, _ := reader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
-		if answer != "y" && answer != "yes" {
+		if answer != "y" && answer != yesAnswer {
 			fmt.Println("✓ Using existing keys")
 			return nil
 		}
@@ -101,9 +105,9 @@ func setupKeys(reader *bufio.Reader) error {
 	}
 
 	// Save private key
-	privateKeyFile, err := os.Create(privateKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to create private key file: %w", err)
+	privateKeyFile, createErr := os.Create(privateKeyPath)
+	if createErr != nil {
+		return fmt.Errorf("failed to create private key file: %w", createErr)
 	}
 	defer privateKeyFile.Close()
 
@@ -116,15 +120,15 @@ func setupKeys(reader *bufio.Reader) error {
 	}
 
 	// Save public key
-	publicKeyFile, err := os.Create(publicKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to create public key file: %w", err)
+	publicKeyFile, createErr := os.Create(publicKeyPath)
+	if createErr != nil {
+		return fmt.Errorf("failed to create public key file: %w", createErr)
 	}
 	defer publicKeyFile.Close()
 
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return fmt.Errorf("failed to marshal public key: %w", err)
+	publicKeyBytes, marshalErr := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if marshalErr != nil {
+		return fmt.Errorf("failed to marshal public key: %w", marshalErr)
 	}
 
 	publicKeyPEM := &pem.Block{
@@ -148,7 +152,7 @@ func setupConfig(reader *bufio.Reader) error {
 		fmt.Print("Do you want to reconfigure? (y/N): ")
 		answer, _ := reader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
-		if answer != "y" && answer != "yes" {
+		if answer != "y" && answer != yesAnswer {
 			fmt.Println("✓ Using existing configuration")
 			return nil
 		}
@@ -302,7 +306,7 @@ func createOAuthClient(reader *bufio.Reader) error {
 	fmt.Print("Do you want to create an OAuth client now? (y/N): ")
 	answer, _ := reader.ReadString('\n')
 	answer = strings.TrimSpace(strings.ToLower(answer))
-	if answer != "y" && answer != "yes" {
+	if answer != "y" && answer != yesAnswer {
 		fmt.Println("✓ Skipped OAuth client creation")
 		return nil
 	}
