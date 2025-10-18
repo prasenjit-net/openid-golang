@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/prasenjit-net/openid-golang/internal/crypto"
 	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
@@ -100,16 +101,20 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	// Authenticate user
 	user, err := h.storage.GetUserByUsername(username)
 	if err != nil {
-		h.renderLoginPage(w, r)
+		h.renderLoginPageWithError(w, r, "Invalid username or password")
 		return
 	}
 
-	// Note: In production, use proper password verification
-	// password := r.FormValue("password")
-	// if !crypto.ValidatePassword(password, user.PasswordHash) { ... }
-	// For now, simplified check - just verify user exists
-	if user.PasswordHash == "" {
-		h.renderLoginPage(w, r)
+	// Validate password
+	password := r.FormValue("password")
+	if !crypto.ValidatePassword(password, user.PasswordHash) {
+		h.renderLoginPageWithError(w, r, "Invalid username or password")
+		return
+	}
+
+	// For admin UI, verify user has admin role
+	if clientID == "admin-ui" && user.Role != "admin" {
+		h.renderLoginPageWithError(w, r, "Access denied: Admin privileges required")
 		return
 	}
 
@@ -182,7 +187,16 @@ func (h *Handlers) Consent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
+	h.renderLoginPageWithError(w, r, "")
+}
+
+func (h *Handlers) renderLoginPageWithError(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	query := r.URL.Query()
+	errorHTML := ""
+	if errorMsg != "" {
+		errorHTML = fmt.Sprintf(`<div style="color: red; text-align: center; margin: 10px 0;">%s</div>`, errorMsg)
+	}
+	
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
@@ -198,6 +212,7 @@ func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
     <h2>Sign In</h2>
+    %s
     <form method="POST" action="/login">
         <input type="hidden" name="session_id" value="%s">
         <input type="hidden" name="client_id" value="%s">
@@ -208,13 +223,13 @@ func (h *Handlers) renderLoginPage(w http.ResponseWriter, r *http.Request) {
         <input type="hidden" name="nonce" value="%s">
         <input type="hidden" name="code_challenge" value="%s">
         <input type="hidden" name="code_challenge_method" value="%s">
-        <input type="text" name="username" placeholder="Username" required>
+        <input type="text" name="username" placeholder="Username" required autofocus>
         <input type="password" name="password" placeholder="Password" required>
         <button type="submit">Sign In</button>
     </form>
 </body>
 </html>
-	`, query.Get("session_id"), query.Get("client_id"), query.Get("redirect_uri"),
+	`, errorHTML, query.Get("session_id"), query.Get("client_id"), query.Get("redirect_uri"),
 		query.Get("response_type"), query.Get("scope"), query.Get("state"), query.Get("nonce"),
 		query.Get("code_challenge"), query.Get("code_challenge_method"))
 

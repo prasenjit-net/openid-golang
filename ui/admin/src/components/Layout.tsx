@@ -1,8 +1,11 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Layout.css';
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const isActive = (path: string) => {
     return location.pathname === path ? 'active' : '';
@@ -34,8 +37,8 @@ const Layout = () => {
         </nav>
         <div className="sidebar-footer">
           <button className="logout-btn" onClick={() => {
-            // Handle logout
-            window.location.href = '/api/admin/logout';
+            logout();
+            navigate('/login');
           }}>
             <span className="icon">🚪</span>
             <span>Logout</span>

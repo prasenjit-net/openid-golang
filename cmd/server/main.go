@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/prasenjit-net/openid-golang/internal/config"
 	"github.com/prasenjit-net/openid-golang/internal/handlers"
-	"github.com/prasenjit-net/openid-golang/internal/middleware"
 	"github.com/prasenjit-net/openid-golang/internal/setup"
 	"github.com/prasenjit-net/openid-golang/internal/storage"
 	"github.com/prasenjit-net/openid-golang/internal/ui"
@@ -91,31 +91,25 @@ func main() {
 	h := handlers.NewHandlers(cfg, store)
 	adminHandler := handlers.NewAdminHandler(store)
 
-	// Setup router
-	router := setupRouter(h, adminHandler)
+	// Setup Echo server
+	e := echo.New()
+	e.HideBanner = true
+	
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+	
+	// Setup routes
+	setupRoutes(e, h, adminHandler)
 
-	// Apply middleware
-	handler := middleware.Logging(
-		middleware.CORS(
-			middleware.Recovery(router),
-		),
-	)
-
-	// Create server
+	// Start server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	srv := &http.Server{
-		Addr:         addr,
-		Handler:      handler,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Start server in a goroutine
+	
 	go func() {
 		log.Printf("Starting OpenID Connect server on %s", addr)
 		log.Printf("Issuer: %s", cfg.Issuer)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
@@ -131,54 +125,87 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := e.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
 	log.Println("Server stopped")
 }
 
-func setupRouter(h *handlers.Handlers, adminHandler *handlers.AdminHandler) *mux.Router {
-	router := mux.NewRouter()
-
+func setupRoutes(e *echo.Echo, h *handlers.Handlers, adminHandler *handlers.AdminHandler) {
 	// OpenID Connect Discovery
-	router.HandleFunc("/.well-known/openid-configuration", h.Discovery).Methods("GET")
-	router.HandleFunc("/.well-known/jwks.json", h.JWKS).Methods("GET")
+	e.GET("/.well-known/openid-configuration", echo.WrapHandler(http.HandlerFunc(h.Discovery)))
+	e.GET("/.well-known/jwks.json", echo.WrapHandler(http.HandlerFunc(h.JWKS)))
 
 	// OpenID Connect endpoints
-	router.HandleFunc("/authorize", h.Authorize).Methods("GET")
-	router.HandleFunc("/token", h.Token).Methods("POST")
-	router.HandleFunc("/userinfo", h.UserInfo).Methods("GET", "POST")
+	e.GET("/authorize", echo.WrapHandler(http.HandlerFunc(h.Authorize)))
+	e.POST("/token", echo.WrapHandler(http.HandlerFunc(h.Token)))
+	e.GET("/userinfo", echo.WrapHandler(http.HandlerFunc(h.UserInfo)))
+	e.POST("/userinfo", echo.WrapHandler(http.HandlerFunc(h.UserInfo)))
 
 	// Authentication endpoints
-	router.HandleFunc("/login", h.Login).Methods("GET", "POST")
-	router.HandleFunc("/consent", h.Consent).Methods("GET", "POST")
+	e.GET("/login", echo.WrapHandler(http.HandlerFunc(h.Login)))
+	e.POST("/login", echo.WrapHandler(http.HandlerFunc(h.Login)))
+	e.GET("/consent", echo.WrapHandler(http.HandlerFunc(h.Consent)))
+	e.POST("/consent", echo.WrapHandler(http.HandlerFunc(h.Consent)))
 
 	// Admin API endpoints
-	router.HandleFunc("/api/admin/stats", adminHandler.GetStats).Methods("GET")
-	router.HandleFunc("/api/admin/users", adminHandler.ListUsers).Methods("GET")
-	router.HandleFunc("/api/admin/users", adminHandler.CreateUser).Methods("POST")
-	router.HandleFunc("/api/admin/users/{id}", adminHandler.DeleteUser).Methods("DELETE")
-	router.HandleFunc("/api/admin/clients", adminHandler.ListClients).Methods("GET")
-	router.HandleFunc("/api/admin/clients", adminHandler.CreateClient).Methods("POST")
-	router.HandleFunc("/api/admin/clients/{id}", adminHandler.DeleteClient).Methods("DELETE")
-	router.HandleFunc("/api/admin/settings", adminHandler.GetSettings).Methods("GET")
-	router.HandleFunc("/api/admin/settings", adminHandler.UpdateSettings).Methods("PUT")
-	router.HandleFunc("/api/admin/keys", adminHandler.GetKeys).Methods("GET")
-	router.HandleFunc("/api/admin/keys/rotate", adminHandler.RotateKeys).Methods("POST")
-	router.HandleFunc("/api/admin/setup/status", adminHandler.GetSetupStatus).Methods("GET")
-	router.HandleFunc("/api/admin/setup", adminHandler.CompleteSetup).Methods("POST")
-	router.HandleFunc("/api/admin/login", adminHandler.Login).Methods("POST")
-
-	// TODO: Serve embedded admin UI static files
-	router.PathPrefix("/").Handler(http.FileServer(ui.GetAdminUI()))
+	e.GET("/api/admin/stats", echo.WrapHandler(http.HandlerFunc(adminHandler.GetStats)))
+	e.GET("/api/admin/users", echo.WrapHandler(http.HandlerFunc(adminHandler.ListUsers)))
+	e.POST("/api/admin/users", echo.WrapHandler(http.HandlerFunc(adminHandler.CreateUser)))
+	e.DELETE("/api/admin/users/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.DeleteUser)))
+	e.GET("/api/admin/clients", echo.WrapHandler(http.HandlerFunc(adminHandler.ListClients)))
+	e.POST("/api/admin/clients", echo.WrapHandler(http.HandlerFunc(adminHandler.CreateClient)))
+	e.DELETE("/api/admin/clients/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.DeleteClient)))
+	e.GET("/api/admin/settings", echo.WrapHandler(http.HandlerFunc(adminHandler.GetSettings)))
+	e.PUT("/api/admin/settings", echo.WrapHandler(http.HandlerFunc(adminHandler.UpdateSettings)))
+	e.GET("/api/admin/keys", echo.WrapHandler(http.HandlerFunc(adminHandler.GetKeys)))
+	e.POST("/api/admin/keys/rotate", echo.WrapHandler(http.HandlerFunc(adminHandler.RotateKeys)))
+	e.GET("/api/admin/setup/status", echo.WrapHandler(http.HandlerFunc(adminHandler.GetSetupStatus)))
+	e.POST("/api/admin/setup", echo.WrapHandler(http.HandlerFunc(adminHandler.CompleteSetup)))
+	e.POST("/api/admin/login", echo.WrapHandler(http.HandlerFunc(adminHandler.Login)))
 
 	// Health check
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	}).Methods("GET")
+	e.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
 
-	return router
+	// Serve embedded admin UI with SPA routing support
+	// Convert http.FileSystem to fs.FS
+	adminFS := ui.GetAdminUI()
+	assetHandler := http.FileServer(adminFS)
+	
+	// Serve static assets directly
+	e.GET("/assets/*", echo.WrapHandler(assetHandler))
+	e.GET("/vite.svg", echo.WrapHandler(assetHandler))
+	
+	// For all other routes, serve index.html (SPA fallback)
+	e.GET("/*", func(c echo.Context) error {
+		// Skip API routes and already handled routes
+		path := c.Request().URL.Path
+		if len(path) > 4 && path[:4] == "/api" {
+			return echo.ErrNotFound
+		}
+		if len(path) > 12 && path[:12] == "/.well-known" {
+			return echo.ErrNotFound
+		}
+		if path == "/authorize" || path == "/login" || path == "/consent" || 
+		   path == "/token" || path == "/userinfo" || path == "/health" {
+			return echo.ErrNotFound
+		}
+		
+		// Try to open the file
+		file, err := adminFS.Open(path)
+		if err == nil {
+			file.Close()
+			// File exists, serve it
+			assetHandler.ServeHTTP(c.Response(), c.Request())
+			return nil
+		}
+		
+		// File doesn't exist, serve index.html for SPA routing
+		c.Request().URL.Path = "/"
+		assetHandler.ServeHTTP(c.Response(), c.Request())
+		return nil
+	})
 }

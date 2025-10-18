@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,16 +46,16 @@ const OAuthCallback = () => {
       // Decode JWT to extract user info and check role
       const payload = JSON.parse(atob(idToken.split('.')[1]));
       
-      // Store the token
-      localStorage.setItem('admin_token', idToken);
+      // Store the token and user info
       localStorage.setItem('user_info', JSON.stringify(payload));
+      login(idToken);  // This will update auth context
       
       // Clean up
       sessionStorage.removeItem('oauth_state');
       sessionStorage.removeItem('oauth_nonce');
 
-      // Redirect to dashboard
-      navigate('/dashboard');
+      // Force a full page reload to ensure auth state is picked up
+      window.location.href = '/dashboard';
     } catch (err) {
       console.error('OAuth callback error:', err);
       setError('Failed to process authentication');

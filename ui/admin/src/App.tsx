@@ -8,29 +8,10 @@ import Settings from './pages/Settings';
 import Setup from './pages/Setup';
 import Login from './pages/Login';
 import OAuthCallback from './pages/OAuthCallback';
-import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isSetupComplete, setIsSetupComplete] = useState(true);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkSetupStatus();
-  }, []);
-
-  const checkSetupStatus = async () => {
-    try {
-      const response = await fetch('/api/admin/setup/status');
-      const data = await response.json();
-      setIsSetupComplete(data.setupComplete);
-      setIsAuthenticated(data.authenticated || false);
-    } catch (error) {
-      console.error('Failed to check setup status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+function AppContent() {
+  const { isAuthenticated, isSetupComplete, loading } = useAuth();
 
   if (loading) {
     return (
@@ -69,6 +50,14 @@ function App() {
         )}
       </Routes>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
