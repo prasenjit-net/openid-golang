@@ -1,54 +1,174 @@
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import './Layout.css';
+import {
+  AppBar,
+  Box,
+  CssBaseline,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+  Divider,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  People as PeopleIcon,
+  VpnKey as VpnKeyIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+} from '@mui/icons-material';
+
+const drawerWidth = 260;
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (path: string) => {
-    return location.pathname === path ? 'active' : '';
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const menuItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Users', icon: <PeopleIcon />, path: '/users' },
+    { text: 'OAuth Clients', icon: <VpnKeyIcon />, path: '/clients' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  ];
+
+  const drawer = (
+    <Box>
+      <Toolbar sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Typography variant="h6" noWrap component="div" fontWeight="bold">
+          OpenID Admin
+        </Typography>
+      </Toolbar>
+      <Divider />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              component={Link}
+              to={item.path}
+              selected={location.pathname === item.path}
+              onClick={isMobile ? handleDrawerToggle : undefined}
+              sx={{
+                '&.Mui-selected': {
+                  bgcolor: 'primary.light',
+                  color: 'primary.main',
+                  '&:hover': {
+                    bgcolor: 'primary.light',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: location.pathname === item.path ? 'primary.main' : 'inherit' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+      <Divider />
+      <List sx={{ mt: 'auto' }}>
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleLogout}>
+            <ListItemIcon>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Box>
+  );
+
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1>OpenID Admin</h1>
-        </div>
-        <nav className="sidebar-nav">
-          <Link to="/dashboard" className={`nav-item ${isActive('/dashboard')}`}>
-            <span className="icon">📊</span>
-            <span>Dashboard</span>
-          </Link>
-          <Link to="/users" className={`nav-item ${isActive('/users')}`}>
-            <span className="icon">👥</span>
-            <span>Users</span>
-          </Link>
-          <Link to="/clients" className={`nav-item ${isActive('/clients')}`}>
-            <span className="icon">🔑</span>
-            <span>OAuth Clients</span>
-          </Link>
-          <Link to="/settings" className={`nav-item ${isActive('/settings')}`}>
-            <span className="icon">⚙️</span>
-            <span>Settings</span>
-          </Link>
-        </nav>
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={() => {
-            logout();
-            navigate('/login');
-          }}>
-            <span className="icon">🚪</span>
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-      <main className="main-content">
+    <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div">
+            {menuItems.find(item => item.path === location.pathname)?.text || 'OpenID Connect Server'}
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      >
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+        }}
+      >
+        <Toolbar />
         <Outlet />
-      </main>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

@@ -1,5 +1,22 @@
 import { useEffect, useState } from 'react';
-import './Settings.css';
+import {
+  Box,
+  Button,
+  Paper,
+  TextField,
+  Typography,
+  Alert,
+  CircularProgress,
+  Divider,
+  Card,
+  CardContent,
+  Chip,
+} from '@mui/material';
+import {
+  Save as SaveIcon,
+  Refresh as RefreshIcon,
+  VpnKey as KeyIcon,
+} from '@mui/icons-material';
 
 interface Settings {
   issuer: string;
@@ -16,7 +33,11 @@ const Settings = () => {
     jwks_rotation_days: 90,
   });
   const [keys, setKeys] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -25,17 +46,23 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/admin/settings');
+      if (!response.ok) throw new Error('Failed to fetch settings');
       const data = await response.json();
       setSettings(data);
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch settings');
       console.error('Failed to fetch settings:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchKeys = async () => {
     try {
       const response = await fetch('/api/admin/keys');
+      if (!response.ok) throw new Error('Failed to fetch keys');
       const data = await response.json();
       setKeys(data);
     } catch (error) {
@@ -45,133 +72,225 @@ const Settings = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
     try {
-      await fetch('/api/admin/settings', {
+      const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      alert('Settings saved successfully');
+      if (!response.ok) throw new Error('Failed to save settings');
+      setSuccess('Settings saved successfully');
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to save settings');
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleRotateKeys = async () => {
-    if (!confirm('Are you sure you want to rotate signing keys? This will invalidate all existing tokens.')) {
+    if (!window.confirm('Are you sure you want to rotate signing keys? This will invalidate all existing tokens.')) {
       return;
     }
-    setLoading(true);
+    setRotating(true);
+    setError(null);
+    setSuccess(null);
     try {
-      await fetch('/api/admin/keys/rotate', { method: 'POST' });
-      alert('Keys rotated successfully');
+      const response = await fetch('/api/admin/keys/rotate', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to rotate keys');
+      setSuccess('Keys rotated successfully');
       fetchKeys();
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to rotate keys');
       console.error('Failed to rotate keys:', error);
-      alert('Failed to rotate keys');
     } finally {
-      setLoading(false);
+      setRotating(false);
     }
   };
 
-  return (
-    <div className="settings">
-      <h1>Settings</h1>
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
 
-      <div className="settings-section">
-        <h2>Server Configuration</h2>
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
+        Settings
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom fontWeight="bold">
+          Server Configuration
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
         <form onSubmit={handleSave}>
-          <div className="form-group">
-            <label>Issuer URL</label>
-            <input
+          <Box display="flex" flexDirection="column" gap={3}>
+            <TextField
+              label="Issuer URL"
               type="url"
               value={settings.issuer}
               onChange={(e) => setSettings({ ...settings, issuer: e.target.value })}
               placeholder="https://auth.example.com"
               required
+              fullWidth
+              helperText="The base URL of this OpenID Provider"
             />
-            <small>The base URL of this OpenID Provider</small>
-          </div>
 
-          <div className="form-group">
-            <label>Access Token TTL (seconds)</label>
-            <input
+            <TextField
+              label="Access Token TTL (seconds)"
               type="number"
               value={settings.token_ttl}
               onChange={(e) => setSettings({ ...settings, token_ttl: parseInt(e.target.value) })}
-              min="60"
-              max="86400"
+              inputProps={{ min: 60, max: 86400 }}
               required
+              fullWidth
+              helperText="How long access tokens are valid (default: 3600 = 1 hour)"
             />
-            <small>How long access tokens are valid (default: 3600 = 1 hour)</small>
-          </div>
 
-          <div className="form-group">
-            <label>Refresh Token TTL (seconds)</label>
-            <input
+            <TextField
+              label="Refresh Token TTL (seconds)"
               type="number"
               value={settings.refresh_token_ttl}
               onChange={(e) => setSettings({ ...settings, refresh_token_ttl: parseInt(e.target.value) })}
-              min="3600"
-              max="31536000"
+              inputProps={{ min: 3600, max: 31536000 }}
               required
+              fullWidth
+              helperText="How long refresh tokens are valid (default: 2592000 = 30 days)"
             />
-            <small>How long refresh tokens are valid (default: 2592000 = 30 days)</small>
-          </div>
 
-          <div className="form-group">
-            <label>JWKS Rotation Period (days)</label>
-            <input
+            <TextField
+              label="JWKS Rotation Period (days)"
               type="number"
               value={settings.jwks_rotation_days}
               onChange={(e) => setSettings({ ...settings, jwks_rotation_days: parseInt(e.target.value) })}
-              min="30"
-              max="365"
+              inputProps={{ min: 30, max: 365 }}
               required
+              fullWidth
+              helperText="How often to automatically rotate signing keys (default: 90 days)"
             />
-            <small>How often to automatically rotate signing keys (default: 90 days)</small>
-          </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Settings'}
-          </button>
+            <Box>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </Box>
+          </Box>
         </form>
-      </div>
+      </Paper>
 
-      <div className="settings-section">
-        <div className="section-header">
-          <h2>Signing Keys</h2>
-          <button className="btn-danger" onClick={handleRotateKeys} disabled={loading}>
-            Rotate Keys
-          </button>
-        </div>
-        <div className="keys-list">
-          {keys.map((key) => (
-            <div key={key.kid} className="key-card">
-              <div className="key-info">
-                <div className="key-detail">
-                  <strong>Key ID:</strong> <code>{key.kid}</code>
-                </div>
-                <div className="key-detail">
-                  <strong>Algorithm:</strong> {key.alg}
-                </div>
-                <div className="key-detail">
-                  <strong>Use:</strong> {key.use}
-                </div>
-                <div className="key-detail">
-                  <strong>Created:</strong> {new Date(key.created_at).toLocaleString()}
-                </div>
-              </div>
-              {key.is_active && <span className="badge-active">Active</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      <Paper elevation={2} sx={{ p: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6" fontWeight="bold">
+            Signing Keys
+          </Typography>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={rotating ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+            onClick={handleRotateKeys}
+            disabled={rotating}
+          >
+            {rotating ? 'Rotating...' : 'Rotate Keys'}
+          </Button>
+        </Box>
+        <Divider sx={{ mb: 3 }} />
+        <Box display="flex" flexDirection="column" gap={2}>
+          {keys.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center">
+              No signing keys found
+            </Typography>
+          ) : (
+            keys.map((key) => (
+              <Card key={key.kid} variant="outlined">
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                    <Box display="flex" gap={2}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 48,
+                          height: 48,
+                          borderRadius: 1,
+                          bgcolor: 'primary.lighter',
+                          color: 'primary.main',
+                        }}
+                      >
+                        <KeyIcon />
+                      </Box>
+                      <Box>
+                        <Box display="flex" gap={1} alignItems="center" mb={1}>
+                          <Typography variant="subtitle2" color="text.secondary">
+                            Key ID:
+                          </Typography>
+                          <Typography
+                            component="code"
+                            sx={{
+                              bgcolor: 'grey.100',
+                              px: 1,
+                              py: 0.5,
+                              borderRadius: 0.5,
+                              fontFamily: 'monospace',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            {key.kid}
+                          </Typography>
+                        </Box>
+                        <Box display="flex" gap={2} flexWrap="wrap">
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Algorithm:</strong> {key.alg}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Use:</strong> {key.use}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Created:</strong> {new Date(key.created_at).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                    {key.is_active && (
+                      <Chip
+                        label="Active"
+                        color="success"
+                        size="small"
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </Box>
+      </Paper>
+    </Box>
   );
 };
 

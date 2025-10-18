@@ -1,5 +1,31 @@
 import { useEffect, useState } from 'react';
-import './Clients.css';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  Alert,
+  CircularProgress,
+  Chip,
+  Tooltip,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  ContentCopy as CopyIcon,
+} from '@mui/icons-material';
 
 interface Client {
   id: string;
@@ -14,6 +40,8 @@ const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showSecret, setShowSecret] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     redirect_uris: '',
@@ -25,11 +53,17 @@ const Clients = () => {
 
   const fetchClients = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await fetch('/api/admin/clients');
+      if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
       setClients(data);
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to fetch clients');
       console.error('Failed to fetch clients:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,22 +78,26 @@ const Clients = () => {
           redirect_uris: formData.redirect_uris.split('\n').map(uri => uri.trim()).filter(Boolean),
         }),
       });
+      if (!response.ok) throw new Error('Failed to create client');
       const newClient = await response.json();
       setShowModal(false);
       setFormData({ name: '', redirect_uris: '' });
       setShowSecret(newClient.client_id);
       fetchClients();
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to create client');
       console.error('Failed to create client:', error);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this client?')) return;
+    if (!window.confirm('Are you sure you want to delete this client?')) return;
     try {
-      await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete client');
       fetchClients();
     } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to delete client');
       console.error('Failed to delete client:', error);
     }
   };
@@ -72,137 +110,207 @@ const Clients = () => {
     return clients.find(c => c.client_id === clientId);
   };
 
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress size={60} />
+      </Box>
+    );
+  }
+
   return (
-    <div className="clients">
-      <div className="page-header">
-        <h1>OAuth Clients</h1>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>
-          + Register Client
-        </button>
-      </div>
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" fontWeight="bold">
+          OAuth Clients
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setShowModal(true)}
+        >
+          Register Client
+        </Button>
+      </Box>
 
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Client ID</th>
-              <th>Redirect URIs</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((client) => (
-              <tr key={client.id}>
-                <td>{client.name}</td>
-                <td>
-                  <code className="client-id">{client.client_id}</code>
-                  <button
-                    className="copy-btn"
-                    onClick={() => copyToClipboard(client.client_id)}
-                    title="Copy to clipboard"
-                  >
-                    📋
-                  </button>
-                </td>
-                <td>
-                  <div className="redirect-uris">
-                    {client.redirect_uris.map((uri, i) => (
-                      <div key={i} className="uri">{uri}</div>
-                    ))}
-                  </div>
-                </td>
-                <td>{new Date(client.created_at).toLocaleDateString()}</td>
-                <td>
-                  <button
-                    className="btn-danger-sm"
-                    onClick={() => handleDelete(client.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Register New Client</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Client Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="My Application"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Redirect URIs (one per line)</label>
-                <textarea
-                  value={formData.redirect_uris}
-                  onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
-                  placeholder="https://example.com/callback"
-                  rows={5}
-                  required
-                />
-              </div>
-              <div className="form-actions">
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary">
-                  Register Client
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
       )}
 
-      {showSecret && (
-        <div className="modal-overlay" onClick={() => setShowSecret(null)}>
-          <div className="modal secret-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Client Registered Successfully</h2>
-            <div className="secret-info">
-              <p className="warning">⚠️ Save these credentials securely. The secret will not be shown again!</p>
-              <div className="credential">
-                <label>Client ID:</label>
-                <div className="credential-value">
-                  <code>{showSecret}</code>
-                  <button className="copy-btn" onClick={() => copyToClipboard(showSecret)}>
-                    📋 Copy
-                  </button>
-                </div>
-              </div>
-              <div className="credential">
-                <label>Client Secret:</label>
-                <div className="credential-value">
-                  <code>{getClientByClientId(showSecret)?.client_secret}</code>
-                  <button
-                    className="copy-btn"
-                    onClick={() => copyToClipboard(getClientByClientId(showSecret)?.client_secret || '')}
-                  >
-                    📋 Copy
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="form-actions">
-              <button onClick={() => setShowSecret(null)} className="btn-primary">
-                I've Saved The Credentials
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <TableContainer component={Paper} elevation={2}>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ bgcolor: 'grey.50' }}>
+              <TableCell><strong>Name</strong></TableCell>
+              <TableCell><strong>Client ID</strong></TableCell>
+              <TableCell><strong>Redirect URIs</strong></TableCell>
+              <TableCell><strong>Created</strong></TableCell>
+              <TableCell align="center"><strong>Actions</strong></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {clients.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No OAuth clients registered</Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              clients.map((client) => (
+                <TableRow key={client.id} hover>
+                  <TableCell>{client.name}</TableCell>
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography
+                        component="code"
+                        sx={{
+                          bgcolor: 'grey.100',
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                          fontFamily: 'monospace',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        {client.client_id}
+                      </Typography>
+                      <Tooltip title="Copy Client ID">
+                        <IconButton
+                          size="small"
+                          onClick={() => copyToClipboard(client.client_id)}
+                        >
+                          <CopyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" flexDirection="column" gap={0.5}>
+                      {client.redirect_uris.map((uri, i) => (
+                        <Chip
+                          key={i}
+                          label={uri}
+                          size="small"
+                          variant="outlined"
+                          sx={{ maxWidth: 'fit-content' }}
+                        />
+                      ))}
+                    </Box>
+                  </TableCell>
+                  <TableCell>{new Date(client.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell align="center">
+                    <IconButton
+                      color="error"
+                      size="small"
+                      onClick={() => handleDelete(client.id)}
+                      title="Delete client"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>
+        <form onSubmit={handleSubmit}>
+          <DialogTitle>Register New Client</DialogTitle>
+          <DialogContent>
+            <Box display="flex" flexDirection="column" gap={2} mt={1}>
+              <TextField
+                label="Client Name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="My Application"
+                required
+                fullWidth
+                autoFocus
+              />
+              <TextField
+                label="Redirect URIs"
+                value={formData.redirect_uris}
+                onChange={(e) => setFormData({ ...formData, redirect_uris: e.target.value })}
+                placeholder="https://example.com/callback"
+                multiline
+                rows={5}
+                required
+                fullWidth
+                helperText="Enter one URI per line"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained">
+              Register Client
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      <Dialog 
+        open={!!showSecret} 
+        onClose={() => setShowSecret(null)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>Client Registered Successfully</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Save these credentials securely. The secret will not be shown again!
+          </Alert>
+          <Box display="flex" flexDirection="column" gap={2}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Client ID
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  component="code"
+                  sx={{ flexGrow: 1, fontFamily: 'monospace', wordBreak: 'break-all' }}
+                >
+                  {showSecret}
+                </Typography>
+                <IconButton onClick={() => showSecret && copyToClipboard(showSecret)}>
+                  <CopyIcon />
+                </IconButton>
+              </Paper>
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Client Secret
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  component="code"
+                  sx={{ flexGrow: 1, fontFamily: 'monospace', wordBreak: 'break-all' }}
+                >
+                  {getClientByClientId(showSecret || '')?.client_secret}
+                </Typography>
+                <IconButton onClick={() => {
+                  const secret = getClientByClientId(showSecret || '')?.client_secret;
+                  if (secret) copyToClipboard(secret);
+                }}>
+                  <CopyIcon />
+                </IconButton>
+              </Paper>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button variant="contained" onClick={() => setShowSecret(null)}>
+            I've Saved The Credentials
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 
