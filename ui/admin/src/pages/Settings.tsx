@@ -20,17 +20,27 @@ import {
 
 interface Settings {
   issuer: string;
-  token_ttl: number;
-  refresh_token_ttl: number;
-  jwks_rotation_days: number;
+  server_host: string;
+  server_port: number;
+  storage_type: string;
+  json_file_path: string;
+  mongo_uri: string;
+  jwt_expiry_minutes: number;
+  jwt_private_key: string;
+  jwt_public_key: string;
 }
 
 const Settings = () => {
   const [settings, setSettings] = useState<Settings>({
     issuer: '',
-    token_ttl: 3600,
-    refresh_token_ttl: 2592000,
-    jwks_rotation_days: 90,
+    server_host: '0.0.0.0',
+    server_port: 8080,
+    storage_type: 'json',
+    json_file_path: 'data.json',
+    mongo_uri: '',
+    jwt_expiry_minutes: 60,
+    jwt_private_key: 'config/keys/private.key',
+    jwt_public_key: 'config/keys/public.key',
   });
   const [keys, setKeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,37 +165,90 @@ const Settings = () => {
               helperText="The base URL of this OpenID Provider"
             />
 
+            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Server Configuration</Typography>
+            
             <TextField
-              label="Access Token TTL (seconds)"
-              type="number"
-              value={settings.token_ttl}
-              onChange={(e) => setSettings({ ...settings, token_ttl: parseInt(e.target.value) })}
-              inputProps={{ min: 60, max: 86400 }}
+              label="Server Host"
+              value={settings.server_host}
+              onChange={(e) => setSettings({ ...settings, server_host: e.target.value })}
+              placeholder="0.0.0.0"
               required
               fullWidth
-              helperText="How long access tokens are valid (default: 3600 = 1 hour)"
+              helperText="The host address the server binds to"
             />
 
             <TextField
-              label="Refresh Token TTL (seconds)"
+              label="Server Port"
               type="number"
-              value={settings.refresh_token_ttl}
-              onChange={(e) => setSettings({ ...settings, refresh_token_ttl: parseInt(e.target.value) })}
-              inputProps={{ min: 3600, max: 31536000 }}
+              value={settings.server_port}
+              onChange={(e) => setSettings({ ...settings, server_port: parseInt(e.target.value) })}
+              inputProps={{ min: 1, max: 65535 }}
               required
               fullWidth
-              helperText="How long refresh tokens are valid (default: 2592000 = 30 days)"
+              helperText="The port the server listens on (default: 8080)"
+            />
+
+            <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Storage Configuration</Typography>
+            
+            <TextField
+              label="Storage Type"
+              value={settings.storage_type}
+              onChange={(e) => setSettings({ ...settings, storage_type: e.target.value })}
+              placeholder="json"
+              required
+              fullWidth
+              helperText="Storage backend: 'json' or 'mongodb'"
             />
 
             <TextField
-              label="JWKS Rotation Period (days)"
+              label="JSON File Path"
+              value={settings.json_file_path}
+              onChange={(e) => setSettings({ ...settings, json_file_path: e.target.value })}
+              placeholder="data.json"
+              fullWidth
+              helperText="Path to JSON storage file (only used if storage_type is 'json')"
+            />
+
+            <TextField
+              label="MongoDB URI"
+              value={settings.mongo_uri}
+              onChange={(e) => setSettings({ ...settings, mongo_uri: e.target.value })}
+              placeholder="mongodb://localhost:27017/openid"
+              fullWidth
+              helperText="MongoDB connection string (only used if storage_type is 'mongodb')"
+            />
+
+            <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>JWT Configuration</Typography>
+            
+            <TextField
+              label="JWT Expiry (minutes)"
               type="number"
-              value={settings.jwks_rotation_days}
-              onChange={(e) => setSettings({ ...settings, jwks_rotation_days: parseInt(e.target.value) })}
-              inputProps={{ min: 30, max: 365 }}
+              value={settings.jwt_expiry_minutes}
+              onChange={(e) => setSettings({ ...settings, jwt_expiry_minutes: parseInt(e.target.value) })}
+              inputProps={{ min: 1, max: 1440 }}
               required
               fullWidth
-              helperText="How often to automatically rotate signing keys (default: 90 days)"
+              helperText="How long JWT tokens are valid (default: 60 minutes)"
+            />
+
+            <TextField
+              label="JWT Private Key Path"
+              value={settings.jwt_private_key}
+              onChange={(e) => setSettings({ ...settings, jwt_private_key: e.target.value })}
+              placeholder="config/keys/private.key"
+              required
+              fullWidth
+              helperText="Path to RSA private key for signing JWTs"
+            />
+
+            <TextField
+              label="JWT Public Key Path"
+              value={settings.jwt_public_key}
+              onChange={(e) => setSettings({ ...settings, jwt_public_key: e.target.value })}
+              placeholder="config/keys/public.key"
+              required
+              fullWidth
+              helperText="Path to RSA public key for verifying JWTs"
             />
 
             <Box>

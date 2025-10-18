@@ -14,10 +14,16 @@ type Storage interface {
 	GetUserByID(id string) (*models.User, error)
 	GetUserByUsername(username string) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
+	GetAllUsers() ([]*models.User, error)
+	UpdateUser(user *models.User) error
+	DeleteUser(id string) error
 
 	// Client operations
 	CreateClient(client *models.Client) error
 	GetClientByID(id string) (*models.Client, error)
+	GetAllClients() ([]*models.Client, error)
+	UpdateClient(client *models.Client) error
+	DeleteClient(id string) error
 	ValidateClient(clientID, clientSecret string) (*models.Client, error)
 
 	// Authorization code operations

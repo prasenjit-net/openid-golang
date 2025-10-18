@@ -89,7 +89,7 @@ func main() {
 
 	// Initialize handlers
 	h := handlers.NewHandlers(cfg, store)
-	adminHandler := handlers.NewAdminHandler(store)
+	adminHandler := handlers.NewAdminHandler(store, cfg)
 
 	// Setup Echo server
 	e := echo.New()
@@ -153,9 +153,11 @@ func setupRoutes(e *echo.Echo, h *handlers.Handlers, adminHandler *handlers.Admi
 	e.GET("/api/admin/stats", echo.WrapHandler(http.HandlerFunc(adminHandler.GetStats)))
 	e.GET("/api/admin/users", echo.WrapHandler(http.HandlerFunc(adminHandler.ListUsers)))
 	e.POST("/api/admin/users", echo.WrapHandler(http.HandlerFunc(adminHandler.CreateUser)))
+	e.PUT("/api/admin/users/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.UpdateUser)))
 	e.DELETE("/api/admin/users/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.DeleteUser)))
 	e.GET("/api/admin/clients", echo.WrapHandler(http.HandlerFunc(adminHandler.ListClients)))
 	e.POST("/api/admin/clients", echo.WrapHandler(http.HandlerFunc(adminHandler.CreateClient)))
+	e.PUT("/api/admin/clients/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.UpdateClient)))
 	e.DELETE("/api/admin/clients/:id", echo.WrapHandler(http.HandlerFunc(adminHandler.DeleteClient)))
 	e.GET("/api/admin/settings", echo.WrapHandler(http.HandlerFunc(adminHandler.GetSettings)))
 	e.PUT("/api/admin/settings", echo.WrapHandler(http.HandlerFunc(adminHandler.UpdateSettings)))

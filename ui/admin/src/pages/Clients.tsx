@@ -25,6 +25,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   ContentCopy as CopyIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 
 interface Client {
@@ -39,6 +40,7 @@ interface Client {
 const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [showSecret, setShowSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,24 +72,49 @@ const Clients = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/clients', {
-        method: 'POST',
+      const url = editingClient 
+        ? `/api/admin/clients/${editingClient.id}`
+        : '/api/admin/clients';
+      const method = editingClient ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
           redirect_uris: formData.redirect_uris.split('\n').map(uri => uri.trim()).filter(Boolean),
         }),
       });
-      if (!response.ok) throw new Error('Failed to create client');
-      const newClient = await response.json();
-      setShowModal(false);
-      setFormData({ name: '', redirect_uris: '' });
-      setShowSecret(newClient.client_id);
+      
+      if (!response.ok) throw new Error(editingClient ? 'Failed to update client' : 'Failed to create client');
+      
+      const resultClient = await response.json();
+      handleCloseModal();
+      
+      if (!editingClient) {
+        setShowSecret(resultClient.client_id);
+      }
+      
       fetchClients();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to create client');
-      console.error('Failed to create client:', error);
+      setError(error instanceof Error ? error.message : editingClient ? 'Failed to update client' : 'Failed to create client');
+      console.error(editingClient ? 'Failed to update client:' : 'Failed to create client:', error);
     }
+  };
+
+  const handleEdit = (client: Client) => {
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      redirect_uris: client.redirect_uris.join('\n'),
+    });
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingClient(null);
+    setFormData({ name: '', redirect_uris: '' });
   };
 
   const handleDelete = async (id: string) => {
@@ -202,6 +229,14 @@ const Clients = () => {
                   <TableCell>{new Date(client.created_at).toLocaleDateString()}</TableCell>
                   <TableCell align="center">
                     <IconButton
+                      color="primary"
+                      size="small"
+                      onClick={() => handleEdit(client)}
+                      title="Edit client"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
                       color="error"
                       size="small"
                       onClick={() => handleDelete(client.id)}
@@ -217,9 +252,9 @@ const Clients = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>
+      <Dialog open={showModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
-          <DialogTitle>Register New Client</DialogTitle>
+          <DialogTitle>{editingClient ? 'Edit Client' : 'Register New Client'}</DialogTitle>
           <DialogContent>
             <Box display="flex" flexDirection="column" gap={2} mt={1}>
               <TextField
@@ -245,11 +280,11 @@ const Clients = () => {
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setShowModal(false)}>
+            <Button onClick={handleCloseModal}>
               Cancel
             </Button>
             <Button type="submit" variant="contained">
-              Register Client
+              {editingClient ? 'Update Client' : 'Register Client'}
             </Button>
           </DialogActions>
         </form>

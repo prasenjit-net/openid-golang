@@ -132,6 +132,38 @@ func (m *MongoDBStorage) GetUserByEmail(email string) (*models.User, error) {
 	return &user, err
 }
 
+func (m *MongoDBStorage) GetAllUsers() ([]*models.User, error) {
+	ctx := context.Background()
+	cursor, err := m.users.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []*models.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (m *MongoDBStorage) UpdateUser(user *models.User) error {
+	ctx := context.Background()
+	user.UpdatedAt = time.Now()
+	_, err := m.users.UpdateOne(
+		ctx,
+		bson.M{"id": user.ID},
+		bson.M{"$set": user},
+	)
+	return err
+}
+
+func (m *MongoDBStorage) DeleteUser(id string) error {
+	ctx := context.Background()
+	_, err := m.users.DeleteOne(ctx, bson.M{"id": id})
+	return err
+}
+
 // Client operations
 func (m *MongoDBStorage) CreateClient(client *models.Client) error {
 	ctx := context.Background()
@@ -148,6 +180,37 @@ func (m *MongoDBStorage) GetClientByID(id string) (*models.Client, error) {
 		return nil, nil
 	}
 	return &client, err
+}
+
+func (m *MongoDBStorage) GetAllClients() ([]*models.Client, error) {
+	ctx := context.Background()
+	cursor, err := m.clients.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var clients []*models.Client
+	if err := cursor.All(ctx, &clients); err != nil {
+		return nil, err
+	}
+	return clients, nil
+}
+
+func (m *MongoDBStorage) UpdateClient(client *models.Client) error {
+	ctx := context.Background()
+	_, err := m.clients.UpdateOne(
+		ctx,
+		bson.M{"id": client.ID},
+		bson.M{"$set": client},
+	)
+	return err
+}
+
+func (m *MongoDBStorage) DeleteClient(id string) error {
+	ctx := context.Background()
+	_, err := m.clients.DeleteOne(ctx, bson.M{"id": id})
+	return err
 }
 
 func (m *MongoDBStorage) ValidateClient(clientID, clientSecret string) (*models.Client, error) {

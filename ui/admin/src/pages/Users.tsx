@@ -22,6 +22,7 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 
 interface User {
@@ -29,12 +30,14 @@ interface User {
   username: string;
   email: string;
   name: string;
+  role?: string;
   created_at: string;
 }
 
 const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -42,6 +45,7 @@ const Users = () => {
     email: '',
     password: '',
     name: '',
+    role: 'user',
   });
 
   useEffect(() => {
@@ -67,19 +71,53 @@ const Users = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (!response.ok) throw new Error('Failed to create user');
+      if (editingUser) {
+        // Update existing user
+        const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingUser.id,
+            ...formData,
+            password: formData.password || undefined, // Only send if provided
+          }),
+        });
+        if (!response.ok) throw new Error('Failed to update user');
+      } else {
+        // Create new user
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+        if (!response.ok) throw new Error('Failed to create user');
+      }
       setShowModal(false);
-      setFormData({ username: '', email: '', password: '', name: '' });
+      setEditingUser(null);
+      setFormData({ username: '', email: '', password: '', name: '', role: 'user' });
       fetchUsers();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to create user');
-      console.error('Failed to create user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save user');
+      console.error('Failed to save user:', error);
     }
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: '', // Don't populate password
+      name: user.name,
+      role: user.role || 'user',
+    });
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingUser(null);
+    setFormData({ username: '', email: '', password: '', name: '', role: 'user' });
   };
 
   const handleDelete = async (id: string) => {
@@ -150,6 +188,15 @@ const Users = () => {
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell align="center">
                     <IconButton
+                      color="primary"
+                      size="small"
+                      onClick={() => handleEdit(user)}
+                      title="Edit user"
+                      sx={{ mr: 1 }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
                       color="error"
                       size="small"
                       onClick={() => handleDelete(user.id)}
@@ -165,9 +212,9 @@ const Users = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>
+      <Dialog open={showModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <form onSubmit={handleSubmit}>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
           <DialogContent>
             <Box display="flex" flexDirection="column" gap={2} mt={1}>
               <TextField
@@ -191,8 +238,9 @@ const Users = () => {
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
+                required={!editingUser}
                 fullWidth
+                helperText={editingUser ? "Leave blank to keep current password" : ""}
               />
               <TextField
                 label="Name"
@@ -204,11 +252,11 @@ const Users = () => {
             </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setShowModal(false)}>
+            <Button onClick={handleCloseModal}>
               Cancel
             </Button>
             <Button type="submit" variant="contained">
-              Create User
+              {editingUser ? 'Update User' : 'Create User'}
             </Button>
           </DialogActions>
         </form>

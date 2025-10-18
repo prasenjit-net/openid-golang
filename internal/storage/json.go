@@ -156,6 +156,50 @@ func (j *JSONStorage) GetUserByEmail(email string) (*models.User, error) {
 	return nil, nil
 }
 
+func (j *JSONStorage) GetAllUsers() ([]*models.User, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	users := make([]*models.User, 0, len(j.data.Users))
+	for _, jsonUser := range j.data.Users {
+		user := jsonUser.User
+		user.PasswordHash = jsonUser.PasswordHash
+		users = append(users, user)
+	}
+	return users, nil
+}
+
+func (j *JSONStorage) UpdateUser(user *models.User) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	jsonUser, exists := j.data.Users[user.ID]
+	if !exists {
+		return fmt.Errorf("user not found")
+	}
+
+	user.UpdatedAt = time.Now()
+	user.CreatedAt = jsonUser.CreatedAt // Preserve creation time
+
+	// Update the JSON user
+	jsonUser.User = user
+	jsonUser.PasswordHash = user.PasswordHash
+
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteUser(id string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.Users[id]; !exists {
+		return fmt.Errorf("user not found")
+	}
+
+	delete(j.data.Users, id)
+	return j.save()
+}
+
 // Client operations
 func (j *JSONStorage) CreateClient(client *models.Client) error {
 	j.mu.Lock()
@@ -175,6 +219,44 @@ func (j *JSONStorage) GetClientByID(id string) (*models.Client, error) {
 		return nil, nil
 	}
 	return client, nil
+}
+
+func (j *JSONStorage) GetAllClients() ([]*models.Client, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	clients := make([]*models.Client, 0, len(j.data.Clients))
+	for _, client := range j.data.Clients {
+		clients = append(clients, client)
+	}
+	return clients, nil
+}
+
+func (j *JSONStorage) UpdateClient(client *models.Client) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	existing, exists := j.data.Clients[client.ID]
+	if !exists {
+		return fmt.Errorf("client not found")
+	}
+
+	// Preserve creation time
+	client.CreatedAt = existing.CreatedAt
+	j.data.Clients[client.ID] = client
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteClient(id string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.Clients[id]; !exists {
+		return fmt.Errorf("client not found")
+	}
+
+	delete(j.data.Clients, id)
+	return j.save()
 }
 
 func (j *JSONStorage) ValidateClient(clientID, clientSecret string) (*models.Client, error) {
