@@ -94,18 +94,18 @@ func main() {
 	// Setup Echo server
 	e := echo.New()
 	e.HideBanner = true
-	
+
 	// Middleware
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
-	
+
 	// Setup routes
 	setupRoutes(e, h, adminHandler)
 
 	// Start server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	
+
 	go func() {
 		log.Printf("Starting OpenID Connect server on %s", addr)
 		log.Printf("Issuer: %s", cfg.Issuer)
@@ -176,11 +176,11 @@ func setupRoutes(e *echo.Echo, h *handlers.Handlers, adminHandler *handlers.Admi
 	// Convert http.FileSystem to fs.FS
 	adminFS := ui.GetAdminUI()
 	assetHandler := http.FileServer(adminFS)
-	
+
 	// Serve static assets directly
 	e.GET("/assets/*", echo.WrapHandler(assetHandler))
 	e.GET("/vite.svg", echo.WrapHandler(assetHandler))
-	
+
 	// For all other routes, serve index.html (SPA fallback)
 	e.GET("/*", func(c echo.Context) error {
 		// Skip API routes and already handled routes
@@ -191,11 +191,11 @@ func setupRoutes(e *echo.Echo, h *handlers.Handlers, adminHandler *handlers.Admi
 		if len(path) > 12 && path[:12] == "/.well-known" {
 			return echo.ErrNotFound
 		}
-		if path == "/authorize" || path == "/login" || path == "/consent" || 
-		   path == "/token" || path == "/userinfo" || path == "/health" {
+		if path == "/authorize" || path == "/login" || path == "/consent" ||
+			path == "/token" || path == "/userinfo" || path == "/health" {
 			return echo.ErrNotFound
 		}
-		
+
 		// Try to open the file
 		file, err := adminFS.Open(path)
 		if err == nil {
@@ -204,7 +204,7 @@ func setupRoutes(e *echo.Echo, h *handlers.Handlers, adminHandler *handlers.Admi
 			assetHandler.ServeHTTP(c.Response(), c.Request())
 			return nil
 		}
-		
+
 		// File doesn't exist, serve index.html for SPA routing
 		c.Request().URL.Path = "/"
 		assetHandler.ServeHTTP(c.Response(), c.Request())

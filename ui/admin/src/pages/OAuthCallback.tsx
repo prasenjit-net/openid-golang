@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
@@ -8,11 +8,7 @@ const OAuthCallback = () => {
   const { login } = useAuth();
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    handleCallback();
-  }, []);
-
-  const handleCallback = () => {
+  const handleCallback = useCallback(() => {
     try {
       // Extract token from URL fragment
       const hash = window.location.hash.substring(1);
@@ -61,7 +57,11 @@ const OAuthCallback = () => {
       setError('Failed to process authentication');
       setTimeout(() => navigate('/login'), 3000);
     }
-  };
+  }, [navigate, login]);
+
+  useEffect(() => {
+    handleCallback();
+  }, [handleCallback]);
 
   if (error) {
     return (

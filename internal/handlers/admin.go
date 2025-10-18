@@ -286,7 +286,7 @@ func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 		response[i] = ClientResponse{
 			ID:           client.ID,
 			ClientID:     client.ID, // In our model, ID is the client_id
-			ClientSecret: "", // Don't expose secret in list view
+			ClientSecret: "",        // Don't expose secret in list view
 			Name:         client.Name,
 			RedirectURIs: client.RedirectURIs,
 			CreatedAt:    client.CreatedAt,
@@ -333,14 +333,14 @@ func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &models.Client{
-		ID:           clientID,
-		Secret:       clientSecret,
-		Name:         req.Name,
-		RedirectURIs: req.RedirectURIs,
-		GrantTypes:   []string{"authorization_code", "implicit"},
+		ID:            clientID,
+		Secret:        clientSecret,
+		Name:          req.Name,
+		RedirectURIs:  req.RedirectURIs,
+		GrantTypes:    []string{"authorization_code", "implicit"},
 		ResponseTypes: []string{"code", "token", "id_token", "id_token token"},
-		Scope:        "openid profile email",
-		CreatedAt:    time.Now(),
+		Scope:         "openid profile email",
+		CreatedAt:     time.Now(),
 	}
 
 	if err := h.store.CreateClient(client); err != nil {
@@ -444,15 +444,15 @@ func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	settings := map[string]interface{}{
-		"issuer":          h.config.Issuer,
-		"server_host":     h.config.Server.Host,
-		"server_port":     h.config.Server.Port,
-		"storage_type":    h.config.Storage.Type,
-		"json_file_path":  h.config.Storage.JSONFilePath,
-		"mongo_uri":       h.config.Storage.MongoURI,
+		"issuer":             h.config.Issuer,
+		"server_host":        h.config.Server.Host,
+		"server_port":        h.config.Server.Port,
+		"storage_type":       h.config.Storage.Type,
+		"json_file_path":     h.config.Storage.JSONFilePath,
+		"mongo_uri":          h.config.Storage.MongoURI,
 		"jwt_expiry_minutes": h.config.JWT.ExpiryMinutes,
-		"jwt_private_key": h.config.JWT.PrivateKeyPath,
-		"jwt_public_key":  h.config.JWT.PublicKeyPath,
+		"jwt_private_key":    h.config.JWT.PrivateKeyPath,
+		"jwt_public_key":     h.config.JWT.PublicKeyPath,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -467,15 +467,15 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Issuer          string `json:"issuer"`
-		ServerHost      string `json:"server_host"`
-		ServerPort      int    `json:"server_port"`
-		StorageType     string `json:"storage_type"`
-		JSONFilePath    string `json:"json_file_path"`
-		MongoURI        string `json:"mongo_uri"`
-		JWTExpiryMinutes int   `json:"jwt_expiry_minutes"`
-		JWTPrivateKey   string `json:"jwt_private_key"`
-		JWTPublicKey    string `json:"jwt_public_key"`
+		Issuer           string `json:"issuer"`
+		ServerHost       string `json:"server_host"`
+		ServerPort       int    `json:"server_port"`
+		StorageType      string `json:"storage_type"`
+		JSONFilePath     string `json:"json_file_path"`
+		MongoURI         string `json:"mongo_uri"`
+		JWTExpiryMinutes int    `json:"jwt_expiry_minutes"`
+		JWTPrivateKey    string `json:"jwt_private_key"`
+		JWTPublicKey     string `json:"jwt_public_key"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

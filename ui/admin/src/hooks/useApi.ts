@@ -3,6 +3,24 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 // API base URL
 const API_BASE = '/api/admin'
 
+// Types
+interface CreateClientRequest {
+  name: string;
+  redirect_uris: string[];
+}
+
+interface UpdateSettingsRequest {
+  issuer?: string;
+  server_host?: string;
+  server_port?: number;
+  storage_type?: string;
+  json_file_path?: string;
+  mongo_uri?: string;
+  jwt_expiry_minutes?: number;
+  jwt_private_key?: string;
+  jwt_public_key?: string;
+}
+
 // Query keys
 export const queryKeys = {
   stats: ['stats'] as const,
@@ -85,7 +103,7 @@ export function useClients() {
 export function useCreateClient() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (client: any) => {
+    mutationFn: async (client: CreateClientRequest) => {
       const res = await fetch(`${API_BASE}/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,7 +148,7 @@ export function useSettings() {
 export function useUpdateSettings() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (settings: any) => {
+    mutationFn: async (settings: UpdateSettingsRequest) => {
       const res = await fetch(`${API_BASE}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

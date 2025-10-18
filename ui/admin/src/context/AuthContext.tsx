@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.removeItem('admin_token');
             localStorage.removeItem('user_info');
           }
-        } catch (e) {
+        } catch {
           // Invalid token, remove it
           localStorage.removeItem('admin_token');
           localStorage.removeItem('user_info');
@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

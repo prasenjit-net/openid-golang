@@ -42,7 +42,7 @@ const Settings = () => {
     jwt_private_key: 'config/keys/private.key',
     jwt_public_key: 'config/keys/public.key',
   });
-  const [keys, setKeys] = useState<any[]>([]);
+  const [keys, setKeys] = useState<Array<{ kid: string; alg: string; use: string; created_at: string; is_active?: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rotating, setRotating] = useState(false);

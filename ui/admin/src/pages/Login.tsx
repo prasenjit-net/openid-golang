@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -10,18 +10,13 @@ import {
 import { Lock as LockIcon } from '@mui/icons-material';
 
 const Login = () => {
-  useEffect(() => {
-    // Automatically redirect to OAuth authorization endpoint
-    initiateOAuthFlow();
-  }, []);
-
   const generateRandomString = (length: number): string => {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   };
 
-  const initiateOAuthFlow = () => {
+  const initiateOAuthFlow = useCallback(() => {
     // Generate state and nonce for security
     const state = generateRandomString(16);
     const nonce = generateRandomString(16);
@@ -42,7 +37,12 @@ const Login = () => {
 
     // Redirect to authorization endpoint
     window.location.href = `/authorize?${authParams.toString()}`;
-  };
+  }, []);
+
+  useEffect(() => {
+    // Automatically redirect to OAuth authorization endpoint
+    initiateOAuthFlow();
+  }, [initiateOAuthFlow]);
 
   return (
     <Box

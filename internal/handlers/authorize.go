@@ -196,7 +196,7 @@ func (h *Handlers) renderLoginPageWithError(w http.ResponseWriter, r *http.Reque
 	if errorMsg != "" {
 		errorHTML = fmt.Sprintf(`<div style="color: red; text-align: center; margin: 10px 0;">%s</div>`, errorMsg)
 	}
-	
+
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>
