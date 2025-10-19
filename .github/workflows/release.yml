@@ -108,12 +108,15 @@ jobs:
         go-version: '1.21'
         
     - name: Run tests
+      working-directory: backend
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       
     - name: Run go vet
+      working-directory: backend
       run: go vet ./...
       
     - name: Run go fmt check
+      working-directory: backend
       run: |
         if [ -n "$(gofmt -s -l .)" ]; then
           echo "Go code is not formatted:"
@@ -126,8 +129,10 @@ jobs:
       with:
         version: latest
         args: --timeout=5m --disable=typecheck
+        working-directory: backend
         
     - name: Build verification
+      working-directory: backend
       run: go build -v ./...
         
   build:
@@ -181,37 +186,38 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ui/admin/package-lock.json
+        cache-dependency-path: frontend/package-lock.json
         
     - name: Install UI dependencies
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm ci
       
     - name: Build UI
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm run build
       
     - name: Prepare build directory (Linux/macOS)
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        mkdir -p internal/ui/admin
-        cp -r ui/admin/dist/* internal/ui/admin/
+        mkdir -p backend/pkg/ui
+        cp -r frontend/dist backend/pkg/ui/dist
         
     - name: Prepare build directory (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path internal/ui/admin
-        Copy-Item -Path ui/admin/dist/* -Destination internal/ui/admin/ -Recurse
+        New-Item -ItemType Directory -Force -Path backend/pkg/ui
+        Copy-Item -Path frontend/dist -Destination backend/pkg/ui/dist -Recurse
         
     - name: Build binary
+      working-directory: backend
       env:
         CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
-        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ../${{ matrix.binary }} .
         
     - name: Verify binary exists before upload
       shell: bash

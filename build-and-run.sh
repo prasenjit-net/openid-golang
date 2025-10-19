@@ -8,22 +8,24 @@ echo "============================================================"
 
 # Step 1: Build React Admin UI
 echo ""
-echo "📦 Step 1: Building React Admin UI..."
-cd ui/admin
+echo "📦 Step 1: Building React Frontend..."
+cd frontend
 npm run build
-cd ../..
+cd ..
 
 # Step 2: Copy dist files to embed location
 echo ""
 echo "📋 Step 2: Copying build files for embedding..."
-mkdir -p internal/ui/admin
-rm -rf internal/ui/admin/dist
-cp -r ui/admin/dist internal/ui/admin/
+mkdir -p backend/pkg/ui
+rm -rf backend/pkg/ui/dist
+cp -r frontend/dist backend/pkg/ui/dist
 
 # Step 3: Build Go binary with embedded UI
 echo ""
-echo "🔨 Step 3: Building Go binary with embedded UI..."
-go build -o bin/openid-server ./cmd/server
+echo "🔨 Step 3: Building Go backend with embedded UI..."
+cd backend
+go build -o ../bin/openid-server .
+cd ..
 
 echo ""
 echo "✅ Build Complete!"

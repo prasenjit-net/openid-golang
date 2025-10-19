@@ -33,9 +33,7 @@ dist/
 *~
 .DS_Store
 
-# Environment and config files
-.env
-.env.local
+# Configuration and data files
 config.local.yaml
 config.toml
 data.json
@@ -62,15 +60,21 @@ server.log
 keys/
 
 # UI build artifacts
-ui/admin/dist/
-ui/admin/node_modules/
-ui/admin/.vite/
-internal/ui/admin/dist/
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+frontend/internal/
+backend/pkg/ui/dist/*
+!backend/pkg/ui/dist/.gitkeep
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.old
+*.bak
+*.backup
+*~
 
 # OS specific
 Thumbs.db

@@ -32,15 +32,16 @@ if [ ! -f "config/keys/private.key" ]; then
 fi
 
 # Check if database exists
-if [ ! -f "openid.db" ]; then
-    echo "⚠️  Database not seeded yet!"
+if [ ! -f "data.json" ]; then
+    echo "⚠️  Database not initialized yet!"
     echo ""
-    echo "Running seed script..."
-    go run scripts/seed.go
+    echo "Please run setup first:"
+    echo "  ./bin/openid-server setup"
     echo ""
-    echo "⚠️  IMPORTANT: Save the Client ID and Client Secret shown above!"
+    echo "Or run in demo mode:"
+    echo "  ./bin/openid-server setup --demo"
     echo ""
-    read -p "Press Enter to continue..."
+    exit 1
 fi
 
 echo ""
@@ -49,14 +50,15 @@ echo ""
 echo "The server will start on http://localhost:8080"
 echo ""
 echo "Available endpoints:"
-echo "  - http://localhost:8080/health"
+echo "  - http://localhost:8080/"
 echo "  - http://localhost:8080/.well-known/openid-configuration"
 echo "  - http://localhost:8080/.well-known/jwks.json"
+echo "  - http://localhost:8080/api/admin/stats"
 echo ""
 echo "To test the full OAuth flow:"
 echo "  1. Keep this server running"
 echo "  2. Open a new terminal"
-echo "  3. Run: go run examples/test-client.go"
+echo "  3. Run: cd backend && go run ../examples/test-client.go"
 echo "  4. Visit http://localhost:9090 in your browser"
 echo ""
 echo "Press Ctrl+C to stop the server"
@@ -64,4 +66,4 @@ echo ""
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-go run cmd/server/main.go
+./bin/openid-server serve

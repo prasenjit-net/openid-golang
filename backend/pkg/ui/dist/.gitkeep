@@ -1,0 +1,2 @@
+# This file ensures the dist directory is tracked by git
+# The Go embed directive requires this directory to exist at compile time
