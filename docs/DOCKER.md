@@ -2,7 +2,39 @@
 
 This guide covers running the OpenID Connect Server in Docker containers.
 
+## ⚠️ Important: VS Code Remote Connection Users
+
+If you're using VS Code Remote connection and have just added yourself to the `docker` group, you'll need to **reload your VS Code window** to pick up the new group membership:
+
+1. Press `F1` or `Ctrl+Shift+P`
+2. Type: `Remote: Reload Window`
+3. Press Enter
+
+Alternatively, use `newgrp docker` in your terminal before running Docker commands.
+
+You can verify Docker permissions by running: `./check-docker.sh`
+
 ## 🐳 Quick Start
+
+### First Time Setup
+
+Before running the server, you need to initialize it:
+
+```bash
+# Build the image
+./docker-build.sh
+
+# Run setup to initialize configuration and keys
+docker run --rm -it \
+  -v $(pwd)/config:/app/config \
+  -v $(pwd)/data:/app/data \
+  openid-server:1.1.0 setup
+```
+
+This will:
+- Generate RSA key pair for JWT signing
+- Create configuration file
+- Set up initial admin user
 
 ### Using Docker Compose (Recommended)
 
@@ -21,10 +53,7 @@ The server will be available at `http://localhost:8080`
 ### Using Docker CLI
 
 ```bash
-# Build the image
-./docker-build.sh
-
-# Run the container
+# Run the container (after setup)
 docker run -d \
   --name openid-server \
   -p 8080:8080 \
