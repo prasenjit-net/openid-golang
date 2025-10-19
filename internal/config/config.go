@@ -8,6 +8,15 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+const (
+	// StorageTypeJSON represents JSON file storage type
+	StorageTypeJSON = "json"
+	// StorageTypeMongoDB represents MongoDB storage type
+	StorageTypeMongoDB = "mongodb"
+	// DefaultJSONFile is the default JSON storage file
+	DefaultJSONFile = "data.json"
+)
+
 // Config holds the application configuration
 type Config struct {
 	Server  ServerConfig  `toml:"server"`
@@ -67,10 +76,10 @@ func LoadFromTOML(filePath string) (*Config, error) {
 		cfg.Server.Port = 8080
 	}
 	if cfg.Storage.Type == "" {
-		cfg.Storage.Type = "json"
+		cfg.Storage.Type = StorageTypeJSON
 	}
 	if cfg.Storage.JSONFilePath == "" {
-		cfg.Storage.JSONFilePath = "data.json"
+		cfg.Storage.JSONFilePath = DefaultJSONFile
 	}
 	if cfg.JWT.ExpiryMinutes == 0 {
 		cfg.JWT.ExpiryMinutes = 60
@@ -91,9 +100,9 @@ func loadFromEnv() (*Config, error) {
 			Port: getEnvAsInt("SERVER_PORT", 8080),
 		},
 		Storage: StorageConfig{
-			Type:         getEnv("STORAGE_TYPE", "json"),
+			Type:         getEnv("STORAGE_TYPE", StorageTypeJSON),
 			MongoURI:     getEnv("MONGO_URI", "mongodb://localhost:27017/openid"),
-			JSONFilePath: getEnv("JSON_FILE_PATH", "data.json"),
+			JSONFilePath: getEnv("JSON_FILE_PATH", DefaultJSONFile),
 		},
 		JWT: JWTConfig{
 			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY", "config/keys/private.key"),
@@ -120,15 +129,15 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("issuer cannot be empty")
 	}
 
-	if c.Storage.Type != "mongodb" && c.Storage.Type != "json" {
+	if c.Storage.Type != StorageTypeMongoDB && c.Storage.Type != StorageTypeJSON {
 		return fmt.Errorf("unsupported storage type: %s (must be 'mongodb' or 'json')", c.Storage.Type)
 	}
 
-	if c.Storage.Type == "mongodb" && c.Storage.MongoURI == "" {
+	if c.Storage.Type == StorageTypeMongoDB && c.Storage.MongoURI == "" {
 		return fmt.Errorf("mongo_uri is required when storage type is 'mongodb'")
 	}
 
-	if c.Storage.Type == "json" && c.Storage.JSONFilePath == "" {
+	if c.Storage.Type == StorageTypeJSON && c.Storage.JSONFilePath == "" {
 		return fmt.Errorf("json_file_path is required when storage type is 'json'")
 	}
 

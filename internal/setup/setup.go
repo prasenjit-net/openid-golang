@@ -154,9 +154,9 @@ func promptWithDefault(reader *bufio.Reader, prompt, defaultValue string) string
 }
 
 func promptStorageConfig(reader *bufio.Reader, storageType string) (jsonFilePath, mongoURI string) {
-	if storageType == storage.StorageTypeJSON {
-		jsonFilePath = promptWithDefault(reader, "JSON file path", storage.DefaultJSONFile)
-	} else if storageType == storage.StorageTypeMongoDB {
+	if storageType == config.StorageTypeJSON {
+		jsonFilePath = promptWithDefault(reader, "JSON file path", config.DefaultJSONFile)
+	} else if storageType == config.StorageTypeMongoDB {
 		mongoURI = promptWithDefault(reader, "MongoDB connection URI", "mongodb://localhost:27017/openid")
 	}
 	return jsonFilePath, mongoURI
@@ -174,10 +174,10 @@ port = %s
 type = "%s"
 `, issuer, host, port, storageType)
 
-	if storageType == storage.StorageTypeJSON {
+	if storageType == config.StorageTypeJSON {
 		configContent += fmt.Sprintf(`json_file_path = "%s"
 `, jsonFilePath)
-	} else if storageType == storage.StorageTypeMongoDB {
+	} else if storageType == config.StorageTypeMongoDB {
 		configContent += fmt.Sprintf(`mongo_uri = "%s"
 `, mongoURI)
 	}
@@ -210,7 +210,7 @@ func setupConfig(reader *bufio.Reader) error {
 	host := promptWithDefault(reader, "Server host", "0.0.0.0")
 	port := promptWithDefault(reader, "Server port", "8080")
 
-	storageType := promptWithDefault(reader, "Storage type (json/mongodb)", storage.StorageTypeJSON)
+	storageType := promptWithDefault(reader, "Storage type (json/mongodb)", config.StorageTypeJSON)
 	storageType = strings.ToLower(storageType)
 
 	jsonFilePath, mongoURI := promptStorageConfig(reader, storageType)
