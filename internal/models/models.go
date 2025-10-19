@@ -6,6 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	// ResponseTypeIDToken is the ID token response type (implicit flow)
+	ResponseTypeIDToken = "id_token"
+	// ResponseTypeTokenIDToken is the access token + ID token response type
+	ResponseTypeTokenIDToken = "token id_token"
+)
+
 // UserRole represents the role of a user
 type UserRole string
 
@@ -132,7 +139,7 @@ func NewAdminUIClient(issuerURL string) *Client {
 		Name:          "Admin UI",
 		RedirectURIs:  []string{issuerURL + "/admin/callback"},
 		GrantTypes:    []string{"implicit"},
-		ResponseTypes: []string{"id_token", "token id_token"},
+		ResponseTypes: []string{ResponseTypeIDToken, ResponseTypeTokenIDToken},
 		Scope:         "openid profile email",
 		CreatedAt:     time.Now(),
 	}

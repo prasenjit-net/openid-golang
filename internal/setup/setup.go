@@ -143,6 +143,54 @@ func setupKeys(reader *bufio.Reader) error {
 	return nil
 }
 
+func promptWithDefault(reader *bufio.Reader, prompt, defaultValue string) string {
+	fmt.Printf("%s (default: %s): ", prompt, defaultValue)
+	value, _ := reader.ReadString('\n')
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func promptStorageConfig(reader *bufio.Reader, storageType string) (jsonFilePath, mongoURI string) {
+	if storageType == storage.StorageTypeJSON {
+		jsonFilePath = promptWithDefault(reader, "JSON file path", storage.DefaultJSONFile)
+	} else if storageType == storage.StorageTypeMongoDB {
+		mongoURI = promptWithDefault(reader, "MongoDB connection URI", "mongodb://localhost:27017/openid")
+	}
+	return jsonFilePath, mongoURI
+}
+
+func buildConfigContent(host, port, storageType, jsonFilePath, mongoURI, issuer string) string {
+	configContent := fmt.Sprintf(`# OpenID Connect Server Configuration
+issuer = "%s"
+
+[server]
+host = "%s"
+port = %s
+
+[storage]
+type = "%s"
+`, issuer, host, port, storageType)
+
+	if storageType == storage.StorageTypeJSON {
+		configContent += fmt.Sprintf(`json_file_path = "%s"
+`, jsonFilePath)
+	} else if storageType == storage.StorageTypeMongoDB {
+		configContent += fmt.Sprintf(`mongo_uri = "%s"
+`, mongoURI)
+	}
+
+	configContent += `
+[jwt]
+private_key_path = "config/keys/private.key"
+public_key_path = "config/keys/public.key"
+expiry_minutes = 60
+`
+	return configContent
+}
+
 func setupConfig(reader *bufio.Reader) error {
 	configPath := "config.toml"
 
@@ -158,87 +206,24 @@ func setupConfig(reader *bufio.Reader) error {
 		}
 	}
 
-	// Get server host
-	fmt.Print("Server host (default: 0.0.0.0): ")
-	host, _ := reader.ReadString('\n')
-	host = strings.TrimSpace(host)
-	if host == "" {
-		host = "0.0.0.0"
-	}
+	// Get configuration values
+	host := promptWithDefault(reader, "Server host", "0.0.0.0")
+	port := promptWithDefault(reader, "Server port", "8080")
 
-	// Get server port
-	fmt.Print("Server port (default: 8080): ")
-	port, _ := reader.ReadString('\n')
-	port = strings.TrimSpace(port)
-	if port == "" {
-		port = "8080"
-	}
+	storageType := promptWithDefault(reader, "Storage type (json/mongodb)", storage.StorageTypeJSON)
+	storageType = strings.ToLower(storageType)
 
-	// Get storage type
-	fmt.Print("Storage type (json/mongodb, default: json): ")
-	storageType, _ := reader.ReadString('\n')
-	storageType = strings.TrimSpace(strings.ToLower(storageType))
-	if storageType == "" {
-		storageType = "json"
-	}
+	jsonFilePath, mongoURI := promptStorageConfig(reader, storageType)
 
-	// Get storage configuration
-	var jsonFilePath, mongoURI string
-	if storageType == "json" {
-		fmt.Print("JSON file path (default: data.json): ")
-		jsonFilePath, _ = reader.ReadString('\n')
-		jsonFilePath = strings.TrimSpace(jsonFilePath)
-		if jsonFilePath == "" {
-			jsonFilePath = "data.json"
-		}
-	} else if storageType == "mongodb" {
-		fmt.Print("MongoDB connection URI (default: mongodb://localhost:27017/openid): ")
-		mongoURI, _ = reader.ReadString('\n')
-		mongoURI = strings.TrimSpace(mongoURI)
-		if mongoURI == "" {
-			mongoURI = "mongodb://localhost:27017/openid"
-		}
-	}
-
-	// Get issuer URL
+	// Determine issuer URL
 	issuer := fmt.Sprintf("http://%s:%s", host, port)
 	if host == "0.0.0.0" {
 		issuer = fmt.Sprintf("http://localhost:%s", port)
 	}
-	fmt.Printf("Issuer URL (default: %s): ", issuer)
-	customIssuer, _ := reader.ReadString('\n')
-	customIssuer = strings.TrimSpace(customIssuer)
-	if customIssuer != "" {
-		issuer = customIssuer
-	}
+	issuer = promptWithDefault(reader, "Issuer URL", issuer)
 
-	// Create config.toml file
-	configContent := fmt.Sprintf(`# OpenID Connect Server Configuration
-issuer = "%s"
-
-[server]
-host = "%s"
-port = %s
-
-[storage]
-type = "%s"
-`, issuer, host, port, storageType)
-
-	if storageType == "json" {
-		configContent += fmt.Sprintf(`json_file_path = "%s"
-`, jsonFilePath)
-	} else if storageType == "mongodb" {
-		configContent += fmt.Sprintf(`mongo_uri = "%s"
-`, mongoURI)
-	}
-
-	configContent += `
-[jwt]
-private_key_path = "config/keys/private.key"
-public_key_path = "config/keys/public.key"
-expiry_minutes = 60
-`
-
+	// Build and write configuration
+	configContent := buildConfigContent(host, port, storageType, jsonFilePath, mongoURI, issuer)
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		return fmt.Errorf("failed to write config.toml file: %w", err)
 	}

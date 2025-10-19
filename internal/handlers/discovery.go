@@ -40,9 +40,9 @@ func (h *Handlers) Discovery(w http.ResponseWriter, r *http.Request) {
 			"email",
 		},
 		ResponseTypesSupported: []string{
-			"code",
-			"id_token",
-			"token id_token",
+			ResponseTypeCode,
+			ResponseTypeIDToken,
+			ResponseTypeTokenIDToken,
 		},
 		ResponseModesSupported: []string{
 			"query",

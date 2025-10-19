@@ -12,6 +12,15 @@ import (
 	"github.com/prasenjit-net/openid-golang/internal/models"
 )
 
+const (
+	// ResponseTypeCode is the authorization code response type
+	ResponseTypeCode = "code"
+	// ResponseTypeIDToken is the ID token response type (implicit flow)
+	ResponseTypeIDToken = "id_token"
+	// ResponseTypeTokenIDToken is the access token + ID token response type
+	ResponseTypeTokenIDToken = "token id_token"
+)
+
 // Authorize handles the authorization endpoint (GET /authorize)
 func (h *Handlers) Authorize(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
@@ -38,7 +47,7 @@ func (h *Handlers) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Support both authorization code flow and implicit flow
-	if responseType != "code" && responseType != "id_token" && responseType != "token id_token" {
+	if responseType != ResponseTypeCode && responseType != ResponseTypeIDToken && responseType != ResponseTypeTokenIDToken {
 		redirectWithError(w, redirectURI, "unsupported_response_type", "Only 'code', 'id_token', and 'token id_token' response types are supported", state)
 		return
 	}
@@ -126,7 +135,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle implicit flow (id_token or token id_token)
-	if responseType == "id_token" || responseType == "token id_token" {
+	if responseType == ResponseTypeIDToken || responseType == ResponseTypeTokenIDToken {
 		// Generate ID token
 		idToken, err := h.jwtManager.GenerateIDToken(user, clientID, nonce)
 		if err != nil {
@@ -138,7 +147,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		fragment := fmt.Sprintf("id_token=%s&state=%s", idToken, state)
 
 		// If response_type includes 'token', also generate access token
-		if responseType == "token id_token" {
+		if responseType == ResponseTypeTokenIDToken {
 			accessToken, err := h.jwtManager.GenerateAccessToken(user, client.ID, scope)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate access token")
