@@ -45,8 +45,8 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 
 	// Validate configuration
-	if err := cfg.Validate(); err != nil {
-		log.Fatalf("Invalid configuration: %v", err)
+	if validateErr := cfg.Validate(); validateErr != nil {
+		log.Fatalf("Invalid configuration: %v", validateErr)
 	}
 
 	// Initialize storage
