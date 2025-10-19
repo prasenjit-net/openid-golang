@@ -126,8 +126,10 @@ jobs:
       with:
         version: latest
         args: --timeout=5m --disable=typecheck
+        working-directory: backend
         
     - name: Build verification
+      working-directory: backend
       run: go build -v ./...
         
   build:
@@ -181,37 +183,38 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ui/admin/package-lock.json
+        cache-dependency-path: frontend/package-lock.json
         
     - name: Install UI dependencies
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm ci
       
     - name: Build UI
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm run build
       
     - name: Prepare build directory (Linux/macOS)
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        mkdir -p pkg/ui/admin
-        cp -r ui/admin/dist/* pkg/ui/admin/
+        mkdir -p backend/pkg/ui/admin
+        cp -r frontend/dist/* backend/pkg/ui/admin/
         
     - name: Prepare build directory (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path pkg/ui/admin
-        Copy-Item -Path ui/admin/dist/* -Destination pkg/ui/admin/ -Recurse
+        New-Item -ItemType Directory -Force -Path backend/pkg/ui/admin
+        Copy-Item -Path frontend/dist/* -Destination backend/pkg/ui/admin/ -Recurse
         
     - name: Build binary
+      working-directory: backend
       env:
         CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
       run: |
-        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ${{ matrix.binary }} ./cmd/server
+        go build -ldflags="-X main.Version=${{ needs.version.outputs.new_version }}" -o ../${{ matrix.binary }} .
         
     - name: Verify binary exists before upload
       shell: bash

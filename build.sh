@@ -10,18 +10,20 @@ VERSION=$(cat VERSION 2>/dev/null || echo "dev")
 echo "==> Building OpenID Connect Server v${VERSION}"
 echo ""
 
-echo "==> Building Admin UI..."
-cd ui/admin
+echo "==> Building Frontend (React Admin UI)..."
+cd frontend
 npm run build
-cd ../..
+cd ..
 
 echo "==> Copying UI to embed location..."
-mkdir -p pkg/ui/admin
-rm -rf pkg/ui/admin/dist
-cp -r ui/admin/dist pkg/ui/admin/
+mkdir -p backend/pkg/ui/admin
+rm -rf backend/pkg/ui/admin/dist
+cp -r frontend/dist backend/pkg/ui/admin/
 
-echo "==> Building Go server..."
-go build -ldflags="-X main.Version=${VERSION}" -o bin/openid-server .
+echo "==> Building Go backend server..."
+cd backend
+go build -ldflags="-X main.Version=${VERSION}" -o ../bin/openid-server .
+cd ..
 
 echo ""
 echo "==> Build complete!"

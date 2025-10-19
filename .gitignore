@@ -62,14 +62,14 @@ server.log
 keys/
 
 # UI build artifacts
-ui/admin/dist/
-ui/admin/node_modules/
-ui/admin/.vite/
-ui/admin/internal/
-pkg/ui/admin/dist/
-pkg/ui/admin/assets/
-pkg/ui/admin/*.html
-pkg/ui/admin/*.svg
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+frontend/internal/
+backend/pkg/ui/admin/dist/
+backend/pkg/ui/admin/assets/
+backend/pkg/ui/admin/*.html
+backend/pkg/ui/admin/*.svg
 
 # Temporary files
 tmp/

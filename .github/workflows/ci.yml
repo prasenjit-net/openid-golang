@@ -31,21 +31,25 @@ jobs:
           ${{ runner.os }}-go-
           
     - name: Download dependencies
+      working-directory: backend
       run: go mod download
       
     - name: Run tests
+      working-directory: backend
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       
     - name: Upload coverage
       uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.txt
+        file: ./backend/coverage.txt
         flags: backend
         
     - name: Run go vet
+      working-directory: backend
       run: go vet ./...
       
     - name: Run go fmt check
+      working-directory: backend
       run: |
         if [ -n "$(gofmt -s -l .)" ]; then
           echo "Go code is not formatted:"
@@ -66,25 +70,25 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ui/admin/package-lock.json
+        cache-dependency-path: frontend/package-lock.json
         
     - name: Install dependencies
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm ci
       
     - name: Run linter
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm run lint || true
       
     - name: Build UI
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm run build
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ui-build
-        path: ui/admin/dist/
+        path: frontend/dist/
         retention-days: 7
 
   build:
@@ -109,31 +113,33 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: ui/admin/package-lock.json
+        cache-dependency-path: frontend/package-lock.json
         
     - name: Install UI dependencies
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm ci
       
     - name: Build UI
-      working-directory: ui/admin
+      working-directory: frontend
       run: npm run build
       
     - name: Copy UI to embed location
       shell: bash
       run: |
-        mkdir -p pkg/ui/admin
-        cp -r ui/admin/dist pkg/ui/admin/
+        mkdir -p backend/pkg/ui/admin
+        cp -r frontend/dist backend/pkg/ui/admin/
         
     - name: Build Go binary (Linux/macOS)
       if: runner.os != 'Windows'
+      working-directory: backend
       run: |
-        go build -v -o bin/openid-server ./cmd/server
+        go build -v -o ../bin/openid-server .
         
     - name: Build Go binary (Windows)
       if: runner.os == 'Windows'
+      working-directory: backend
       run: |
-        go build -v -o bin/openid-server.exe ./cmd/server
+        go build -v -o ../bin/openid-server.exe .
         
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
