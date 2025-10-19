@@ -179,33 +179,54 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *config.Config) {
 	e.GET("/authorize", h.Authorize)
 	e.POST("/token", h.Token)
 	e.GET("/userinfo", h.UserInfo)
+	e.POST("/userinfo", h.UserInfo)
 
-	// Admin UI (embedded)
-	adminFS := ui.GetAdminFS()
-	e.GET("/admin/*", echo.WrapHandler(http.FileServer(http.FS(adminFS))))
-	e.GET("/admin", func(c echo.Context) error {
-		return c.Redirect(http.StatusMovedPermanently, "/admin/")
-	})
+	// Login and consent pages
+	e.GET("/login", h.Login)
+	e.POST("/login", h.Login)
+	e.GET("/consent", h.Consent)
+	e.POST("/consent", h.Consent)
 
 	// Admin API
-	adminHandler := handlers.NewAdminHandler(h.GetStorage(), cfg)
+	adminAPIHandler := handlers.NewAdminHandler(h.GetStorage(), cfg)
 	api := e.Group("/api/admin")
 
 	// Setup endpoints (no auth required)
-	api.GET("/setup/status", adminHandler.GetSetupStatus)
+	api.GET("/setup/status", adminAPIHandler.GetSetupStatus)
 
 	// Stats and management (should be authenticated in production)
-	api.GET("/stats", adminHandler.GetStats)
-	api.GET("/users", adminHandler.ListUsers)
-	api.POST("/users", adminHandler.CreateUser)
-	api.PUT("/users/:id", adminHandler.UpdateUser)
-	api.DELETE("/users/:id", adminHandler.DeleteUser)
-	api.GET("/clients", adminHandler.ListClients)
-	api.POST("/clients", adminHandler.CreateClient)
-	api.PUT("/clients/:id", adminHandler.UpdateClient)
-	api.DELETE("/clients/:id", adminHandler.DeleteClient)
-	api.GET("/settings", adminHandler.GetSettings)
-	api.PUT("/settings", adminHandler.UpdateSettings)
+	api.GET("/stats", adminAPIHandler.GetStats)
+	api.GET("/users", adminAPIHandler.ListUsers)
+	api.POST("/users", adminAPIHandler.CreateUser)
+	api.PUT("/users/:id", adminAPIHandler.UpdateUser)
+	api.DELETE("/users/:id", adminAPIHandler.DeleteUser)
+	api.GET("/clients", adminAPIHandler.ListClients)
+	api.POST("/clients", adminAPIHandler.CreateClient)
+	api.PUT("/clients/:id", adminAPIHandler.UpdateClient)
+	api.DELETE("/clients/:id", adminAPIHandler.DeleteClient)
+	api.GET("/settings", adminAPIHandler.GetSettings)
+	api.PUT("/settings", adminAPIHandler.UpdateSettings)
+
+	// Serve Admin UI at root with HTML5 routing (must be last)
+	adminFS := ui.GetAdminFS()
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:       "/",
+		Index:      "index.html",
+		HTML5:      true,
+		Browse:     false,
+		Filesystem: http.FS(adminFS),
+		Skipper: func(c echo.Context) bool {
+			// Skip static serving for API routes and OpenID endpoints
+			path := c.Request().URL.Path
+			return path == "/authorize" ||
+				path == "/token" ||
+				path == "/userinfo" ||
+				path == "/login" ||
+				path == "/consent" ||
+				len(path) >= 4 && path[:4] == "/api" ||
+				len(path) >= 12 && path[:12] == "/.well-known"
+		},
+	}))
 }
 
 func getVersion() string {
