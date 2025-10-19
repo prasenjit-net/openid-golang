@@ -8,6 +8,9 @@ set -e
 echo "🔍 Running code quality checks..."
 echo ""
 
+# Change to backend directory
+cd backend
+
 # Check formatting
 echo "📝 Checking code formatting..."
 UNFORMATTED=$(gofmt -l .)
