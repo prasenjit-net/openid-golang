@@ -9,8 +9,8 @@ WORKDIR /app/frontend
 # Copy frontend package files
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies needed for build)
+RUN npm ci
 
 # Copy frontend source
 COPY frontend/ ./
@@ -19,7 +19,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Backend
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.24-alpine AS backend-builder
 
 # Install build dependencies
 RUN apk add --no-cache git
@@ -51,9 +51,6 @@ WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=backend-builder /app/openid-server .
-
-# Copy example files (optional, for reference)
-COPY --from=backend-builder /app/../README.md ./docs/ 2>/dev/null || true
 
 # Create directories for config and data
 RUN mkdir -p /app/config/keys /app/data
