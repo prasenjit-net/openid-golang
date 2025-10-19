@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/prasenjit-net/openid-golang/internal/config"
 	"github.com/prasenjit-net/openid-golang/internal/crypto"
 	"github.com/prasenjit-net/openid-golang/internal/models"
 	"github.com/prasenjit-net/openid-golang/internal/storage"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // AdminHandler handles admin API endpoints
