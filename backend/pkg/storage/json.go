@@ -47,13 +47,13 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 
 	// Load existing data if file exists
 	if _, err := os.Stat(filePath); err == nil {
-		if err := storage.load(); err != nil {
-			return nil, fmt.Errorf("failed to load existing data: %w", err)
+		if loadErr := storage.load(); loadErr != nil {
+			return nil, fmt.Errorf("failed to load existing data: %w", loadErr)
 		}
 	} else {
 		// Create new file
-		if err := storage.save(); err != nil {
-			return nil, fmt.Errorf("failed to create data file: %w", err)
+		if saveErr := storage.save(); saveErr != nil {
+			return nil, fmt.Errorf("failed to create data file: %w", saveErr)
 		}
 	}
 
