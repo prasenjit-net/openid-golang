@@ -161,11 +161,12 @@ The admin UI communicates with the backend through REST API endpoints:])
 
 ## Embedding in Go Binary
 
-The built UI files are embedded into the Go binary using Go's `embed` package. See `internal/ui/embed.go` for the implementation.
+The built UI files are embedded into the Go binary using Go's `embed` package. See `backend/pkg/ui/embed.go` for the implementation.
 
 During production build:
-1. React app is built to `ui/admin/dist/`
-2. Go `embed` directive includes these files
-3. Files are served from the binary at runtime
+1. React app is built to `frontend/dist/`
+2. Files are copied to `backend/pkg/ui/dist/`
+3. Go `embed` directive includes these files
+4. Files are served from the binary at runtime
 
 This creates a single, portable binary with no external dependencies.

@@ -66,10 +66,7 @@ frontend/dist/
 frontend/node_modules/
 frontend/.vite/
 frontend/internal/
-backend/pkg/ui/admin/dist/
-backend/pkg/ui/admin/assets/
-backend/pkg/ui/admin/*.html
-backend/pkg/ui/admin/*.svg
+backend/pkg/ui/dist/
 
 # Temporary files
 tmp/

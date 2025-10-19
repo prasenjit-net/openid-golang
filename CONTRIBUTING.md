@@ -45,9 +45,9 @@ This project adheres to a code of conduct. By participating, you are expected to
 
 5. Install UI dependencies:
    ```bash
-   cd ui/admin
+   cd frontend
    npm install
-   cd ../..
+   cd ..
    ```
 
 ## Development Workflow
@@ -86,9 +86,9 @@ go test -v ./...
 
 **Frontend build:**
 ```bash
-cd ui/admin
+cd frontend
 npm run build
-cd ../..
+cd ..
 ```
 
 **Run the server:**

@@ -54,7 +54,7 @@ issues:
         - gocyclo
   exclude-dirs:
     - vendor
-    - ui/admin/node_modules
+    - frontend/node_modules
   exclude-files:
     - ".*\\.pb\\.go$"
   max-issues-per-linter: 0

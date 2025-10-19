@@ -108,12 +108,15 @@ jobs:
         go-version: '1.21'
         
     - name: Run tests
+      working-directory: backend
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       
     - name: Run go vet
+      working-directory: backend
       run: go vet ./...
       
     - name: Run go fmt check
+      working-directory: backend
       run: |
         if [ -n "$(gofmt -s -l .)" ]; then
           echo "Go code is not formatted:"
@@ -197,15 +200,15 @@ jobs:
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        mkdir -p backend/pkg/ui/admin
-        cp -r frontend/dist/* backend/pkg/ui/admin/
+        mkdir -p backend/pkg/ui
+        cp -r frontend/dist backend/pkg/ui/dist
         
     - name: Prepare build directory (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path backend/pkg/ui/admin
-        Copy-Item -Path frontend/dist/* -Destination backend/pkg/ui/admin/ -Recurse
+        New-Item -ItemType Directory -Force -Path backend/pkg/ui
+        Copy-Item -Path frontend/dist -Destination backend/pkg/ui/dist -Recurse
         
     - name: Build binary
       working-directory: backend

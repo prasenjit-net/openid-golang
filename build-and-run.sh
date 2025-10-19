@@ -16,9 +16,9 @@ cd ..
 # Step 2: Copy dist files to embed location
 echo ""
 echo "📋 Step 2: Copying build files for embedding..."
-mkdir -p backend/pkg/ui/admin
-rm -rf backend/pkg/ui/admin/dist
-cp -r frontend/dist backend/pkg/ui/admin/
+mkdir -p backend/pkg/ui
+rm -rf backend/pkg/ui/dist
+cp -r frontend/dist backend/pkg/ui/dist
 
 # Step 3: Build Go binary with embedded UI
 echo ""

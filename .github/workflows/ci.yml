@@ -26,7 +26,7 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
           
@@ -126,8 +126,8 @@ jobs:
     - name: Copy UI to embed location
       shell: bash
       run: |
-        mkdir -p backend/pkg/ui/admin
-        cp -r frontend/dist backend/pkg/ui/admin/
+        mkdir -p backend/pkg/ui
+        cp -r frontend/dist backend/pkg/ui/dist
         
     - name: Build Go binary (Linux/macOS)
       if: runner.os != 'Windows'
@@ -166,6 +166,7 @@ jobs:
       with:
         version: latest
         args: --timeout=5m --disable=typecheck
+        working-directory: backend
 
   security:
     name: Security Scan
@@ -185,11 +186,13 @@ jobs:
         go-version: '1.21'
         
     - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
-      with:
-        args: '-no-fail -fmt=json -out=results.json ./...'
+      working-directory: backend
+      run: |
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
+        gosec -no-fail -fmt=json -out=results.json ./...
         
     - name: Display security scan results
+      working-directory: backend
       if: always()
       run: |
         if [ -f results.json ]; then

@@ -8,17 +8,16 @@ build:
 	@echo "Building backend..."
 	@cd backend && go build -o ../bin/openid-server .
 
-# Build with UI
-build-all:
+# Build the frontend UI
+build-frontend:
 	@echo "Building frontend..."
 	@cd frontend && npm run build
-	@echo "Copying UI to embed location..."
-	@mkdir -p backend/pkg/ui/admin
-	@rm -rf backend/pkg/ui/admin/dist
-	@cp -r frontend/dist backend/pkg/ui/admin/
-	@echo "Building backend with embedded UI..."
-	@cd backend && go build -o ../bin/openid-server .
-	@echo "✅ Build complete! Binary: ./bin/openid-server"
+	@mkdir -p backend/pkg/ui
+	@rm -rf backend/pkg/ui/dist
+	@cp -r frontend/dist backend/pkg/ui/dist
+	@echo "Frontend built successfully"
+
+# Build the backend server
 
 # Run the application
 run:
@@ -30,13 +29,13 @@ test:
 	@echo "Running backend tests..."
 	@cd backend && go test -v ./...
 
-# Clean build artifacts
+# Clean build artifacts and temporary files
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf bin/
-	@rm -rf backend/pkg/ui/admin/dist
-	@rm -rf frontend/dist
-	@cd backend && go clean
+	@rm -rf backend/pkg/ui/dist
+	@cd frontend && rm -rf dist node_modules/.vite
+	@echo "Clean complete"
 
 # Download dependencies
 deps:

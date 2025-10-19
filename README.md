@@ -22,7 +22,7 @@ All documentation is organized in the **`docs/`** folder:
 - **[Implementation Details](docs/IMPLEMENTATION.md)** - Technical details
 - **[Project Summary](docs/PROJECT_SUMMARY.md)** - What's been built
 - **[Documentation Index](docs/INDEX.md)** - Complete documentation hub
-- **[Admin UI Documentation](ui/admin/README.md)** - React admin interface guide
+- **[Admin UI Documentation](frontend/README.md)** - React admin interface guide
 - **[CI/CD Documentation](docs/CI_CD.md)** - Continuous Integration and Deployment
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 
