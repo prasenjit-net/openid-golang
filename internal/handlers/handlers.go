@@ -17,22 +17,17 @@ type Handlers struct {
 }
 
 // NewHandlers creates a new handlers instance
-func NewHandlers(cfg *config.Config, store storage.Storage) *Handlers {
-	jwtManager, err := crypto.NewJWTManager(
-		cfg.JWT.PrivateKeyPath,
-		cfg.JWT.PublicKeyPath,
-		cfg.Issuer,
-		cfg.JWT.ExpiryMinutes,
-	)
-	if err != nil {
-		panic("Failed to initialize JWT manager: " + err.Error())
-	}
-
+func NewHandlers(store storage.Storage, jwtManager *crypto.JWTManager, cfg *config.Config) *Handlers {
 	return &Handlers{
 		config:     cfg,
 		storage:    store,
 		jwtManager: jwtManager,
 	}
+}
+
+// GetStorage returns the storage instance
+func (h *Handlers) GetStorage() storage.Storage {
+	return h.storage
 }
 
 // writeJSON writes a JSON response

@@ -1,49 +1,13 @@
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-
-	"github.com/prasenjit-net/openid-golang/internal/config"
-	"github.com/prasenjit-net/openid-golang/internal/handlers"
-	"github.com/prasenjit-net/openid-golang/internal/setup"
-	"github.com/prasenjit-net/openid-golang/internal/storage"
-	"github.com/prasenjit-net/openid-golang/internal/ui"
+	"github.com/prasenjit-net/openid-golang/cmd/server/cmd"
 )
 
-// Version is set by the build process
-var Version = "dev"
-
 func main() {
-	// Parse command line flags
-	versionFlag := flag.Bool("version", false, "Print version and exit")
-	setupFlag := flag.Bool("setup", false, "Run interactive setup wizard")
-	jsonStoreFlag := flag.Bool("json-store", false, "Use JSON file storage instead of MongoDB")
-	flag.Parse()
+	cmd.Execute()
+}
 
-	if *versionFlag {
-		fmt.Printf("OpenID Connect Server v%s\n", Version)
-		os.Exit(0)
-	}
-
-	if *setupFlag {
-		if err := setup.Run(); err != nil {
-			log.Fatalf("Setup failed: %v", err)
-		}
-		os.Exit(0)
-	}
-
-	log.Printf("Starting OpenID Connect Server v%s", Version)
 
 	// Check if config.toml exists
 	if _, err := os.Stat("config.toml"); os.IsNotExist(err) {
