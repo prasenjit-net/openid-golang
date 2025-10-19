@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/prasenjit-net/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
 // MongoDBStorage implements Storage interface using MongoDB

@@ -13,9 +13,9 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/prasenjit-net/openid-golang/internal/config"
-	"github.com/prasenjit-net/openid-golang/internal/models"
-	"github.com/prasenjit-net/openid-golang/internal/storage"
+	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
+	"github.com/prasenjit-net/openid-golang/pkg/storage"
 )
 
 const (

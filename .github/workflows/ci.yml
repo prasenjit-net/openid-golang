@@ -122,8 +122,8 @@ jobs:
     - name: Copy UI to embed location
       shell: bash
       run: |
-        mkdir -p internal/ui/admin
-        cp -r ui/admin/dist internal/ui/admin/
+        mkdir -p pkg/ui/admin
+        cp -r ui/admin/dist pkg/ui/admin/
         
     - name: Build Go binary (Linux/macOS)
       if: runner.os != 'Windows'

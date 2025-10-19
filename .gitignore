@@ -66,10 +66,10 @@ ui/admin/dist/
 ui/admin/node_modules/
 ui/admin/.vite/
 ui/admin/internal/
-internal/ui/admin/dist/
-internal/ui/admin/assets/
-internal/ui/admin/*.html
-internal/ui/admin/*.svg
+pkg/ui/admin/dist/
+pkg/ui/admin/assets/
+pkg/ui/admin/*.html
+pkg/ui/admin/*.svg
 
 # Temporary files
 tmp/

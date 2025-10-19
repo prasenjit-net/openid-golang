@@ -14,12 +14,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/prasenjit-net/openid-golang/internal/config"
-	"github.com/prasenjit-net/openid-golang/internal/crypto"
-	"github.com/prasenjit-net/openid-golang/internal/handlers"
-	"github.com/prasenjit-net/openid-golang/internal/models"
-	"github.com/prasenjit-net/openid-golang/internal/storage"
-	"github.com/prasenjit-net/openid-golang/internal/ui"
+	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/crypto"
+	"github.com/prasenjit-net/openid-golang/pkg/handlers"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
+	"github.com/prasenjit-net/openid-golang/pkg/storage"
+	"github.com/prasenjit-net/openid-golang/pkg/ui"
 )
 
 const (

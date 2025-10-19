@@ -16,12 +16,12 @@ npm run build
 cd ../..
 
 echo "==> Copying UI to embed location..."
-mkdir -p internal/ui/admin
-rm -rf internal/ui/admin/dist
-cp -r ui/admin/dist internal/ui/admin/
+mkdir -p pkg/ui/admin
+rm -rf pkg/ui/admin/dist
+cp -r ui/admin/dist pkg/ui/admin/
 
 echo "==> Building Go server..."
-go build -ldflags="-X main.Version=${VERSION}" -o bin/openid-server cmd/server/main.go
+go build -ldflags="-X main.Version=${VERSION}" -o bin/openid-server .
 
 echo ""
 echo "==> Build complete!"

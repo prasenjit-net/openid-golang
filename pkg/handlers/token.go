@@ -7,8 +7,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/prasenjit-net/openid-golang/internal/crypto"
-	"github.com/prasenjit-net/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/pkg/crypto"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
 // TokenRequest represents a token request

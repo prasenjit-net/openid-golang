@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/prasenjit-net/openid-golang/cmd/server/cmd"
+	"github.com/prasenjit-net/openid-golang/cmd"
 )
 
 func main() {

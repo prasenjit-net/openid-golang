@@ -195,15 +195,15 @@ jobs:
       if: runner.os != 'Windows'
       shell: bash
       run: |
-        mkdir -p internal/ui/admin
-        cp -r ui/admin/dist/* internal/ui/admin/
+        mkdir -p pkg/ui/admin
+        cp -r ui/admin/dist/* pkg/ui/admin/
         
     - name: Prepare build directory (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path internal/ui/admin
-        Copy-Item -Path ui/admin/dist/* -Destination internal/ui/admin/ -Recurse
+        New-Item -ItemType Directory -Force -Path pkg/ui/admin
+        Copy-Item -Path ui/admin/dist/* -Destination pkg/ui/admin/ -Recurse
         
     - name: Build binary
       env:

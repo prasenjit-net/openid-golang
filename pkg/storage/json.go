@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prasenjit-net/openid-golang/internal/models"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
 // JSONStorage implements Storage interface using JSON file

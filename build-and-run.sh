@@ -16,14 +16,14 @@ cd ../..
 # Step 2: Copy dist files to embed location
 echo ""
 echo "📋 Step 2: Copying build files for embedding..."
-mkdir -p internal/ui/admin
-rm -rf internal/ui/admin/dist
-cp -r ui/admin/dist internal/ui/admin/
+mkdir -p pkg/ui/admin
+rm -rf pkg/ui/admin/dist
+cp -r ui/admin/dist pkg/ui/admin/
 
 # Step 3: Build Go binary with embedded UI
 echo ""
 echo "🔨 Step 3: Building Go binary with embedded UI..."
-go build -o bin/openid-server ./cmd/server
+go build -o bin/openid-server .
 
 echo ""
 echo "✅ Build Complete!"

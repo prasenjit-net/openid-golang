@@ -5,7 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/prasenjit-net/openid-golang/internal/crypto"
+	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 )
 
 // DiscoveryResponse represents OpenID Connect Discovery response
