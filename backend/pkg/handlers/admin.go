@@ -35,7 +35,8 @@ func (h *AdminHandler) GetStats(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users"})
 	}
 
-	clients, err := h.store.GetAllClients()
+	var clients []*models.Client
+	clients, err = h.store.GetAllClients()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
