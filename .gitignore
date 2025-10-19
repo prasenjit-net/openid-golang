@@ -65,12 +65,20 @@ keys/
 ui/admin/dist/
 ui/admin/node_modules/
 ui/admin/.vite/
+ui/admin/internal/
 internal/ui/admin/dist/
+internal/ui/admin/assets/
+internal/ui/admin/*.html
+internal/ui/admin/*.svg
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+*.old
+*.bak
+*.backup
+*~
 
 # OS specific
 Thumbs.db
