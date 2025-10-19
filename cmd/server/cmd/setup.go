@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/prasenjit-net/openid-golang/internal/config"
@@ -44,7 +43,8 @@ func init() {
 
 func runSetup(cmd *cobra.Command, args []string) {
 	fmt.Println("🚀 OpenID Connect Server Setup")
-	fmt.Println("================================\n")
+	fmt.Println("================================")
+	fmt.Println()
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -330,15 +330,18 @@ func initializeDemoData() error {
 	fmt.Println("✓ Admin UI client created")
 
 	// Create demo test client
-	clientSecret := crypto.GenerateRandomString(32)
+	clientSecret, err := crypto.GenerateRandomString(32)
+	if err != nil {
+		return fmt.Errorf("failed to generate client secret: %w", err)
+	}
 	testClient := &models.Client{
-		ID:           "demo-client",
-		Secret:       clientSecret,
-		Name:         "Demo Test Client",
-		RedirectURIs: []string{"http://localhost:3000/callback"},
-		GrantTypes:   []string{"authorization_code"},
+		ID:            "demo-client",
+		Secret:        clientSecret,
+		Name:          "Demo Test Client",
+		RedirectURIs:  []string{"http://localhost:3000/callback"},
+		GrantTypes:    []string{"authorization_code"},
 		ResponseTypes: []string{"code"},
-		Scope:        "openid profile email",
+		Scope:         "openid profile email",
 	}
 
 	if err := store.CreateClient(testClient); err != nil {

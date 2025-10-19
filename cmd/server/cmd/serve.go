@@ -64,7 +64,12 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize JWT manager
-	jwtManager, err := crypto.NewJWTManager(cfg)
+	jwtManager, err := crypto.NewJWTManager(
+		cfg.JWT.PrivateKeyPath,
+		cfg.JWT.PublicKeyPath,
+		cfg.Issuer,
+		cfg.JWT.ExpiryMinutes,
+	)
 	if err != nil {
 		log.Fatalf("Failed to initialize JWT manager: %v", err)
 	}
@@ -177,21 +182,17 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *config.Config) {
 
 	// Admin UI (embedded)
 	adminFS := ui.GetAdminFS()
-	adminGroup := e.Group("/admin")
-	adminGroup.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Root:       "admin/dist",
-		Index:      "index.html",
-		HTML5:      true,
-		Filesystem: http.FS(adminFS),
-	}))
+	e.GET("/admin/*", echo.WrapHandler(http.FileServer(http.FS(adminFS))))
+	e.GET("/admin", func(c echo.Context) error {
+		return c.Redirect(http.StatusMovedPermanently, "/admin/")
+	})
 
 	// Admin API
 	adminHandler := handlers.NewAdminHandler(h.GetStorage(), cfg)
 	api := e.Group("/api/admin")
-	
+
 	// Setup endpoints (no auth required)
 	api.GET("/setup/status", adminHandler.GetSetupStatus)
-	api.POST("/setup/initial-user", adminHandler.CreateInitialUser)
 
 	// Stats and management (should be authenticated in production)
 	api.GET("/stats", adminHandler.GetStats)

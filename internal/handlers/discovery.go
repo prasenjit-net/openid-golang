@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/prasenjit-net/openid-golang/internal/crypto"
 )
 
@@ -25,7 +27,7 @@ type DiscoveryResponse struct {
 }
 
 // Discovery handles the OpenID Connect Discovery endpoint
-func (h *Handlers) Discovery(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) Discovery(c echo.Context) error {
 	baseURL := h.config.Issuer
 
 	response := DiscoveryResponse{
@@ -80,20 +82,21 @@ func (h *Handlers) Discovery(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // JWKS handles the JWKS endpoint
-func (h *Handlers) JWKS(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) JWKS(c echo.Context) error {
 	publicKey := h.jwtManager.GetPublicKey()
 	jwks, err := crypto.PublicKeyToJWKS(publicKey, "default")
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate JWKS")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to generate JWKS",
+		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	c.Response().Header().Set("Content-Type", "application/json")
 	jwksJSON, _ := crypto.MarshalJWKS(jwks)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(jwksJSON)
+	return c.Blob(http.StatusOK, "application/json", jwksJSON)
 }

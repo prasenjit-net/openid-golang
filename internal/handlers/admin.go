@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/prasenjit-net/openid-golang/internal/config"
@@ -29,22 +29,15 @@ func NewAdminHandler(store storage.Storage, cfg *config.Config) *AdminHandler {
 }
 
 // GetStats returns dashboard statistics
-func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) GetStats(c echo.Context) error {
 	users, err := h.store.GetAllUsers()
 	if err != nil {
-		http.Error(w, "Failed to get users", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users"})
 	}
 
 	clients, err := h.store.GetAllClients()
 	if err != nil {
-		http.Error(w, "Failed to get clients", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
 	stats := map[string]interface{}{
@@ -54,21 +47,14 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		"logins":  0, // TODO: Count recent logins
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(stats)
+	return c.JSON(http.StatusOK, stats)
 }
 
 // ListUsers returns all users
-func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) ListUsers(c echo.Context) error {
 	users, err := h.store.GetAllUsers()
 	if err != nil {
-		http.Error(w, "Failed to get users", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users"})
 	}
 
 	// Don't send password hashes to client
@@ -93,17 +79,11 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(safeUsers)
+	return c.JSON(http.StatusOK, safeUsers)
 }
 
 // CreateUser creates a new user
-func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) CreateUser(c echo.Context) error {
 	var req struct {
 		Username string `json:"username"`
 		Email    string `json:"email"`
@@ -112,15 +92,13 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		Role     string `json:"role"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Validate required fields
 	if req.Username == "" || req.Email == "" || req.Password == "" {
-		http.Error(w, "username, email, and password are required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "username, email, and password are required"})
 	}
 
 	// Set default role if not provided
@@ -132,8 +110,7 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 	}
 
 	user := &models.User{
@@ -148,8 +125,7 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.CreateUser(user); err != nil {
-		http.Error(w, "Failed to create user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user: " + err.Error()})
 	}
 
 	// Return user without password hash
@@ -162,18 +138,11 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		"created_at": user.CreatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusCreated, response)
 }
 
 // UpdateUser updates an existing user
-func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) UpdateUser(c echo.Context) error {
 	var req struct {
 		ID       string `json:"id"`
 		Username string `json:"username"`
@@ -183,20 +152,17 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password,omitempty"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Get existing user
 	existingUser, err := h.store.GetUserByID(req.ID)
 	if err != nil {
-		http.Error(w, "Failed to get user", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
 	}
 	if existingUser == nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
 	// Update fields
@@ -211,15 +177,13 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	if req.Password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
-			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-			return
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
 		}
 		existingUser.PasswordHash = string(hashedPassword)
 	}
 
 	if err := h.store.UpdateUser(existingUser); err != nil {
-		http.Error(w, "Failed to update user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user: " + err.Error()})
 	}
 
 	// Return user without password hash
@@ -233,43 +197,29 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		"updated_at": existingUser.UpdatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // DeleteUser deletes a user
-func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Extract ID from URL path
-	id := r.URL.Path[len("/api/admin/users/"):]
+func (h *AdminHandler) DeleteUser(c echo.Context) error {
+	// Extract ID from URL parameter
+	id := c.Param("id")
 	if id == "" {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User ID is required"})
 	}
 
 	if err := h.store.DeleteUser(id); err != nil {
-		http.Error(w, "Failed to delete user: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete user: " + err.Error()})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // ListClients returns all OAuth clients
-func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) ListClients(c echo.Context) error {
 	clients, err := h.store.GetAllClients()
 	if err != nil {
-		http.Error(w, "Failed to get clients", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
 	// Convert to response format
@@ -294,43 +244,33 @@ func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // CreateClient creates a new OAuth client
-func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) CreateClient(c echo.Context) error {
 	var req struct {
 		Name         string   `json:"name"`
 		RedirectURIs []string `json:"redirect_uris"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Validate required fields
 	if req.Name == "" {
-		http.Error(w, "name is required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
 	}
 	if len(req.RedirectURIs) == 0 {
-		http.Error(w, "redirect_uris is required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "redirect_uris is required"})
 	}
 
 	// Generate client credentials
 	clientID := uuid.New().String()
 	clientSecret, err := crypto.GenerateRandomString(32)
 	if err != nil {
-		http.Error(w, "Failed to generate client secret", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate client secret"})
 	}
 
 	client := &models.Client{
@@ -345,8 +285,7 @@ func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.CreateClient(client); err != nil {
-		http.Error(w, "Failed to create client: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create client: " + err.Error()})
 	}
 
 	// Return client with secret (only shown once)
@@ -359,38 +298,28 @@ func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 		"created_at":    client.CreatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusCreated, response)
 }
 
 // UpdateClient updates an existing OAuth client
-func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) UpdateClient(c echo.Context) error {
 	var req struct {
 		ID           string   `json:"id"`
 		Name         string   `json:"name"`
 		RedirectURIs []string `json:"redirect_uris"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Get existing client
 	existingClient, err := h.store.GetClientByID(req.ID)
 	if err != nil {
-		http.Error(w, "Failed to get client", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
 	}
 	if existingClient == nil {
-		http.Error(w, "Client not found", http.StatusNotFound)
-		return
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
 	}
 
 	// Update fields
@@ -398,8 +327,7 @@ func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 	existingClient.RedirectURIs = req.RedirectURIs
 
 	if err := h.store.UpdateClient(existingClient); err != nil {
-		http.Error(w, "Failed to update client: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
 	}
 
 	// Return updated client without secret
@@ -411,39 +339,26 @@ func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 		"created_at":    existingClient.CreatedAt,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // DeleteClient deletes an OAuth client
-func (h *AdminHandler) DeleteClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Extract ID from URL path
-	id := r.URL.Path[len("/api/admin/clients/"):]
+func (h *AdminHandler) DeleteClient(c echo.Context) error {
+	// Extract ID from URL parameter
+	id := c.Param("id")
 	if id == "" {
-		http.Error(w, "Client ID is required", http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
 	}
 
 	if err := h.store.DeleteClient(id); err != nil {
-		http.Error(w, "Failed to delete client: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete client: " + err.Error()})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // GetSettings returns server settings
-func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) GetSettings(c echo.Context) error {
 	settings := map[string]interface{}{
 		"issuer":             h.config.Issuer,
 		"server_host":        h.config.Server.Host,
@@ -456,17 +371,11 @@ func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 		"jwt_public_key":     h.config.JWT.PublicKeyPath,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(settings)
+	return c.JSON(http.StatusOK, settings)
 }
 
 // UpdateSettings updates server settings
-func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) UpdateSettings(c echo.Context) error {
 	var req struct {
 		Issuer           string `json:"issuer"`
 		ServerHost       string `json:"server_host"`
@@ -479,9 +388,8 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		JWTPublicKey     string `json:"jwt_public_key"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Update config values
@@ -515,27 +423,19 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 	// Validate config
 	if err := h.config.Validate(); err != nil {
-		http.Error(w, "Invalid configuration: "+err.Error(), http.StatusBadRequest)
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid configuration: " + err.Error()})
 	}
 
 	// Save to config.toml
 	if err := h.config.SaveToTOML("config.toml"); err != nil {
-		http.Error(w, "Failed to save configuration: "+err.Error(), http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to save configuration: " + err.Error()})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Settings updated successfully. Restart server for changes to take effect."})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated successfully. Restart server for changes to take effect."})
 }
 
 // GetKeys returns signing keys
-func (h *AdminHandler) GetKeys(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) GetKeys(c echo.Context) error {
 	keys := []map[string]interface{}{
 		{
 			"kid":        "key-1",
@@ -546,46 +446,28 @@ func (h *AdminHandler) GetKeys(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(keys)
+	return c.JSON(http.StatusOK, keys)
 }
 
 // RotateKeys rotates signing keys
-func (h *AdminHandler) RotateKeys(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) RotateKeys(c echo.Context) error {
 	// TODO: Generate new keys and mark old keys as inactive
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Keys rotated successfully"})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Keys rotated successfully"})
 }
 
 // GetSetupStatus returns whether initial setup is complete
-func (h *AdminHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) GetSetupStatus(c echo.Context) error {
 	// TODO: Check if setup is complete (e.g., admin user exists)
 	status := map[string]interface{}{
 		"setupComplete": true,
 		"authenticated": false,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(status)
+	return c.JSON(http.StatusOK, status)
 }
 
 // CompleteSetup performs initial setup
-func (h *AdminHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) CompleteSetup(c echo.Context) error {
 	var req struct {
 		Issuer        string `json:"issuer"`
 		AdminUsername string `json:"adminUsername"`
@@ -594,62 +476,49 @@ func (h *AdminHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 		AdminName     string `json:"adminName"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// TODO: Create admin user, save settings, generate initial keys
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Setup completed successfully"})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Setup completed successfully"})
 }
 
 // Login handles admin authentication
-func (h *AdminHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (h *AdminHandler) Login(c echo.Context) error {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
 	// Get user from storage
 	user, err := h.store.GetUserByUsername(req.Username)
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 	}
 
 	// Check if user exists
 	if user == nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
 	// Validate password using bcrypt
 	if !crypto.ValidatePassword(req.Password, user.PasswordHash) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid credentials"})
 	}
 
 	// Check if user has admin role
 	if !user.IsAdmin() {
-		http.Error(w, "Access denied: Admin privileges required", http.StatusForbidden)
-		return
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "Access denied: Admin privileges required"})
 	}
 
 	// TODO: Generate proper session token with expiration
 	response := map[string]string{
 		"token": "dummy-session-token",
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	return c.JSON(http.StatusOK, response)
 }

@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 // UserInfoResponse represents the UserInfo response
@@ -16,19 +18,23 @@ type UserInfoResponse struct {
 }
 
 // UserInfo handles the UserInfo endpoint (GET/POST /userinfo)
-func (h *Handlers) UserInfo(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UserInfo(c echo.Context) error {
 	// Extract access token from Authorization header
-	authHeader := r.Header.Get("Authorization")
+	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
-		writeError(w, http.StatusUnauthorized, "invalid_token", "Missing authorization header")
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error":             "invalid_token",
+			"error_description": "Missing authorization header",
+		})
 	}
 
 	// Parse Bearer token
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		writeError(w, http.StatusUnauthorized, "invalid_token", "Invalid authorization header format")
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error":             "invalid_token",
+			"error_description": "Invalid authorization header format",
+		})
 	}
 
 	accessToken := parts[1]
@@ -36,21 +42,27 @@ func (h *Handlers) UserInfo(w http.ResponseWriter, r *http.Request) {
 	// Validate access token
 	token, err := h.storage.GetTokenByAccessToken(accessToken)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid_token", "Invalid access token")
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error":             "invalid_token",
+			"error_description": "Invalid access token",
+		})
 	}
 
 	// Check if token is expired
 	if token.IsExpired() {
-		writeError(w, http.StatusUnauthorized, "invalid_token", "Token expired")
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error":             "invalid_token",
+			"error_description": "Token expired",
+		})
 	}
 
 	// Get user information
 	user, err := h.storage.GetUserByID(token.UserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to get user information")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to get user information",
+		})
 	}
 
 	// Build response based on scopes
@@ -71,5 +83,5 @@ func (h *Handlers) UserInfo(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	return c.JSON(http.StatusOK, response)
 }

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/prasenjit-net/openid-golang/internal/crypto"
 	"github.com/prasenjit-net/openid-golang/internal/models"
 )
@@ -30,25 +32,20 @@ type TokenResponse struct {
 }
 
 // Token handles the token endpoint (POST /token)
-func (h *Handlers) Token(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_request", "Failed to parse form")
-		return
-	}
-
+func (h *Handlers) Token(c echo.Context) error {
 	req := &TokenRequest{
-		GrantType:    r.FormValue("grant_type"),
-		Code:         r.FormValue("code"),
-		RedirectURI:  r.FormValue("redirect_uri"),
-		ClientID:     r.FormValue("client_id"),
-		ClientSecret: r.FormValue("client_secret"),
-		CodeVerifier: r.FormValue("code_verifier"),
-		RefreshToken: r.FormValue("refresh_token"),
+		GrantType:    c.FormValue("grant_type"),
+		Code:         c.FormValue("code"),
+		RedirectURI:  c.FormValue("redirect_uri"),
+		ClientID:     c.FormValue("client_id"),
+		ClientSecret: c.FormValue("client_secret"),
+		CodeVerifier: c.FormValue("code_verifier"),
+		RefreshToken: c.FormValue("refresh_token"),
 	}
 
 	// Try to get client credentials from Authorization header
 	if req.ClientID == "" || req.ClientSecret == "" {
-		clientID, clientSecret, ok := parseBasicAuth(r.Header.Get("Authorization"))
+		clientID, clientSecret, ok := parseBasicAuth(c.Request().Header.Get("Authorization"))
 		if ok {
 			req.ClientID = clientID
 			req.ClientSecret = clientSecret
@@ -58,78 +55,101 @@ func (h *Handlers) Token(w http.ResponseWriter, r *http.Request) {
 	// Validate client
 	client, err := h.storage.ValidateClient(req.ClientID, req.ClientSecret)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid_client", "Invalid client credentials")
-		return
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error":             "invalid_client",
+			"error_description": "Invalid client credentials",
+		})
 	}
 
 	switch req.GrantType {
 	case "authorization_code":
-		h.handleAuthorizationCodeGrant(w, r, req, client)
+		return h.handleAuthorizationCodeGrant(c, req, client)
 	case "refresh_token":
-		h.handleRefreshTokenGrant(w, r, req, client)
+		return h.handleRefreshTokenGrant(c, req, client)
 	default:
-		writeError(w, http.StatusBadRequest, "unsupported_grant_type", "Grant type not supported")
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "unsupported_grant_type",
+			"error_description": "Grant type not supported",
+		})
 	}
 }
 
-func (h *Handlers) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request, req *TokenRequest, client *models.Client) {
+func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenRequest, client *models.Client) error {
 	// Validate authorization code
 	authCode, err := h.storage.GetAuthorizationCode(req.Code)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Invalid authorization code")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Invalid authorization code",
+		})
 	}
 
 	// Check if code is expired
 	if authCode.IsExpired() {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Authorization code expired")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Authorization code expired",
+		})
 	}
 
 	// Validate client ID
 	if authCode.ClientID != req.ClientID {
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Client ID mismatch")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Client ID mismatch",
+		})
 	}
 
 	// Validate redirect URI
 	if authCode.RedirectURI != req.RedirectURI {
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Redirect URI mismatch")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Redirect URI mismatch",
+		})
 	}
 
 	// Verify PKCE if used
 	if authCode.CodeChallenge != "" {
 		if req.CodeVerifier == "" {
-			writeError(w, http.StatusBadRequest, "invalid_request", "code_verifier required")
-			return
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error":             "invalid_request",
+				"error_description": "code_verifier required",
+			})
 		}
 		if !crypto.VerifyCodeChallenge(req.CodeVerifier, authCode.CodeChallenge, authCode.CodeChallengeMethod) {
-			writeError(w, http.StatusBadRequest, "invalid_grant", "Invalid code_verifier")
-			return
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error":             "invalid_grant",
+				"error_description": "Invalid code_verifier",
+			})
 		}
 	}
 
 	// Get user
 	user, err := h.storage.GetUserByID(authCode.UserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to get user")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to get user",
+		})
 	}
 
 	// Create tokens
 	token := models.NewToken(client.ID, user.ID, authCode.Scope, h.config.JWT.ExpiryMinutes)
 	if createErr := h.storage.CreateToken(token); createErr != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to create token")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to create token",
+		})
 	}
 
 	// Generate ID token
 	idToken, err := h.jwtManager.GenerateIDToken(user, client.ID, authCode.Nonce)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate ID token")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to generate ID token",
+		})
 	}
 
 	// Delete authorization code (one-time use)
@@ -144,42 +164,52 @@ func (h *Handlers) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.R
 		IDToken:      idToken,
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handlers) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, req *TokenRequest, client *models.Client) {
+func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, client *models.Client) error {
 	// Get token by refresh token
 	oldToken, err := h.storage.GetTokenByRefreshToken(req.RefreshToken)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Invalid refresh token")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Invalid refresh token",
+		})
 	}
 
 	// Validate client ID
 	if oldToken.ClientID != req.ClientID {
-		writeError(w, http.StatusBadRequest, "invalid_grant", "Client ID mismatch")
-		return
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_grant",
+			"error_description": "Client ID mismatch",
+		})
 	}
 
 	// Get user
 	user, err := h.storage.GetUserByID(oldToken.UserID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to get user")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to get user",
+		})
 	}
 
 	// Create new tokens
 	newToken := models.NewToken(client.ID, user.ID, oldToken.Scope, h.config.JWT.ExpiryMinutes)
 	if createErr := h.storage.CreateToken(newToken); createErr != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to create token")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to create token",
+		})
 	}
 
 	// Generate new ID token
 	idToken, err := h.jwtManager.GenerateIDToken(user, client.ID, "")
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to generate ID token")
-		return
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to generate ID token",
+		})
 	}
 
 	// Delete old token
@@ -194,7 +224,7 @@ func (h *Handlers) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Reques
 		IDToken:      idToken,
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	return c.JSON(http.StatusOK, response)
 }
 
 // parseBasicAuth parses HTTP Basic Authentication credentials

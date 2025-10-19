@@ -17,3 +17,12 @@ func GetAdminUI() http.FileSystem {
 	}
 	return http.FS(subFS)
 }
+
+// GetAdminFS returns the embedded FS for the admin UI
+func GetAdminFS() fs.FS {
+	subFS, err := fs.Sub(adminUI, "admin/dist")
+	if err != nil {
+		panic(err)
+	}
+	return subFS
+}
