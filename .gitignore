@@ -33,9 +33,7 @@ dist/
 *~
 .DS_Store
 
-# Environment and config files
-.env
-.env.local
+# Configuration and data files
 config.local.yaml
 config.toml
 data.json
