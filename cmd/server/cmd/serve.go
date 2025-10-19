@@ -22,6 +22,10 @@ import (
 	"github.com/prasenjit-net/openid-golang/internal/ui"
 )
 
+const (
+	defaultHost = "0.0.0.0"
+)
+
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the OpenID Connect server",
@@ -56,8 +60,8 @@ func runServe(cmd *cobra.Command, args []string) {
 	adminClient, err := store.GetClientByID("admin-ui")
 	if err != nil || adminClient == nil {
 		adminClient = models.NewAdminUIClient(cfg.Issuer)
-		if err := store.CreateClient(adminClient); err != nil {
-			log.Printf("Warning: Failed to create admin-ui client: %v", err)
+		if createErr := store.CreateClient(adminClient); createErr != nil {
+			log.Printf("Warning: Failed to create admin-ui client: %v", createErr)
 		} else {
 			log.Println("Created admin-ui client")
 		}
@@ -99,8 +103,8 @@ func runServe(cmd *cobra.Command, args []string) {
 
 	// Start server with graceful shutdown
 	go func() {
-		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+		if startErr := e.Start(addr); startErr != nil && startErr != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", startErr)
 		}
 	}()
 
@@ -140,7 +144,7 @@ func loadConfigFromViper() (*config.Config, error) {
 
 	// Set defaults if not provided
 	if cfg.Server.Host == "" {
-		cfg.Server.Host = "0.0.0.0"
+		cfg.Server.Host = defaultHost
 	}
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 8080
@@ -162,7 +166,7 @@ func loadConfigFromViper() (*config.Config, error) {
 	}
 	if cfg.Issuer == "" {
 		cfg.Issuer = fmt.Sprintf("http://%s:%d", cfg.Server.Host, cfg.Server.Port)
-		if cfg.Server.Host == "0.0.0.0" {
+		if cfg.Server.Host == defaultHost {
 			cfg.Issuer = fmt.Sprintf("http://localhost:%d", cfg.Server.Port)
 		}
 	}

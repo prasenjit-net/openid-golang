@@ -43,12 +43,12 @@ func init() {
 	rootCmd.PersistentFlags().String("issuer", "", "OpenID issuer URL")
 
 	// Bind flags to viper
-	viper.BindPFlag("server.host", rootCmd.PersistentFlags().Lookup("host"))
-	viper.BindPFlag("server.port", rootCmd.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("storage.type", rootCmd.PersistentFlags().Lookup("storage-type"))
-	viper.BindPFlag("storage.json_file_path", rootCmd.PersistentFlags().Lookup("json-file"))
-	viper.BindPFlag("storage.mongo_uri", rootCmd.PersistentFlags().Lookup("mongo-uri"))
-	viper.BindPFlag("issuer", rootCmd.PersistentFlags().Lookup("issuer"))
+	_ = viper.BindPFlag("server.host", rootCmd.PersistentFlags().Lookup("host"))
+	_ = viper.BindPFlag("server.port", rootCmd.PersistentFlags().Lookup("port"))
+	_ = viper.BindPFlag("storage.type", rootCmd.PersistentFlags().Lookup("storage-type"))
+	_ = viper.BindPFlag("storage.json_file_path", rootCmd.PersistentFlags().Lookup("json-file"))
+	_ = viper.BindPFlag("storage.mongo_uri", rootCmd.PersistentFlags().Lookup("mongo-uri"))
+	_ = viper.BindPFlag("issuer", rootCmd.PersistentFlags().Lookup("issuer"))
 }
 
 // initConfig reads in config file and ENV variables if set

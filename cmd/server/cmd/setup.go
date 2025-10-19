@@ -163,8 +163,8 @@ func generateKeys(reader *bufio.Reader) error {
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	}
-	if err := pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
-		return fmt.Errorf("failed to write private key: %w", err)
+	if encodeErr := pem.Encode(privateKeyFile, privateKeyPEM); encodeErr != nil {
+		return fmt.Errorf("failed to write private key: %w", encodeErr)
 	}
 
 	// Save public key
@@ -183,8 +183,8 @@ func generateKeys(reader *bufio.Reader) error {
 		Type:  "PUBLIC KEY",
 		Bytes: publicKeyBytes,
 	}
-	if err := pem.Encode(publicKeyFile, publicKeyPEM); err != nil {
-		return fmt.Errorf("failed to write public key: %w", err)
+	if encodeErr := pem.Encode(publicKeyFile, publicKeyPEM); encodeErr != nil {
+		return fmt.Errorf("failed to write public key: %w", encodeErr)
 	}
 
 	fmt.Printf("✓ Keys generated successfully\n")
@@ -242,16 +242,16 @@ func initializeDatabase(reader *bufio.Reader) error {
 		Role:         models.RoleAdmin,
 	}
 
-	if err := store.CreateUser(user); err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
+	if createErr := store.CreateUser(user); createErr != nil {
+		return fmt.Errorf("failed to create user: %w", createErr)
 	}
 
 	fmt.Printf("✓ Admin user '%s' created successfully\n", username)
 
 	// Create admin-ui client
 	adminClient := models.NewAdminUIClient(cfg.Issuer)
-	if err := store.CreateClient(adminClient); err != nil {
-		return fmt.Errorf("failed to create admin-ui client: %w", err)
+	if createErr := store.CreateClient(adminClient); createErr != nil {
+		return fmt.Errorf("failed to create admin-ui client: %w", createErr)
 	}
 
 	fmt.Println("✓ Admin UI client created")
@@ -287,8 +287,8 @@ func initializeDemoData() error {
 		Role:         models.RoleAdmin,
 	}
 
-	if err := store.CreateUser(adminUser); err != nil {
-		return fmt.Errorf("failed to create admin user: %w", err)
+	if createErr := store.CreateUser(adminUser); createErr != nil {
+		return fmt.Errorf("failed to create admin user: %w", createErr)
 	}
 
 	fmt.Printf("✓ Demo admin user created\n")
@@ -312,8 +312,8 @@ func initializeDemoData() error {
 		Role:         models.RoleUser,
 	}
 
-	if err := store.CreateUser(regularUser); err != nil {
-		return fmt.Errorf("failed to create regular user: %w", err)
+	if createErr := store.CreateUser(regularUser); createErr != nil {
+		return fmt.Errorf("failed to create regular user: %w", createErr)
 	}
 
 	fmt.Printf("✓ Demo regular user created\n")
@@ -323,8 +323,8 @@ func initializeDemoData() error {
 
 	// Create admin-ui client
 	adminClient := models.NewAdminUIClient(cfg.Issuer)
-	if err := store.CreateClient(adminClient); err != nil {
-		return fmt.Errorf("failed to create admin-ui client: %w", err)
+	if createErr := store.CreateClient(adminClient); createErr != nil {
+		return fmt.Errorf("failed to create admin-ui client: %w", createErr)
 	}
 
 	fmt.Println("✓ Admin UI client created")
@@ -344,8 +344,8 @@ func initializeDemoData() error {
 		Scope:         "openid profile email",
 	}
 
-	if err := store.CreateClient(testClient); err != nil {
-		return fmt.Errorf("failed to create test client: %w", err)
+	if createErr := store.CreateClient(testClient); createErr != nil {
+		return fmt.Errorf("failed to create test client: %w", createErr)
 	}
 
 	fmt.Printf("✓ Demo test client created\n")
