@@ -14,6 +14,7 @@ A lightweight OpenID Connect (OIDC) identity provider implementation in Go with 
 All documentation is organized in the **`docs/`** folder:
 
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Step-by-step setup tutorial ⭐ START HERE
+- **[Docker Documentation](docs/DOCKER.md)** - Run with Docker and Docker Compose 🐳
 - **[Quick Start](docs/QUICKSTART.md)** - Quick reference for experienced developers
 - **[API Documentation](docs/API.md)** - Complete API reference
 - **[Architecture](docs/ARCHITECTURE.md)** - System architecture and diagrams
@@ -28,7 +29,19 @@ All documentation is organized in the **`docs/`** folder:
 
 ## 🚀 Quick Start
 
-### Option 1: Using the Setup Wizard (Recommended)
+### Option 1: Docker (Easiest)
+
+```bash
+# Using Docker Compose
+docker-compose up -d
+
+# Access the server
+# http://localhost:8080
+```
+
+See **[Docker Documentation](docs/DOCKER.md)** for detailed instructions.
+
+### Option 2: Using the Setup Wizard (Recommended for Binary)
 
 Download the binary from [GitHub Releases](https://github.com/prasenjit-net/openid-golang/releases) and run:
 
@@ -53,7 +66,7 @@ The `--setup` wizard is **mandatory** and will:
 
 After setup, just run `./openid-server-linux-amd64` to start the server.
 
-### Option 2: Development Setup
+### Option 3: Development Setup
 
 ```bash
 # 1. Run the setup script (does everything including --setup wizard)

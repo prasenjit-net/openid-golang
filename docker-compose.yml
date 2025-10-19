@@ -1,0 +1,54 @@
+# Docker Compose for OpenID Connect Server
+# Provides easy setup for development and testing
+
+version: '3.8'
+
+services:
+  openid-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openid-server:latest
+    container_name: openid-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+    volumes:
+      # Mount config directory for persistent configuration
+      - ./config:/app/config
+      # Mount data directory for persistent storage (JSON mode)
+      - ./data:/app/data
+      # Mount config.toml if it exists
+      - ./config.toml:/app/config.toml:ro
+    restart: unless-stopped
+    networks:
+      - openid-network
+
+  # Optional: MongoDB for production storage
+  mongodb:
+    image: mongo:7
+    container_name: openid-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=changeme
+      - MONGO_INITDB_DATABASE=openid
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    restart: unless-stopped
+    networks:
+      - openid-network
+    profiles:
+      - with-mongodb
+
+networks:
+  openid-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  mongodb-config:
