@@ -178,6 +178,20 @@
                 <div class="example">This is your OpenID provider's public URL</div>
             </div>
 
+            <div class="form-group">
+                <label for="adminUsername">Admin Username (optional)</label>
+                <input type="text" id="adminUsername" name="adminUsername" placeholder="admin"
+                    autocomplete="off">
+                <div class="example">Leave empty to skip admin user creation</div>
+            </div>
+
+            <div class="form-group">
+                <label for="adminPassword">Admin Password</label>
+                <input type="password" id="adminPassword" name="adminPassword" placeholder="••••••••"
+                    autocomplete="new-password">
+                <div class="example">Required if username is provided</div>
+            </div>
+
             <button type="submit" id="submitBtn">
                 <span id="btnText">Initialize Server</span>
             </button>
@@ -194,15 +208,37 @@
             const btnText = document.getElementById('btnText');
             const messageDiv = document.getElementById('message');
             const issuerInput = document.getElementById('issuer');
+            const adminUsernameInput = document.getElementById('adminUsername');
+            const adminPasswordInput = document.getElementById('adminPassword');
 
             form.addEventListener('submit', async function (e) {
                 e.preventDefault();
 
                 const issuer = issuerInput.value.trim();
+                const adminUsername = adminUsernameInput.value.trim();
+                const adminPassword = adminPasswordInput.value;
 
                 // Validate
                 if (!issuer) {
                     showMessage('Please enter an issuer URL', 'error');
+                    return;
+                }
+
+                // If username is provided, password is required
+                if (adminUsername && !adminPassword) {
+                    showMessage('Password is required when username is provided', 'error');
+                    return;
+                }
+
+                // If password is provided, username is required
+                if (adminPassword && !adminUsername) {
+                    showMessage('Username is required when password is provided', 'error');
+                    return;
+                }
+
+                // Password strength check (optional, at least 6 characters)
+                if (adminPassword && adminPassword.length < 6) {
+                    showMessage('Password must be at least 6 characters long', 'error');
                     return;
                 }
 
@@ -212,10 +248,18 @@
                 messageDiv.style.display = 'none';
 
                 try {
+                    const payload = { issuer: issuer };
+                    
+                    // Add admin user if provided
+                    if (adminUsername && adminPassword) {
+                        payload.adminUsername = adminUsername;
+                        payload.adminPassword = adminPassword;
+                    }
+
                     const response = await fetch('/api/setup/initialize', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ issuer: issuer })
+                        body: JSON.stringify(payload)
                     });
 
                     const result = await response.json();

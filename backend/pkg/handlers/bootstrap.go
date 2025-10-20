@@ -2,12 +2,18 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/prasenjit-net/openid-golang/pkg/config"
 	"github.com/prasenjit-net/openid-golang/pkg/configstore"
+	"github.com/prasenjit-net/openid-golang/pkg/crypto"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
+	"github.com/prasenjit-net/openid-golang/pkg/storage"
 	"github.com/prasenjit-net/openid-golang/pkg/ui"
 )
 
@@ -25,7 +31,9 @@ func NewBootstrapHandler(configStore configstore.ConfigStore) *BootstrapHandler 
 
 // SetupRequest represents the initial setup request
 type SetupRequest struct {
-	Issuer string `json:"issuer"`
+	Issuer        string `json:"issuer"`
+	AdminUsername string `json:"adminUsername,omitempty"`
+	AdminPassword string `json:"adminPassword,omitempty"`
 }
 
 // SetupResponse represents the setup response
@@ -85,6 +93,25 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 		})
 	}
 
+	// Validate admin user if provided
+	if req.AdminUsername != "" && req.AdminPassword == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Admin password is required when username is provided",
+		})
+	}
+
+	if req.AdminPassword != "" && req.AdminUsername == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Admin username is required when password is provided",
+		})
+	}
+
+	if req.AdminPassword != "" && len(req.AdminPassword) < 6 {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Admin password must be at least 6 characters long",
+		})
+	}
+
 	// Initialize with minimal config
 	if err := configstore.InitializeMinimalConfig(ctx, h.configStore, req.Issuer); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -92,10 +119,24 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 		})
 	}
 
+	// Create admin user if provided
+	if req.AdminUsername != "" && req.AdminPassword != "" {
+		if err := h.createAdminUser(ctx, req); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Config initialized but failed to create admin user: " + err.Error(),
+			})
+		}
+	}
+
 	// Return success
+	message := "Setup completed successfully. Reloading..."
+	if req.AdminUsername != "" {
+		message = "Setup completed successfully with admin user. Reloading..."
+	}
+
 	return c.JSON(http.StatusOK, SetupResponse{
 		Success: true,
-		Message: "Setup completed successfully. Reloading...",
+		Message: message,
 	})
 }
 
@@ -117,4 +158,54 @@ func getStorageIndicator() string {
 		return "<strong>MongoDB</strong> (from MONGODB_URI environment variable)"
 	}
 	return "<strong>JSON file</strong> (data/config.json)"
+}
+
+// createAdminUser creates an admin user in the storage
+func (h *BootstrapHandler) createAdminUser(ctx context.Context, req SetupRequest) error {
+	// Load the config that was just created
+	configData, err := h.configStore.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Convert to config.Config for storage initialization
+	cfg := &config.Config{
+		Storage: config.StorageConfig{
+			Type:         configData.Storage.Type,
+			JSONFilePath: configData.Storage.JSONFilePath,
+			MongoURI:     configData.Storage.MongoURI,
+		},
+	}
+
+	// Initialize storage
+	store, err := storage.NewStorage(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize storage: %w", err)
+	}
+	defer store.Close()
+
+	// Hash the password
+	hashedPassword, err := crypto.HashPassword(req.AdminPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Create admin user
+	adminUser := &models.User{
+		ID:           uuid.New().String(),
+		Username:     req.AdminUsername,
+		PasswordHash: hashedPassword,
+		Email:        req.AdminUsername + "@local",
+		Role:         "admin",
+		Name:         "Administrator",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	// Save user to storage
+	if err := store.CreateUser(adminUser); err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+
+	return nil
 }
