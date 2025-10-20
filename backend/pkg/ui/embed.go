@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//go:embed all:dist
+//go:embed dist
 var adminUI embed.FS
 
 //go:embed setup.html
