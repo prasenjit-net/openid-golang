@@ -49,11 +49,11 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 	defer configStoreInstance.Close()
 
-	// If not initialized, start in setup mode
+	// If not initialized, start in setup mode with hot-reload capability
 	if !initialized {
 		log.Println("Configuration not found. Starting in setup mode...")
 		log.Println("Please visit http://localhost:8080/setup to configure the server")
-		runSetupMode(configStoreInstance)
+		runSetupModeWithReload(configStoreInstance, loaderCfg)
 		return
 	}
 
@@ -75,7 +75,99 @@ func runServe(cmd *cobra.Command, args []string) {
 	runNormalMode(cfg, configData)
 }
 
-// runSetupMode starts the server in setup mode with only /setup endpoint
+// runSetupModeWithReload starts the server in setup mode and transitions to normal mode after initialization
+func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderCfg configstore.LoaderConfig) {
+	ctx := context.Background()
+	addr := "0.0.0.0:8080"
+	
+	// Channel to signal when initialization is complete
+	reloadChan := make(chan bool, 1)
+	
+	// Start setup mode server
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+
+	// Middleware
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+
+	// Setup wizard handler with reload callback
+	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, func() {
+		// Signal that initialization is complete
+		select {
+		case reloadChan <- true:
+		default:
+		}
+	})
+
+	// Setup routes
+	e.GET("/setup", bootstrapHandler.ServeSetupWizard)
+	e.GET("/api/setup/status", bootstrapHandler.CheckInitialized)
+	e.POST("/api/setup/initialize", bootstrapHandler.Initialize)
+
+	// Redirect root to setup
+	e.GET("/", func(c echo.Context) error {
+		return c.Redirect(http.StatusFound, "/setup")
+	})
+
+	log.Printf("Starting OpenID Connect Server in SETUP mode")
+	log.Printf("Setup wizard available at: http://localhost:8080/setup")
+
+	// Start server with graceful shutdown
+	go func() {
+		if startErr := e.Start(addr); startErr != nil && startErr != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", startErr)
+		}
+	}()
+
+	// Wait for either initialization complete or interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+
+	select {
+	case <-reloadChan:
+		log.Println("Configuration initialized! Transitioning to normal mode...")
+		
+		// Gracefully shutdown setup mode server
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		
+		if err := e.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error shutting down setup server: %v", err)
+		}
+		
+		// Small delay to ensure clean shutdown
+		time.Sleep(500 * time.Millisecond)
+		
+		// Load config and start normal mode
+		configData, err := configStoreInstance.GetConfig(ctx)
+		if err != nil {
+			log.Fatalf("Failed to load configuration after initialization: %v", err)
+		}
+		
+		cfg := convertConfigData(configData)
+		if validateErr := cfg.Validate(); validateErr != nil {
+			log.Fatalf("Invalid configuration: %v", validateErr)
+		}
+		
+		log.Println("Restarting in NORMAL mode with full functionality...")
+		runNormalMode(cfg, configData)
+		
+	case <-quit:
+		log.Println("Shutting down server...")
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		
+		if err := e.Shutdown(shutdownCtx); err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Server stopped")
+	}
+}
+
+// runSetupMode starts the server in setup mode with only /setup endpoint (legacy, kept for reference)
 func runSetupMode(configStoreInstance configstore.ConfigStore) {
 	e := echo.New()
 	e.HideBanner = true

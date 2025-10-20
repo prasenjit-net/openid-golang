@@ -266,10 +266,12 @@
                     if (response.ok) {
                         showMessage('✓ ' + result.message, 'success');
 
-                        // Reload after 2 seconds
+                        // Wait for server to reload and transition to normal mode
+                        // The server will automatically switch from setup mode to normal mode
                         setTimeout(function () {
-                            window.location.href = '/';
-                        }, 2000);
+                            // Try to navigate to admin UI
+                            window.location.href = '/admin/';
+                        }, 3000); // Increased to 3 seconds to allow server transition
                     } else {
                         throw new Error(result.error || result.message || response.statusText);
                     }

@@ -19,13 +19,23 @@ import (
 
 // BootstrapHandler handles the initial setup wizard
 type BootstrapHandler struct {
-	configStore configstore.ConfigStore
+	configStore    configstore.ConfigStore
+	onInitComplete func() // Callback function when initialization is complete
 }
 
 // NewBootstrapHandler creates a new bootstrap handler
 func NewBootstrapHandler(configStore configstore.ConfigStore) *BootstrapHandler {
 	return &BootstrapHandler{
-		configStore: configStore,
+		configStore:    configStore,
+		onInitComplete: nil,
+	}
+}
+
+// NewBootstrapHandlerWithCallback creates a new bootstrap handler with initialization callback
+func NewBootstrapHandlerWithCallback(configStore configstore.ConfigStore, onInitComplete func()) *BootstrapHandler {
+	return &BootstrapHandler{
+		configStore:    configStore,
+		onInitComplete: onInitComplete,
 	}
 }
 
@@ -128,10 +138,19 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 		}
 	}
 
+	// Trigger reload callback if configured (for hot-reload)
+	if h.onInitComplete != nil {
+		// Trigger the callback in a goroutine to avoid blocking the response
+		go func() {
+			time.Sleep(500 * time.Millisecond) // Small delay to ensure response is sent
+			h.onInitComplete()
+		}()
+	}
+
 	// Return success
-	message := "Setup completed successfully. Reloading..."
+	message := "Setup completed successfully. Server will reload automatically..."
 	if req.AdminUsername != "" {
-		message = "Setup completed successfully with admin user. Reloading..."
+		message = "Setup completed successfully with admin user. Server will reload automatically..."
 	}
 
 	return c.JSON(http.StatusOK, SetupResponse{
