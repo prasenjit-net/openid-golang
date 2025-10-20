@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
 	"github.com/prasenjit-net/openid-golang/pkg/config"
 	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
@@ -69,6 +70,28 @@ func (h *BootstrapHandler) CheckInitialized(c echo.Context) error {
 	})
 }
 
+// validateSetupRequest validates the setup request
+func validateSetupRequest(req *SetupRequest) error {
+	if req.Issuer == "" {
+		return fmt.Errorf("issuer URL is required")
+	}
+
+	// Validate admin user if provided
+	if req.AdminUsername != "" && req.AdminPassword == "" {
+		return fmt.Errorf("admin password is required when username is provided")
+	}
+
+	if req.AdminPassword != "" && req.AdminUsername == "" {
+		return fmt.Errorf("admin username is required when password is provided")
+	}
+
+	if req.AdminPassword != "" && len(req.AdminPassword) < 6 {
+		return fmt.Errorf("admin password must be at least 6 characters long")
+	}
+
+	return nil
+}
+
 // Initialize performs the initial setup with minimal config (just issuer)
 func (h *BootstrapHandler) Initialize(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), 30*time.Second)
@@ -97,28 +120,9 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 	}
 
 	// Validate request
-	if req.Issuer == "" {
+	if err := validateSetupRequest(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Issuer URL is required",
-		})
-	}
-
-	// Validate admin user if provided
-	if req.AdminUsername != "" && req.AdminPassword == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Admin password is required when username is provided",
-		})
-	}
-
-	if req.AdminPassword != "" && req.AdminUsername == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Admin username is required when password is provided",
-		})
-	}
-
-	if req.AdminPassword != "" && len(req.AdminPassword) < 6 {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Admin password must be at least 6 characters long",
+			"error": err.Error(),
 		})
 	}
 

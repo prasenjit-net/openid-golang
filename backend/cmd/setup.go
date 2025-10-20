@@ -21,8 +21,6 @@ var (
 	issuerURL      string
 	adminUsername  string
 	adminPassword  string
-	storageType    string
-	mongoURI       string
 	nonInteractive bool
 )
 
@@ -86,7 +84,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 		answer, _ := reader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
 		if answer != "y" && answer != "yes" {
-			fmt.Println("Setup cancelled.")
+			fmt.Println("Setup canceled.")
 			return
 		}
 	}

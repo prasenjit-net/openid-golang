@@ -170,57 +170,6 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	}
 }
 
-// runSetupMode starts the server in setup mode with only /setup endpoint (legacy, kept for reference)
-func runSetupMode(configStoreInstance configstore.ConfigStore) {
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-
-	// Middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
-
-	// Setup wizard handler
-	bootstrapHandler := handlers.NewBootstrapHandler(configStoreInstance)
-
-	// Setup routes
-	e.GET("/setup", bootstrapHandler.ServeSetupWizard)
-	e.GET("/api/setup/status", bootstrapHandler.CheckInitialized)
-	e.POST("/api/setup/initialize", bootstrapHandler.Initialize)
-
-	// Redirect root to setup
-	e.GET("/", func(c echo.Context) error {
-		return c.Redirect(http.StatusFound, "/setup")
-	})
-
-	// Start server
-	addr := "0.0.0.0:8080"
-	log.Printf("Starting OpenID Connect Server in SETUP mode")
-	log.Printf("Setup wizard available at: http://localhost:8080/setup")
-
-	// Start server with graceful shutdown
-	go func() {
-		if startErr := e.Start(addr); startErr != nil && startErr != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", startErr)
-		}
-	}()
-
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-
-	log.Println("Shutting down server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := e.Shutdown(ctx); err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Server stopped")
-}
-
 // runNormalMode starts the server in normal mode with full OpenID functionality
 func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	// Initialize storage

@@ -41,7 +41,6 @@ linters:
     - revive
   disable:
     - typecheck
-    - exportloopref
 
 issues:
   exclude-rules:

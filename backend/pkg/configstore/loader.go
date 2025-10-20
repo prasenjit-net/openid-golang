@@ -118,8 +118,8 @@ func GetOrCreateConfig(ctx context.Context, store ConfigStore, issuer string) (*
 
 	if !initialized {
 		// Initialize with minimal config
-		if err := InitializeMinimalConfig(ctx, store, issuer); err != nil {
-			return nil, fmt.Errorf("failed to initialize config: %w", err)
+		if initErr := InitializeMinimalConfig(ctx, store, issuer); initErr != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", initErr)
 		}
 	}
 
