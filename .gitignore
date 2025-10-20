@@ -36,6 +36,7 @@ dist/
 # Configuration and data files
 config.local.yaml
 config/config.toml
+data/openid.json
 data.json
 
 # Logs

@@ -170,7 +170,7 @@ volumes:
 │   ├── config.toml        # Configuration file
 │   └── keys/              # RSA private/public keys
 └── data/
-    └── data.json          # JSON storage (if using JSON mode)
+    └── openid.json        # JSON storage (if using JSON mode)
 ```
 
 ## 📝 Docker Compose Configurations
@@ -232,7 +232,7 @@ port = 8080
 
 [storage]
 type = "json"
-json_file_path = "/app/data/data.json"
+json_file_path = "/app/data/openid.json"
 ```
 
 ## 🏥 Health Checks

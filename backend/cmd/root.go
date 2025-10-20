@@ -38,7 +38,7 @@ func init() {
 	rootCmd.PersistentFlags().String("host", "0.0.0.0", "server host")
 	rootCmd.PersistentFlags().Int("port", 8080, "server port")
 	rootCmd.PersistentFlags().String("storage-type", "json", "storage type (json or mongodb)")
-	rootCmd.PersistentFlags().String("json-file", "data.json", "JSON storage file path")
+	rootCmd.PersistentFlags().String("json-file", "data/openid.json", "JSON storage file path")
 	rootCmd.PersistentFlags().String("mongo-uri", "", "MongoDB connection URI")
 	rootCmd.PersistentFlags().String("issuer", "", "OpenID issuer URL")
 

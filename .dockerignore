@@ -31,6 +31,7 @@ backend/openid-server
 
 # Configuration and data (mounted as volumes)
 config/config.toml
+data/openid.json
 data.json
 config/keys/*.key
 *.db

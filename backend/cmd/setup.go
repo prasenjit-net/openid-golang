@@ -84,9 +84,12 @@ func runSetup(cmd *cobra.Command, args []string) {
 func setupConfiguration(reader *bufio.Reader) error {
 	configPath := "config/config.toml"
 
-	// Ensure config directory exists
+	// Ensure config and data directories exist
 	if err := os.MkdirAll("config", 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+	if err := os.MkdirAll("data", 0755); err != nil {
+		return fmt.Errorf("failed to create data directory: %w", err)
 	}
 
 	// Check if config.toml exists

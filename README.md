@@ -196,7 +196,7 @@ port = 8080
 
 [storage]
 type = "json"  # or "mongodb"
-json_file_path = "data.json"
+json_file_path = "data/openid.json"
 # For MongoDB:
 # type = "mongodb"
 # mongo_uri = "mongodb://localhost:27017/openid"
@@ -215,7 +215,7 @@ You can still use environment variables:
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 STORAGE_TYPE=json
-JSON_FILE_PATH=data.json
+JSON_FILE_PATH=data/openid.json
 # or for MongoDB:
 # STORAGE_TYPE=mongodb
 # MONGO_URI=mongodb://localhost:27017/openid
