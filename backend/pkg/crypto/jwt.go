@@ -41,6 +41,26 @@ func NewJWTManager(privateKeyPath, publicKeyPath, issuer string, expiryMinutes i
 	}, nil
 }
 
+// NewJWTManagerFromPEM creates a new JWT manager from PEM-encoded key strings
+func NewJWTManagerFromPEM(privateKeyPEM, publicKeyPEM, issuer string, expiryMinutes int) (*JWTManager, error) {
+	privateKey, err := parsePrivateKeyPEM(privateKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	publicKey, err := parsePublicKeyPEM(publicKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return &JWTManager{
+		privateKey: privateKey,
+		publicKey:  publicKey,
+		issuer:     issuer,
+		expiry:     time.Duration(expiryMinutes) * time.Minute,
+	}, nil
+}
+
 // IDTokenClaims represents OpenID Connect ID Token claims
 type IDTokenClaims struct {
 	jwt.RegisteredClaims
@@ -161,6 +181,50 @@ func loadPublicKey(path string) (*rsa.PublicKey, error) {
 	}
 
 	block, _ := pem.Decode(keyData)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	key, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not an RSA public key")
+	}
+
+	return key, nil
+}
+
+// parsePrivateKeyPEM parses an RSA private key from a PEM-encoded string
+func parsePrivateKeyPEM(pemData string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(pemData))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		// Try PKCS8 format
+		keyInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		var ok bool
+		key, ok = keyInterface.(*rsa.PrivateKey)
+		if !ok {
+			return nil, fmt.Errorf("not an RSA private key")
+		}
+	}
+
+	return key, nil
+}
+
+// parsePublicKeyPEM parses an RSA public key from a PEM-encoded string
+func parsePublicKeyPEM(pemData string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(pemData))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block")
 	}
