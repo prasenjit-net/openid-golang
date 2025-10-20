@@ -20,8 +20,6 @@ services:
       - ./config:/app/config
       # Mount data directory for persistent storage (JSON mode)
       - ./data:/app/data
-      # Mount config.toml if it exists
-      - ./config.toml:/app/config.toml:ro
     restart: unless-stopped
     networks:
       - openid-network
