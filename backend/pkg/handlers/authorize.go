@@ -107,7 +107,7 @@ func (h *Handlers) Login(c echo.Context) error {
 
 	// Authenticate user
 	user, err := h.storage.GetUserByUsername(username)
-	if err != nil {
+	if err != nil || user == nil {
 		return h.renderLoginPageWithError(c, "Invalid username or password")
 	}
 
