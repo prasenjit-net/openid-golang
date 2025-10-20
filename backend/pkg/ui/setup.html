@@ -180,8 +180,7 @@
 
             <div class="form-group">
                 <label for="adminUsername">Admin Username (optional)</label>
-                <input type="text" id="adminUsername" name="adminUsername" placeholder="admin"
-                    autocomplete="off">
+                <input type="text" id="adminUsername" name="adminUsername" placeholder="admin" autocomplete="off">
                 <div class="example">Leave empty to skip admin user creation</div>
             </div>
 
@@ -249,7 +248,7 @@
 
                 try {
                     const payload = { issuer: issuer };
-                    
+
                     // Add admin user if provided
                     if (adminUsername && adminPassword) {
                         payload.adminUsername = adminUsername;
