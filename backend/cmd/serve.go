@@ -77,7 +77,6 @@ func runServe(cmd *cobra.Command, args []string) {
 
 // runSetupModeWithReload starts the server in setup mode and transitions to normal mode after initialization
 func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderCfg configstore.LoaderConfig) {
-	ctx := context.Background()
 	addr := "0.0.0.0:8080"
 	
 	// Channel to signal when initialization is complete
@@ -125,6 +124,7 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	// Wait for either initialization complete or interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
+	defer signal.Stop(quit) // Cleanup signal notification
 
 	select {
 	case <-reloadChan:
@@ -142,7 +142,10 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 		time.Sleep(500 * time.Millisecond)
 		
 		// Load config and start normal mode
-		configData, err := configStoreInstance.GetConfig(ctx)
+		loadCtx, loadCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer loadCancel()
+		
+		configData, err := configStoreInstance.GetConfig(loadCtx)
 		if err != nil {
 			log.Fatalf("Failed to load configuration after initialization: %v", err)
 		}
