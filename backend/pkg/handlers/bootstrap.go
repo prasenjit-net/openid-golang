@@ -162,12 +162,12 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 // ServeSetupWizard serves a simple HTML setup wizard
 func (h *BootstrapHandler) ServeSetupWizard(c echo.Context) error {
 	storageInfo := getStorageIndicator()
-	
+
 	html, err := ui.GetSetupHTML(storageInfo)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load setup wizard: "+err.Error())
 	}
-	
+
 	return c.HTML(http.StatusOK, html)
 }
 

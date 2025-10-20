@@ -78,10 +78,10 @@ func runServe(cmd *cobra.Command, args []string) {
 // runSetupModeWithReload starts the server in setup mode and transitions to normal mode after initialization
 func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderCfg configstore.LoaderConfig) {
 	addr := "0.0.0.0:8080"
-	
+
 	// Channel to signal when initialization is complete
 	reloadChan := make(chan bool, 1)
-	
+
 	// Start setup mode server
 	e := echo.New()
 	e.HideBanner = true
@@ -129,40 +129,40 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	select {
 	case <-reloadChan:
 		log.Println("Configuration initialized! Transitioning to normal mode...")
-		
+
 		// Gracefully shutdown setup mode server
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
-		
+
 		if err := e.Shutdown(shutdownCtx); err != nil {
 			log.Printf("Error shutting down setup server: %v", err)
 		}
-		
+
 		// Small delay to ensure clean shutdown
 		time.Sleep(500 * time.Millisecond)
-		
+
 		// Load config and start normal mode
 		loadCtx, loadCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer loadCancel()
-		
+
 		configData, err := configStoreInstance.GetConfig(loadCtx)
 		if err != nil {
 			log.Fatalf("Failed to load configuration after initialization: %v", err)
 		}
-		
+
 		cfg := convertConfigData(configData)
 		if validateErr := cfg.Validate(); validateErr != nil {
 			log.Fatalf("Invalid configuration: %v", validateErr)
 		}
-		
+
 		log.Println("Restarting in NORMAL mode with full functionality...")
 		runNormalMode(cfg, configData)
-		
+
 	case <-quit:
 		log.Println("Shutting down server...")
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
-		
+
 		if err := e.Shutdown(shutdownCtx); err != nil {
 			log.Fatal(err)
 		}

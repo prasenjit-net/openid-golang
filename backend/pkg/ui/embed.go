@@ -37,9 +37,9 @@ func GetSetupHTML(storageInfo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	html := string(content)
 	html = strings.Replace(html, "{{STORAGE_INFO}}", storageInfo, 1)
-	
+
 	return html, nil
 }
