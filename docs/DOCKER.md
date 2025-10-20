@@ -167,10 +167,10 @@ volumes:
 /app/
 ├── openid-server           # Binary
 ├── config/
+│   ├── config.toml        # Configuration file
 │   └── keys/              # RSA private/public keys
-├── data/
-│   └── data.json          # JSON storage (if using JSON mode)
-└── config.toml            # Configuration file
+└── data/
+    └── data.json          # JSON storage (if using JSON mode)
 ```
 
 ## 📝 Docker Compose Configurations
@@ -181,7 +181,7 @@ volumes:
 docker-compose up -d
 ```
 
-Uses `config.toml` with JSON file storage.
+Uses `config/config.toml` with JSON file storage.
 
 ### MongoDB Storage
 
@@ -191,7 +191,7 @@ docker-compose --profile with-mongodb up -d
 
 Starts OpenID server + MongoDB container.
 
-Update your `config.toml`:
+Update your `config/config.toml`:
 ```toml
 [storage]
 type = "mongodb"

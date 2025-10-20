@@ -185,7 +185,7 @@ This will:
 
 ### Using config.toml (Recommended)
 
-Create a `config.toml` file (see `config.toml.example`):
+Create a `config/config.toml` file:
 
 ```toml
 issuer = "http://localhost:8080"

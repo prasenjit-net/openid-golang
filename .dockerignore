@@ -30,7 +30,7 @@ backend/openid-server
 *.exe
 
 # Configuration and data (mounted as volumes)
-config.toml
+config/config.toml
 data.json
 config/keys/*.key
 *.db

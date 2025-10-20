@@ -34,7 +34,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Global flags
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.toml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is config/config.toml)")
 	rootCmd.PersistentFlags().String("host", "0.0.0.0", "server host")
 	rootCmd.PersistentFlags().Int("port", 8080, "server port")
 	rootCmd.PersistentFlags().String("storage-type", "json", "storage type (json or mongodb)")
@@ -57,7 +57,8 @@ func initConfig() {
 		// Use config file from the flag
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Search for config in current directory
+		// Search for config in config directory first, then current directory
+		viper.AddConfigPath("config")
 		viper.AddConfigPath(".")
 		viper.SetConfigType("toml")
 		viper.SetConfigName("config")
