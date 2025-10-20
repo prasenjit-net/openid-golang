@@ -30,10 +30,9 @@ backend/openid-server
 *.exe
 
 # Configuration and data (mounted as volumes)
-config/config.toml
+data/config.json
 data/openid.json
-data.json
-config/keys/*.key
+data/*.json
 *.db
 *.sqlite
 

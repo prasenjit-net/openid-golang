@@ -52,8 +52,9 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=backend-builder /app/openid-server .
 
-# Create directories for config and data
-RUN mkdir -p /app/config/keys /app/data
+# Create data directory for config and storage
+# Config store (data/config.json) and storage (data/openid.json) will be stored here
+RUN mkdir -p /app/data
 
 # Expose default port
 EXPOSE 8080

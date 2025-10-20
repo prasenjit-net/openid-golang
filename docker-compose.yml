@@ -15,14 +15,47 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
+      # Optional: MongoDB connection (if not set, uses JSON file storage)
+      # - MONGODB_URI=mongodb://admin:changeme@mongodb:27017
+      # - MONGODB_DATABASE=openid
     volumes:
-      # Mount config directory for persistent configuration
-      - ./config:/app/config
-      # Mount data directory for persistent storage (JSON mode)
+      # Mount data directory for persistent configuration and storage
+      # Contains: data/config.json (configuration + JWT keys)
+      #          data/openid.json (users, clients, tokens - JSON mode only)
       - ./data:/app/data
     restart: unless-stopped
     networks:
       - openid-network
+    depends_on:
+      - mongodb
+    profiles:
+      - json-storage
+
+  # OpenID server with MongoDB backend
+  openid-server-mongodb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openid-server:latest
+    container_name: openid-server-mongodb
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - MONGODB_URI=mongodb://admin:changeme@mongodb:27017
+      - MONGODB_DATABASE=openid
+    volumes:
+      # Only need data directory for config store (data/config.json)
+      # User/client/token data is stored in MongoDB
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - openid-network
+    depends_on:
+      - mongodb
+    profiles:
+      - with-mongodb
 
   # Optional: MongoDB for production storage
   mongodb:

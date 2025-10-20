@@ -16,39 +16,56 @@ You can verify Docker permissions by running: `./check-docker.sh`
 
 ## 🐳 Quick Start
 
-### First Time Setup
+### Using Docker Compose (Recommended)
 
-Before running the server, you need to initialize it:
+The server will auto-initialize on first run:
 
 ```bash
 # Build the image
-./docker-build.sh
+docker-compose build
 
-# Run setup to initialize configuration and keys
-docker run --rm -it \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/data:/app/data \
-  openid-server:1.1.0 setup
-```
+# Run with JSON storage (recommended for development/small deployments)
+docker-compose --profile json-storage up -d
 
-This will:
-- Generate RSA key pair for JWT signing
-- Create configuration file
-- Set up initial admin user
-
-### Using Docker Compose (Recommended)
-
-The easiest way to run the server:
-
-```bash
-# Run with JSON storage (default)
-docker-compose up -d
-
-# Run with MongoDB
+# Run with MongoDB (recommended for production)
 docker-compose --profile with-mongodb up -d
 ```
 
 The server will be available at `http://localhost:8080`
+
+### First Time Setup
+
+On first run, the server starts in **setup mode**:
+
+1. Visit `http://localhost:8080/setup` in your browser
+2. Enter your issuer URL (e.g., `http://localhost:8080`)
+3. Optionally create an admin user
+4. Click "Initialize" - JWT keys are auto-generated
+5. Server automatically reloads in normal mode
+
+**Alternative: CLI Setup**
+
+You can also initialize via command line:
+
+```bash
+# Interactive setup
+docker run --rm -it \
+  -v $(pwd)/data:/app/data \
+  openid-server:latest setup
+
+# Non-interactive setup
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  openid-server:latest setup \
+  --issuer http://localhost:8080 \
+  --admin-user admin \
+  --admin-pass secret123 \
+  --non-interactive
+```
+
+This creates:
+- `data/config.json` - Configuration + JWT keys
+- `data/openid.json` - Users, clients, tokens (JSON mode only)
 
 ### Using Docker CLI
 
@@ -118,85 +135,141 @@ The Dockerfile uses a 3-stage build process:
 docker run -p 8080:8080 openid-server:latest
 ```
 
-### With Persistent Storage
+### With Persistent Storage (JSON Mode)
 
 ```bash
 docker run -d \
   --name openid-server \
   -p 8080:8080 \
-  -v $(pwd)/config:/app/config \
   -v $(pwd)/data:/app/data \
-  -v $(pwd)/config.toml:/app/config.toml:ro \
   openid-server:latest
 ```
 
-### With Environment Variables
+### With MongoDB Backend
 
 ```bash
 docker run -d \
   --name openid-server \
   -p 8080:8080 \
-  -e SERVER_HOST=0.0.0.0 \
-  -e SERVER_PORT=8080 \
-  openid-server:latest serve
+  -e MONGODB_URI=mongodb://admin:changeme@mongodb:27017 \
+  -e MONGODB_DATABASE=openid \
+  -v $(pwd)/data:/app/data \
+  --network openid-network \
+  openid-server:latest
 ```
+
+Note: Configuration (`data/config.json`) is still stored in the mounted volume even with MongoDB.
 
 ### Run Setup Command
 
 ```bash
+# Interactive setup
 docker run -it --rm \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/config.toml:/app/config.toml \
+  -v $(pwd)/data:/app/data \
   openid-server:latest setup
+
+# Non-interactive with flags
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  openid-server:latest setup \
+  --issuer http://localhost:8080 \
+  --admin-user admin \
+  --admin-pass secret123 \
+  --non-interactive
+
+# Using environment variables
+docker run --rm \
+  -v $(pwd)/data:/app/data \
+  -e ISSUER_URL=http://localhost:8080 \
+  -e ADMIN_USER=admin \
+  -e ADMIN_PASS=secret123 \
+  openid-server:latest setup --non-interactive
 ```
 
-## 🗂️ Volume Mounts
+## 🗂️ Storage Architecture
 
-### Recommended Volumes
+### Config Store System
+
+The server uses a **config store** system instead of traditional config files:
+
+- **Configuration**: Stored in `data/config.json` (always)
+- **JWT Keys**: Generated and stored inside `data/config.json` as PEM strings
+- **User Data**: Stored in `data/openid.json` (JSON mode) or MongoDB
+
+### Auto-Detection Logic
+
+On startup, the server checks in order:
+
+1. **MongoDB**: Check for `MONGODB_URI` environment variable
+2. **JSON File**: Check for `data/config.json` file
+3. **Setup Mode**: If neither exists, start setup wizard at `/setup`
+
+### Volume Mounts
+
+#### JSON Storage Mode (Single Volume)
 
 ```yaml
 volumes:
-  - ./config:/app/config          # RSA keys directory
-  - ./data:/app/data              # JSON storage directory
-  - ./config.toml:/app/config.toml:ro  # Configuration file
+  - ./data:/app/data    # Configuration + JWT keys + user data
 ```
+
+Contents of `./data/`:
+```
+data/
+├── config.json    # Server config + JWT keys
+└── openid.json    # Users, clients, tokens
+```
+
+#### MongoDB Storage Mode (Single Volume)
+
+```yaml
+volumes:
+  - ./data:/app/data    # Configuration + JWT keys only
+```
+
+Contents of `./data/`:
+```
+data/
+└── config.json    # Server config + JWT keys
+```
+
+User/client/token data is stored in MongoDB.
 
 ### Directory Structure in Container
 
 ```
 /app/
-├── openid-server           # Binary
-├── config/
-│   ├── config.toml        # Configuration file
-│   └── keys/              # RSA private/public keys
-└── data/
-    └── openid.json        # JSON storage (if using JSON mode)
+├── openid-server    # Binary (with embedded React UI)
+└── data/            # Persistent data directory
+    ├── config.json  # Config store (always)
+    └── openid.json  # JSON storage (JSON mode only)
 ```
 
 ## 📝 Docker Compose Configurations
 
-### JSON Storage (Default)
+### JSON Storage Mode
 
 ```bash
-docker-compose up -d
+docker-compose --profile json-storage up -d
 ```
 
-Uses `config/config.toml` with JSON file storage.
+Best for:
+- Development environments
+- Small deployments (<1000 users)
+- Simplified setup
 
-### MongoDB Storage
+### MongoDB Storage Mode
 
 ```bash
 docker-compose --profile with-mongodb up -d
 ```
 
-Starts OpenID server + MongoDB container.
+Best for:
+- Production environments
+- Large deployments (>1000 users)
+- High availability setups
 
-Update your `config/config.toml`:
-```toml
-[storage]
-type = "mongodb"
-mongo_uri = "mongodb://admin:changeme@mongodb:27017/openid?authSource=admin"
-```
+The `MONGODB_URI` environment variable tells the server to use MongoDB for storage.
 
 ### Custom Configuration
 
