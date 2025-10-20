@@ -14,6 +14,7 @@ import (
 // MongoConfigStore implements ConfigStore using MongoDB
 type MongoConfigStore struct {
 	client     *mongo.Client
+	mongoURI   string // Store the original URI for reuse
 	database   string
 	collection string
 	mu         sync.RWMutex
@@ -37,6 +38,7 @@ func NewMongoConfigStore(mongoURI, database string) (*MongoConfigStore, error) {
 
 	return &MongoConfigStore{
 		client:     client,
+		mongoURI:   mongoURI,
 		database:   database,
 		collection: "config",
 	}, nil

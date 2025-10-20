@@ -89,6 +89,17 @@ func InitializeMinimalConfig(ctx context.Context, store ConfigStore, issuer stri
 	config.JWT.PrivateKey = privateKey
 	config.JWT.PublicKey = publicKey
 
+	// Detect storage backend based on config store type
+	// If using MongoDB config store, also use MongoDB for data storage
+	if mongoStore, ok := store.(*MongoConfigStore); ok {
+		config.Storage.Type = "mongodb"
+		config.Storage.MongoURI = mongoStore.mongoURI
+		config.Storage.MongoDatabase = mongoStore.database
+		// Clear JSON file path when using MongoDB
+		config.Storage.JSONFilePath = ""
+	}
+	// Otherwise, DefaultConfig already sets it to JSON
+
 	// Save to store
 	if err := store.SaveConfig(ctx, config); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
