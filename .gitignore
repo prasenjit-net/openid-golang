@@ -35,9 +35,10 @@ dist/
 
 # Configuration and data files
 config.local.yaml
-config/config.toml
-data/openid.json
-data.json
+
+# Data directory - ignore all files inside
+data/*
+!data/.gitkeep
 
 # Logs
 *.log

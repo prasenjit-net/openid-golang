@@ -89,10 +89,12 @@ func runSetupMode(configStoreInstance configstore.ConfigStore) {
 	// Setup wizard handler
 	bootstrapHandler := handlers.NewBootstrapHandler(configStoreInstance)
 
-	// Setup routes - wrap http.HandlerFunc for Echo
-	e.GET("/setup", echo.WrapHandler(http.HandlerFunc(bootstrapHandler.ServeSetupWizard)))
-	e.GET("/api/setup/status", echo.WrapHandler(http.HandlerFunc(bootstrapHandler.CheckInitialized)))
-	e.POST("/api/setup/initialize", echo.WrapHandler(http.HandlerFunc(bootstrapHandler.Initialize))) // Redirect root to setup
+	// Setup routes
+	e.GET("/setup", bootstrapHandler.ServeSetupWizard)
+	e.GET("/api/setup/status", bootstrapHandler.CheckInitialized)
+	e.POST("/api/setup/initialize", bootstrapHandler.Initialize)
+
+	// Redirect root to setup
 	e.GET("/", func(c echo.Context) error {
 		return c.Redirect(http.StatusFound, "/setup")
 	})
