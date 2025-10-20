@@ -1,0 +1,95 @@
+# Docker Compose for OpenID Connect Server
+# Provides easy setup for development and testing
+
+version: '3.8'
+
+services:
+  openid-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openid-server:latest
+    container_name: openid-server
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=${SERVER_HOST:-0.0.0.0}
+      - SERVER_PORT=${SERVER_PORT:-8080}
+      # JSON storage mode - no MongoDB connection
+      # Config and user data stored in data/ directory
+    volumes:
+      # Mount data directory for persistent configuration and storage
+      # Contains: data/config.json (configuration + JWT keys)
+      #          data/openid.json (users, clients, tokens - JSON mode only)
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - openid-network
+    profiles:
+      - json-storage
+
+  # OpenID server with MongoDB backend
+  openid-server-mongodb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openid-server:latest
+    container_name: openid-server-mongodb
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      # MongoDB config store connection (where config.json is stored)
+      - MONGODB_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-changeme}@mongodb:27017/openid?authSource=admin
+      - MONGODB_DATABASE=${MONGO_DATABASE:-openid}
+      # Optional: Override storage backend (defaults to MongoDB when MONGODB_URI is set)
+      # - STORAGE_TYPE=mongodb
+      # - STORAGE_MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-changeme}@mongodb:27017/openid?authSource=admin
+    volumes:
+      # Mount data directory for config store backup
+      # Config can be stored in MongoDB, but also backed up to data/config.json
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - openid-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    profiles:
+      - with-mongodb
+
+  # MongoDB for production storage and config store
+  mongodb:
+    image: mongo:7
+    container_name: openid-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      # Root credentials for MongoDB admin
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-changeme}
+      # Initial database name
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE:-openid}
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    restart: unless-stopped
+    networks:
+      - openid-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    profiles:
+      - with-mongodb
+
+networks:
+  openid-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  mongodb-config:

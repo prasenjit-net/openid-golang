@@ -14,7 +14,7 @@ const (
 	// StorageTypeMongoDB represents MongoDB storage type
 	StorageTypeMongoDB = "mongodb"
 	// DefaultJSONFile is the default JSON storage file
-	DefaultJSONFile = "data.json"
+	DefaultJSONFile = "data/openid.json"
 )
 
 // Config holds the application configuration

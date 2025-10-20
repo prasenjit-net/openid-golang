@@ -1,0 +1,64 @@
+# .dockerignore
+# Exclude files from Docker build context to speed up builds
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+examples/
+
+# CI/CD
+.github/
+
+# Build artifacts
+bin/
+dist/
+build/
+*.log
+
+# Frontend node_modules (will be installed in Docker)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend build artifacts
+backend/openid-server
+*.exe
+
+# Configuration and data (mounted as volumes)
+data/config.json
+data/openid.json
+data/*.json
+*.db
+*.sqlite
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+*_test.go
+testdata/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.old
+*.bak
+
+# Environment files
+.env
+.env.*
+
+# UI build artifacts in backend
+backend/pkg/ui/dist/*
+!backend/pkg/ui/dist/.gitkeep

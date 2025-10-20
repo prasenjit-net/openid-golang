@@ -1,0 +1,48 @@
+{
+  "users": {
+    "64a860cf-0c30-45a6-8b4a-a71a37f4c67e": {
+      "id": "64a860cf-0c30-45a6-8b4a-a71a37f4c67e",
+      "username": "test",
+      "email": "test@prasenjit.net",
+      "role": "user",
+      "name": "Test User 1",
+      "created_at": "2025-10-18T13:02:02.175900407-07:00",
+      "updated_at": "2025-10-19T07:53:30.538547511-07:00",
+      "password_hash": "$2a$10$GrCIN3IBPB3P2pBFC5S0zuVFUrbYEtwk91ULo9QVHmK6.0OLOW3hy"
+    },
+    "6918a8fb-c27e-405c-8a3f-3c16923600b1": {
+      "id": "6918a8fb-c27e-405c-8a3f-3c16923600b1",
+      "username": "admin",
+      "email": "admin@example.com",
+      "role": "admin",
+      "name": "",
+      "created_at": "2025-10-17T15:57:41.48058294-07:00",
+      "updated_at": "2025-10-17T15:57:41.480582995-07:00",
+      "password_hash": "$2a$10$H8ZmCD/.lGPfvOHZIU5SDe2pzz3/exjBMMPV/WwL6nzFdzPr86zmO"
+    }
+  },
+  "clients": {
+    "admin-ui": {
+      "client_id": "admin-ui",
+      "client_secret": "admin-ui",
+      "name": "Admin UI",
+      "redirect_uris": [
+        "https://id.prasenjit.net/admin/callback",
+        "https://www.certification.openid.net/test/a/test/callback"
+      ],
+      "grant_types": [
+        "implicit",
+        "authorization_code"
+      ],
+      "response_types": [
+        "id_token",
+        "token id_token"
+      ],
+      "scope": "openid profile email",
+      "created_at": "2025-10-17T16:04:37.474063736-07:00"
+    }
+  },
+  "authorization_codes": {},
+  "tokens": {},
+  "sessions": {}
+}
