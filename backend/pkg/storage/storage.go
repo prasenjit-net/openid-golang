@@ -29,6 +29,7 @@ type Storage interface {
 	// Authorization code operations
 	CreateAuthorizationCode(code *models.AuthorizationCode) error
 	GetAuthorizationCode(code string) (*models.AuthorizationCode, error)
+	UpdateAuthorizationCode(code *models.AuthorizationCode) error
 	DeleteAuthorizationCode(code string) error
 
 	// Token operations
@@ -51,6 +52,7 @@ type Storage interface {
 	// UserSession operations (authenticated user sessions)
 	CreateUserSession(session *models.UserSession) error
 	GetUserSession(id string) (*models.UserSession, error)
+	GetUserSessionByUserID(userID string) (*models.UserSession, error)
 	UpdateUserSession(session *models.UserSession) error
 	DeleteUserSession(id string) error
 	CleanupExpiredSessions() error

@@ -260,6 +260,18 @@ func (m *MongoDBStorage) GetAuthorizationCode(code string) (*models.Authorizatio
 	return &authCode, err
 }
 
+func (m *MongoDBStorage) UpdateAuthorizationCode(code *models.AuthorizationCode) error {
+	ctx := context.Background()
+	update := bson.M{
+		"$set": bson.M{
+			"used":    code.Used,
+			"used_at": code.UsedAt,
+		},
+	}
+	_, err := m.codes.UpdateOne(ctx, bson.M{"code": code.Code}, update)
+	return err
+}
+
 func (m *MongoDBStorage) DeleteAuthorizationCode(code string) error {
 	ctx := context.Background()
 	_, err := m.codes.DeleteOne(ctx, bson.M{"code": code})
@@ -413,6 +425,29 @@ func (m *MongoDBStorage) GetUserSession(sessionID string) (*models.UserSession, 
 	// Check if expired
 	if time.Now().After(session.ExpiresAt) {
 		return nil, nil
+	}
+
+	return &session, nil
+}
+
+func (m *MongoDBStorage) GetUserSessionByUserID(userID string) (*models.UserSession, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Find the most recent non-expired session for the user
+	filter := bson.M{
+		"user_id":    userID,
+		"expires_at": bson.M{"$gt": time.Now()},
+	}
+	opts := options.FindOne().SetSort(bson.D{{Key: "auth_time", Value: -1}})
+
+	var session models.UserSession
+	err := m.userSessions.FindOne(ctx, filter, opts).Decode(&session)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return &session, nil

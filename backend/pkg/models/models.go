@@ -60,16 +60,18 @@ type Client struct {
 
 // AuthorizationCode represents an authorization code
 type AuthorizationCode struct {
-	Code                string    `json:"code"`
-	ClientID            string    `json:"client_id"`
-	UserID              string    `json:"user_id"`
-	RedirectURI         string    `json:"redirect_uri"`
-	Scope               string    `json:"scope"`
-	Nonce               string    `json:"nonce,omitempty"`
-	CodeChallenge       string    `json:"code_challenge,omitempty"`
-	CodeChallengeMethod string    `json:"code_challenge_method,omitempty"`
-	ExpiresAt           time.Time `json:"expires_at"`
-	CreatedAt           time.Time `json:"created_at"`
+	Code                string    `json:"code" bson:"code"`
+	ClientID            string    `json:"client_id" bson:"client_id"`
+	UserID              string    `json:"user_id" bson:"user_id"`
+	RedirectURI         string    `json:"redirect_uri" bson:"redirect_uri"`
+	Scope               string    `json:"scope" bson:"scope"`
+	Nonce               string    `json:"nonce,omitempty" bson:"nonce,omitempty"`
+	CodeChallenge       string    `json:"code_challenge,omitempty" bson:"code_challenge,omitempty"`
+	CodeChallengeMethod string    `json:"code_challenge_method,omitempty" bson:"code_challenge_method,omitempty"`
+	Used                bool      `json:"used" bson:"used"`
+	UsedAt              *time.Time `json:"used_at,omitempty" bson:"used_at,omitempty"`
+	ExpiresAt           time.Time `json:"expires_at" bson:"expires_at"`
+	CreatedAt           time.Time `json:"created_at" bson:"created_at"`
 }
 
 // Token represents an access or refresh token

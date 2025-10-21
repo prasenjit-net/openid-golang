@@ -304,6 +304,18 @@ func (j *JSONStorage) GetAuthorizationCode(code string) (*models.AuthorizationCo
 	return authCode, nil
 }
 
+func (j *JSONStorage) UpdateAuthorizationCode(code *models.AuthorizationCode) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.AuthorizationCodes[code.Code]; !exists {
+		return nil
+	}
+
+	j.data.AuthorizationCodes[code.Code] = code
+	return j.save()
+}
+
 func (j *JSONStorage) DeleteAuthorizationCode(code string) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -469,6 +481,23 @@ func (j *JSONStorage) GetUserSession(sessionID string) (*models.UserSession, err
 	}
 
 	return session, nil
+}
+
+func (j *JSONStorage) GetUserSessionByUserID(userID string) (*models.UserSession, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	// Find the most recent session for the user
+	var latestSession *models.UserSession
+	for _, session := range j.data.UserSessions {
+		if session.UserID == userID && time.Now().Before(session.ExpiresAt) {
+			if latestSession == nil || session.AuthTime.After(latestSession.AuthTime) {
+				latestSession = session
+			}
+		}
+	}
+
+	return latestSession, nil
 }
 
 func (j *JSONStorage) UpdateUserSession(session *models.UserSession) error {
