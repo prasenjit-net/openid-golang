@@ -6,11 +6,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
+	"github.com/prasenjit-net/openid-golang/pkg/session"
 )
 
 const (
@@ -32,9 +32,6 @@ func (h *Handlers) Authorize(c echo.Context) error {
 	responseType := query.Get("response_type")
 	scope := query.Get("scope")
 	state := query.Get("state")
-	nonce := query.Get("nonce")
-	codeChallenge := query.Get("code_challenge")
-	codeChallengeMethod := query.Get("code_challenge_method")
 
 	// Validate parameters
 	if clientID == "" {
@@ -74,56 +71,219 @@ func (h *Handlers) Authorize(c echo.Context) error {
 		})
 	}
 
-	// For this example, we'll create a session and redirect to login
-	// In production, check if user is already authenticated
-	sessionID := uuid.New().String()
+	// Create authorization session to store request parameters
+	authSession, err := h.sessionManager.CreateAuthSession(c, clientID, redirectURI, responseType, scope, state)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to create authorization session",
+		})
+	}
 
-	// Store authorization request in session (simplified - should use proper session storage)
-	// For now, redirect to login with parameters
-	loginURL := fmt.Sprintf("/login?session_id=%s&client_id=%s&redirect_uri=%s&response_type=%s&scope=%s&state=%s&nonce=%s&code_challenge=%s&code_challenge_method=%s",
-		sessionID, clientID, url.QueryEscape(redirectURI), url.QueryEscape(responseType), url.QueryEscape(scope), state, nonce, codeChallenge, codeChallengeMethod)
+	// Check if user is already authenticated
+	userSession := session.GetUserSession(c)
+	if userSession != nil && userSession.IsAuthenticated() {
+		// Handle prompt parameter
+		prompt := c.QueryParam("prompt")
+		if prompt != "" {
+			switch prompt {
+			case "none":
+				// Must not display any UI - check if consent already given
+				if !authSession.ConsentGiven {
+					return redirectWithError(c, redirectURI, "consent_required", "User consent required but prompt=none", state)
+				}
+				// Proceed to generate code/tokens
+				return h.completeAuthorization(c, authSession, userSession)
+			case "login":
+				// Force re-authentication
+				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+			case "consent":
+				// Force consent screen
+				return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
+			case "select_account":
+				// Show account selection (simplified: redirect to login)
+				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+			}
+		}
 
-	return c.Redirect(http.StatusFound, loginURL)
+		// Check max_age parameter
+		if authSession.MaxAge > 0 {
+			if !userSession.IsAuthTimeFresh(authSession.MaxAge) {
+				// Re-authentication required
+				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+			}
+		}
+
+		// User is authenticated and meets requirements, check consent
+		if !authSession.ConsentGiven {
+			// Redirect to consent screen
+			return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
+		}
+
+		// All checks passed, complete authorization
+		return h.completeAuthorization(c, authSession, userSession)
+	}
+
+	// User not authenticated, redirect to login
+	return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
 }
 
 // Login handles the login page (GET/POST /login)
 func (h *Handlers) Login(c echo.Context) error {
+	authSessionID := c.QueryParam("auth_session")
+	
 	if c.Request().Method == "GET" {
-		// Render login page (simplified HTML)
-		return h.renderLoginPage(c)
+		// Render login page
+		return h.renderLoginPage(c, authSessionID)
 	}
 
 	// POST - handle login
 	username := c.FormValue("username")
-	sessionID := c.FormValue("session_id")
-	clientID := c.FormValue("client_id")
-	redirectURI := c.FormValue("redirect_uri")
-	responseType := c.FormValue("response_type")
-	scope := c.FormValue("scope")
-	state := c.FormValue("state")
-	nonce := c.FormValue("nonce")
-	codeChallenge := c.FormValue("code_challenge")
-	codeChallengeMethod := c.FormValue("code_challenge_method")
+	password := c.FormValue("password")
 
 	// Authenticate user
 	user, err := h.storage.GetUserByUsername(username)
 	if err != nil || user == nil {
-		return h.renderLoginPageWithError(c, "Invalid username or password")
+		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
 	// Validate password
-	password := c.FormValue("password")
 	if !crypto.ValidatePassword(password, user.PasswordHash) {
-		return h.renderLoginPageWithError(c, "Invalid username or password")
+		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
-	// For admin UI, verify user has admin role
-	if clientID == "admin-ui" && user.Role != "admin" {
-		return h.renderLoginPageWithError(c, "Access denied: Admin privileges required")
+	// Get authorization session if exists
+	var authSession *models.AuthSession
+	if authSessionID != "" {
+		authSession, err = h.storage.GetAuthSession(authSessionID)
+		if err != nil || authSession == nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error":             "invalid_request",
+				"error_description": "Invalid or expired authorization session",
+			})
+		}
+
+		// For admin UI, verify user has admin role
+		if authSession.ClientID == "admin-ui" && user.Role != "admin" {
+			return h.renderLoginPageWithError(c, authSessionID, "Access denied: Admin privileges required")
+		}
 	}
 
-	// Get client for token generation
-	client, err := h.storage.GetClientByID(clientID)
+	// Create user session with authentication details
+	authMethod := "password"
+	acr := "urn:mace:incommon:iap:silver" // Authentication Context Class Reference
+	amr := []string{"pwd"}                // Authentication Methods References
+
+	userSession, err := h.sessionManager.CreateUserSession(c, user.ID, authMethod, acr, amr)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to create user session",
+		})
+	}
+
+	// Update auth session with user info
+	if authSession != nil {
+		authSession.UserID = user.ID
+		authTime := userSession.AuthTime
+		authSession.AuthTime = &authTime
+		authSession.ACR = acr
+		authSession.AMR = amr
+		authSession.AuthenticationMethod = authMethod
+
+		if err := h.storage.UpdateAuthSession(authSession); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error":             "server_error",
+				"error_description": "Failed to update authorization session",
+			})
+		}
+
+		// Redirect to consent screen
+		return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
+	}
+
+	// No auth session, just logged in (e.g., admin UI direct access)
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Login successful",
+		"user_id": user.ID,
+	})
+}
+
+// Consent handles the consent page (GET/POST /consent)
+func (h *Handlers) Consent(c echo.Context) error {
+	authSessionID := c.QueryParam("auth_session")
+	
+	if authSessionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "auth_session is required",
+		})
+	}
+
+	// Get authorization session
+	authSession, err := h.storage.GetAuthSession(authSessionID)
+	if err != nil || authSession == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "Invalid or expired authorization session",
+		})
+	}
+
+	// Get user session
+	userSession := session.GetUserSession(c)
+	if userSession == nil || !userSession.IsAuthenticated() {
+		return c.Redirect(http.StatusFound, "/login?auth_session="+authSessionID)
+	}
+
+	// Get client info
+	client, err := h.storage.GetClientByID(authSession.ClientID)
+	if err != nil || client == nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "Invalid client",
+		})
+	}
+
+	if c.Request().Method == "GET" {
+		// Render consent page
+		return h.renderConsentPage(c, authSession, client)
+	}
+
+	// POST - handle consent decision
+	consent := c.FormValue("consent")
+	if consent != "allow" {
+		// User denied consent
+		return redirectWithError(c, authSession.RedirectURI, "access_denied", "User denied consent", authSession.State)
+	}
+
+	// Update auth session with consent
+	authSession.ConsentGiven = true
+	authSession.ConsentedScopes = strings.Split(authSession.Scope, " ")
+
+	if err := h.storage.UpdateAuthSession(authSession); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to update authorization session",
+		})
+	}
+
+	// Complete authorization
+	return h.completeAuthorization(c, authSession, userSession)
+}
+
+// completeAuthorization completes the authorization flow
+func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.AuthSession, userSession *models.UserSession) error {
+	// Get user
+	user, err := h.storage.GetUserByID(userSession.UserID)
+	if err != nil || user == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error":             "server_error",
+			"error_description": "Failed to get user",
+		})
+	}
+
+	// Get client
+	client, err := h.storage.GetClientByID(authSession.ClientID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error":             "server_error",
@@ -132,9 +292,9 @@ func (h *Handlers) Login(c echo.Context) error {
 	}
 
 	// Handle implicit flow (id_token or token id_token)
-	if responseType == ResponseTypeIDToken || responseType == ResponseTypeTokenIDToken {
-		// Generate ID token
-		idToken, err := h.jwtManager.GenerateIDToken(user, clientID, nonce)
+	if authSession.ResponseType == ResponseTypeIDToken || authSession.ResponseType == ResponseTypeTokenIDToken {
+		// Generate ID token with auth_time, acr, amr
+		idToken, err := h.jwtManager.GenerateIDTokenWithClaims(user, authSession.ClientID, authSession.Nonce, userSession.AuthTime, userSession.ACR, userSession.AMR)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error":             "server_error",
@@ -143,11 +303,11 @@ func (h *Handlers) Login(c echo.Context) error {
 		}
 
 		// Build redirect URL with fragment
-		fragment := fmt.Sprintf("id_token=%s&state=%s", idToken, state)
+		fragment := fmt.Sprintf("id_token=%s&state=%s", idToken, authSession.State)
 
 		// If response_type includes 'token', also generate access token
-		if responseType == ResponseTypeTokenIDToken {
-			accessToken, err := h.jwtManager.GenerateAccessToken(user, client.ID, scope)
+		if authSession.ResponseType == ResponseTypeTokenIDToken {
+			accessToken, err := h.jwtManager.GenerateAccessToken(user, client.ID, authSession.Scope)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{
 					"error":             "server_error",
@@ -157,16 +317,19 @@ func (h *Handlers) Login(c echo.Context) error {
 			fragment += fmt.Sprintf("&access_token=%s&token_type=Bearer&expires_in=3600", accessToken)
 		}
 
-		redirectURL := fmt.Sprintf("%s#%s", redirectURI, fragment)
+		// Clean up auth session
+		_ = h.storage.DeleteAuthSession(authSession.ID)
+
+		redirectURL := fmt.Sprintf("%s#%s", authSession.RedirectURI, fragment)
 		return c.Redirect(http.StatusFound, redirectURL)
 	}
 
 	// Handle authorization code flow
 	// Create authorization code
-	authCode := models.NewAuthorizationCode(clientID, user.ID, redirectURI, scope)
-	authCode.Nonce = nonce
-	authCode.CodeChallenge = codeChallenge
-	authCode.CodeChallengeMethod = codeChallengeMethod
+	authCode := models.NewAuthorizationCode(authSession.ClientID, user.ID, authSession.RedirectURI, authSession.Scope)
+	authCode.Nonce = authSession.Nonce
+	authCode.CodeChallenge = authSession.CodeChallenge
+	authCode.CodeChallengeMethod = authSession.CodeChallengeMethod
 
 	if err := h.storage.CreateAuthorizationCode(authCode); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -175,34 +338,19 @@ func (h *Handlers) Login(c echo.Context) error {
 		})
 	}
 
-	// Create session
-	session := &models.Session{
-		ID:        sessionID,
-		UserID:    user.ID,
-		ExpiresAt: authCode.ExpiresAt,
-		CreatedAt: authCode.CreatedAt,
-	}
-	_ = h.storage.CreateSession(session)
+	// Clean up auth session
+	_ = h.storage.DeleteAuthSession(authSession.ID)
 
 	// Redirect back to client with authorization code
-	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", redirectURI, authCode.Code, state)
+	redirectURL := fmt.Sprintf("%s?code=%s&state=%s", authSession.RedirectURI, authCode.Code, authSession.State)
 	return c.Redirect(http.StatusFound, redirectURL)
 }
 
-// Consent handles the consent page (GET/POST /consent)
-func (h *Handlers) Consent(c echo.Context) error {
-	// Simplified consent - in production, show consent screen
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "Consent endpoint - to be implemented",
-	})
+func (h *Handlers) renderLoginPage(c echo.Context, authSessionID string) error {
+	return h.renderLoginPageWithError(c, authSessionID, "")
 }
 
-func (h *Handlers) renderLoginPage(c echo.Context) error {
-	return h.renderLoginPageWithError(c, "")
-}
-
-func (h *Handlers) renderLoginPageWithError(c echo.Context, errorMsg string) error {
-	query := c.QueryParams()
+func (h *Handlers) renderLoginPageWithError(c echo.Context, authSessionID, errorMsg string) error {
 	errorHTML := ""
 	if errorMsg != "" {
 		errorHTML = fmt.Sprintf(`<div style="color: red; text-align: center; margin: 10px 0;">%s</div>`, errorMsg)
@@ -224,25 +372,63 @@ func (h *Handlers) renderLoginPageWithError(c echo.Context, errorMsg string) err
 <body>
     <h2>Sign In</h2>
     %s
-    <form method="POST" action="/login">
-        <input type="hidden" name="session_id" value="%s">
-        <input type="hidden" name="client_id" value="%s">
-        <input type="hidden" name="redirect_uri" value="%s">
-        <input type="hidden" name="response_type" value="%s">
-        <input type="hidden" name="scope" value="%s">
-        <input type="hidden" name="state" value="%s">
-        <input type="hidden" name="nonce" value="%s">
-        <input type="hidden" name="code_challenge" value="%s">
-        <input type="hidden" name="code_challenge_method" value="%s">
+    <form method="POST" action="/login?auth_session=%s">
         <input type="text" name="username" placeholder="Username" required autofocus>
         <input type="password" name="password" placeholder="Password" required>
         <button type="submit">Sign In</button>
     </form>
 </body>
 </html>
-	`, errorHTML, query.Get("session_id"), query.Get("client_id"), query.Get("redirect_uri"),
-		query.Get("response_type"), query.Get("scope"), query.Get("state"), query.Get("nonce"),
-		query.Get("code_challenge"), query.Get("code_challenge_method"))
+	`, errorHTML, authSessionID)
+
+	return c.HTML(http.StatusOK, html)
+}
+
+func (h *Handlers) renderConsentPage(c echo.Context, authSession *models.AuthSession, client *models.Client) error {
+	scopes := strings.Split(authSession.Scope, " ")
+	scopeList := ""
+	for _, scope := range scopes {
+		scopeList += fmt.Sprintf("<li>%s</li>", scope)
+	}
+
+	html := fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grant Permission - OpenID Connect</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 100px auto; padding: 20px; }
+        .client { font-weight: bold; color: #007bff; }
+        .scopes { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 5px 0; }
+        .buttons { display: flex; gap: 10px; }
+        button { flex: 1; padding: 12px; border: none; cursor: pointer; font-size: 16px; }
+        .allow { background: #28a745; color: white; }
+        .allow:hover { background: #218838; }
+        .deny { background: #dc3545; color: white; }
+        .deny:hover { background: #c82333; }
+        h2 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>Grant Permission</h2>
+    <p>The application <span class="client">%s</span> is requesting access to your account.</p>
+    
+    <div class="scopes">
+        <strong>Requested permissions:</strong>
+        <ul>%s</ul>
+    </div>
+
+    <form method="POST" action="/consent?auth_session=%s">
+        <div class="buttons">
+            <button type="submit" name="consent" value="deny" class="deny">Deny</button>
+            <button type="submit" name="consent" value="allow" class="allow">Allow</button>
+        </div>
+    </form>
+</body>
+</html>
+	`, client.Name, scopeList, authSession.ID)
 
 	return c.HTML(http.StatusOK, html)
 }

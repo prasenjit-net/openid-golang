@@ -64,12 +64,15 @@ func NewJWTManagerFromPEM(privateKeyPEM, publicKeyPEM, issuer string, expiryMinu
 // IDTokenClaims represents OpenID Connect ID Token claims
 type IDTokenClaims struct {
 	jwt.RegisteredClaims
-	Name       string `json:"name,omitempty"`
-	GivenName  string `json:"given_name,omitempty"`
-	FamilyName string `json:"family_name,omitempty"`
-	Email      string `json:"email,omitempty"`
-	Picture    string `json:"picture,omitempty"`
-	Nonce      string `json:"nonce,omitempty"`
+	Name       string   `json:"name,omitempty"`
+	GivenName  string   `json:"given_name,omitempty"`
+	FamilyName string   `json:"family_name,omitempty"`
+	Email      string   `json:"email,omitempty"`
+	Picture    string   `json:"picture,omitempty"`
+	Nonce      string   `json:"nonce,omitempty"`
+	AuthTime   *int64   `json:"auth_time,omitempty"`
+	ACR        string   `json:"acr,omitempty"`
+	AMR        []string `json:"amr,omitempty"`
 }
 
 // GenerateIDToken generates an OpenID Connect ID token
@@ -89,6 +92,34 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 		Email:      user.Email,
 		Picture:    user.Picture,
 		Nonce:      nonce,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(jm.privateKey)
+}
+
+// GenerateIDTokenWithClaims generates an OpenID Connect ID token with additional OIDC claims
+func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce string, authTime time.Time, acr string, amr []string) (string, error) {
+	now := time.Now()
+	authTimeUnix := authTime.Unix()
+	
+	claims := IDTokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jm.issuer,
+			Subject:   user.ID,
+			Audience:  jwt.ClaimStrings{clientID},
+			ExpiresAt: jwt.NewNumericDate(now.Add(jm.expiry)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+		Name:       user.Name,
+		GivenName:  user.GivenName,
+		FamilyName: user.FamilyName,
+		Email:      user.Email,
+		Picture:    user.Picture,
+		Nonce:      nonce,
+		AuthTime:   &authTimeUnix,
+		ACR:        acr,
+		AMR:        amr,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
