@@ -30,6 +30,8 @@ type JSONData struct {
 	AuthorizationCodes map[string]*models.AuthorizationCode `json:"authorization_codes"`
 	Tokens             map[string]*models.Token             `json:"tokens"`
 	Sessions           map[string]*models.Session           `json:"sessions"`
+	AuthSessions       map[string]*models.AuthSession       `json:"auth_sessions"`
+	UserSessions       map[string]*models.UserSession       `json:"user_sessions"`
 }
 
 // NewJSONStorage creates a new JSON file storage
@@ -42,6 +44,8 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 			AuthorizationCodes: make(map[string]*models.AuthorizationCode),
 			Tokens:             make(map[string]*models.Token),
 			Sessions:           make(map[string]*models.Session),
+			AuthSessions:       make(map[string]*models.AuthSession),
+			UserSessions:       make(map[string]*models.UserSession),
 		},
 	}
 
@@ -300,6 +304,18 @@ func (j *JSONStorage) GetAuthorizationCode(code string) (*models.AuthorizationCo
 	return authCode, nil
 }
 
+func (j *JSONStorage) UpdateAuthorizationCode(code *models.AuthorizationCode) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.AuthorizationCodes[code.Code]; !exists {
+		return nil
+	}
+
+	j.data.AuthorizationCodes[code.Code] = code
+	return j.save()
+}
+
 func (j *JSONStorage) DeleteAuthorizationCode(code string) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -387,4 +403,153 @@ func (j *JSONStorage) DeleteSession(sessionID string) error {
 
 	delete(j.data.Sessions, sessionID)
 	return j.save()
+}
+
+// AuthSession operations
+func (j *JSONStorage) CreateAuthSession(session *models.AuthSession) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now()
+	}
+	j.data.AuthSessions[session.ID] = session
+	return j.save()
+}
+
+func (j *JSONStorage) GetAuthSession(sessionID string) (*models.AuthSession, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	session, exists := j.data.AuthSessions[sessionID]
+	if !exists {
+		return nil, nil
+	}
+
+	// Check if expired
+	if time.Now().After(session.ExpiresAt) {
+		return nil, nil
+	}
+
+	return session, nil
+}
+
+func (j *JSONStorage) UpdateAuthSession(session *models.AuthSession) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.data.AuthSessions[session.ID] = session
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteAuthSession(sessionID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	delete(j.data.AuthSessions, sessionID)
+	return j.save()
+}
+
+// UserSession operations
+func (j *JSONStorage) CreateUserSession(session *models.UserSession) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if session.CreatedAt.IsZero() {
+		session.CreatedAt = time.Now()
+	}
+	if session.AuthTime.IsZero() {
+		session.AuthTime = time.Now()
+	}
+	session.LastActivityAt = time.Now()
+	j.data.UserSessions[session.ID] = session
+	return j.save()
+}
+
+func (j *JSONStorage) GetUserSession(sessionID string) (*models.UserSession, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	session, exists := j.data.UserSessions[sessionID]
+	if !exists {
+		return nil, nil
+	}
+
+	// Check if expired
+	if time.Now().After(session.ExpiresAt) {
+		return nil, nil
+	}
+
+	return session, nil
+}
+
+func (j *JSONStorage) GetUserSessionByUserID(userID string) (*models.UserSession, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	// Find the most recent session for the user
+	var latestSession *models.UserSession
+	for _, session := range j.data.UserSessions {
+		if session.UserID == userID && time.Now().Before(session.ExpiresAt) {
+			if latestSession == nil || session.AuthTime.After(latestSession.AuthTime) {
+				latestSession = session
+			}
+		}
+	}
+
+	return latestSession, nil
+}
+
+func (j *JSONStorage) UpdateUserSession(session *models.UserSession) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	session.LastActivityAt = time.Now()
+	j.data.UserSessions[session.ID] = session
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteUserSession(sessionID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	delete(j.data.UserSessions, sessionID)
+	return j.save()
+}
+
+func (j *JSONStorage) CleanupExpiredSessions() error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	now := time.Now()
+	deleted := 0
+
+	// Clean up auth sessions
+	for id, session := range j.data.AuthSessions {
+		if now.After(session.ExpiresAt) {
+			delete(j.data.AuthSessions, id)
+			deleted++
+		}
+	}
+
+	// Clean up user sessions
+	for id, session := range j.data.UserSessions {
+		if now.After(session.ExpiresAt) {
+			delete(j.data.UserSessions, id)
+			deleted++
+		}
+	}
+
+	// Clean up old sessions
+	for id, session := range j.data.Sessions {
+		if now.After(session.ExpiresAt) {
+			delete(j.data.Sessions, id)
+			deleted++
+		}
+	}
+
+	if deleted > 0 {
+		return j.save()
+	}
+	return nil
 }

@@ -29,6 +29,7 @@ type Storage interface {
 	// Authorization code operations
 	CreateAuthorizationCode(code *models.AuthorizationCode) error
 	GetAuthorizationCode(code string) (*models.AuthorizationCode, error)
+	UpdateAuthorizationCode(code *models.AuthorizationCode) error
 	DeleteAuthorizationCode(code string) error
 
 	// Token operations
@@ -41,6 +42,20 @@ type Storage interface {
 	CreateSession(session *models.Session) error
 	GetSession(id string) (*models.Session, error)
 	DeleteSession(id string) error
+
+	// AuthSession operations (OpenID Connect authorization sessions)
+	CreateAuthSession(session *models.AuthSession) error
+	GetAuthSession(id string) (*models.AuthSession, error)
+	UpdateAuthSession(session *models.AuthSession) error
+	DeleteAuthSession(id string) error
+
+	// UserSession operations (authenticated user sessions)
+	CreateUserSession(session *models.UserSession) error
+	GetUserSession(id string) (*models.UserSession, error)
+	GetUserSessionByUserID(userID string) (*models.UserSession, error)
+	UpdateUserSession(session *models.UserSession) error
+	DeleteUserSession(id string) error
+	CleanupExpiredSessions() error
 
 	Close() error
 }

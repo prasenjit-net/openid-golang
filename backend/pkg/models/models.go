@@ -60,16 +60,18 @@ type Client struct {
 
 // AuthorizationCode represents an authorization code
 type AuthorizationCode struct {
-	Code                string    `json:"code"`
-	ClientID            string    `json:"client_id"`
-	UserID              string    `json:"user_id"`
-	RedirectURI         string    `json:"redirect_uri"`
-	Scope               string    `json:"scope"`
-	Nonce               string    `json:"nonce,omitempty"`
-	CodeChallenge       string    `json:"code_challenge,omitempty"`
-	CodeChallengeMethod string    `json:"code_challenge_method,omitempty"`
-	ExpiresAt           time.Time `json:"expires_at"`
-	CreatedAt           time.Time `json:"created_at"`
+	Code                string     `json:"code" bson:"code"`
+	ClientID            string     `json:"client_id" bson:"client_id"`
+	UserID              string     `json:"user_id" bson:"user_id"`
+	RedirectURI         string     `json:"redirect_uri" bson:"redirect_uri"`
+	Scope               string     `json:"scope" bson:"scope"`
+	Nonce               string     `json:"nonce,omitempty" bson:"nonce,omitempty"`
+	CodeChallenge       string     `json:"code_challenge,omitempty" bson:"code_challenge,omitempty"`
+	CodeChallengeMethod string     `json:"code_challenge_method,omitempty" bson:"code_challenge_method,omitempty"`
+	Used                bool       `json:"used" bson:"used"`
+	UsedAt              *time.Time `json:"used_at,omitempty" bson:"used_at,omitempty"`
+	ExpiresAt           time.Time  `json:"expires_at" bson:"expires_at"`
+	CreatedAt           time.Time  `json:"created_at" bson:"created_at"`
 }
 
 // Token represents an access or refresh token
@@ -91,6 +93,63 @@ type Session struct {
 	UserID    string    `json:"user_id"`
 	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// AuthSession represents an OpenID Connect authorization session
+// Stores authorization request parameters during the authentication flow
+type AuthSession struct {
+	ID                   string                 `json:"id" bson:"_id"`
+	ClientID             string                 `json:"client_id" bson:"client_id"`
+	RedirectURI          string                 `json:"redirect_uri" bson:"redirect_uri"`
+	ResponseType         string                 `json:"response_type" bson:"response_type"`
+	Scope                string                 `json:"scope" bson:"scope"`
+	State                string                 `json:"state" bson:"state"`
+	Nonce                string                 `json:"nonce,omitempty" bson:"nonce,omitempty"`
+	CodeChallenge        string                 `json:"code_challenge,omitempty" bson:"code_challenge,omitempty"`
+	CodeChallengeMethod  string                 `json:"code_challenge_method,omitempty" bson:"code_challenge_method,omitempty"`
+	Prompt               string                 `json:"prompt,omitempty" bson:"prompt,omitempty"`
+	MaxAge               int                    `json:"max_age,omitempty" bson:"max_age,omitempty"`
+	ACRValues            []string               `json:"acr_values,omitempty" bson:"acr_values,omitempty"`
+	Display              string                 `json:"display,omitempty" bson:"display,omitempty"`
+	UILocales            []string               `json:"ui_locales,omitempty" bson:"ui_locales,omitempty"`
+	ClaimsLocales        []string               `json:"claims_locales,omitempty" bson:"claims_locales,omitempty"`
+	Claims               map[string]interface{} `json:"claims,omitempty" bson:"claims,omitempty"`
+	UserID               string                 `json:"user_id,omitempty" bson:"user_id,omitempty"`
+	AuthTime             *time.Time             `json:"auth_time,omitempty" bson:"auth_time,omitempty"`
+	ConsentGiven         bool                   `json:"consent_given" bson:"consent_given"`
+	ConsentedScopes      []string               `json:"consented_scopes,omitempty" bson:"consented_scopes,omitempty"`
+	AuthenticationMethod string                 `json:"authentication_method,omitempty" bson:"authentication_method,omitempty"`
+	ACR                  string                 `json:"acr,omitempty" bson:"acr,omitempty"`
+	AMR                  []string               `json:"amr,omitempty" bson:"amr,omitempty"`
+	ExpiresAt            time.Time              `json:"expires_at" bson:"expires_at"`
+	CreatedAt            time.Time              `json:"created_at" bson:"created_at"`
+}
+
+// UserSession represents an authenticated user session with cookies
+type UserSession struct {
+	ID                   string    `json:"id" bson:"_id"`
+	UserID               string    `json:"user_id" bson:"user_id"`
+	AuthTime             time.Time `json:"auth_time" bson:"auth_time"`
+	AuthenticationMethod string    `json:"authentication_method" bson:"authentication_method"`
+	ACR                  string    `json:"acr,omitempty" bson:"acr,omitempty"`
+	AMR                  []string  `json:"amr,omitempty" bson:"amr,omitempty"`
+	LastActivityAt       time.Time `json:"last_activity_at" bson:"last_activity_at"`
+	ExpiresAt            time.Time `json:"expires_at" bson:"expires_at"`
+	CreatedAt            time.Time `json:"created_at" bson:"created_at"`
+}
+
+// IsAuthenticated checks if the user session is authenticated
+func (us *UserSession) IsAuthenticated() bool {
+	return us.UserID != "" && time.Now().Before(us.ExpiresAt)
+}
+
+// IsAuthTimeFresh checks if authentication time is within max_age seconds
+func (us *UserSession) IsAuthTimeFresh(maxAge int) bool {
+	if maxAge == 0 {
+		return false
+	}
+	elapsed := time.Since(us.AuthTime).Seconds()
+	return elapsed <= float64(maxAge)
 }
 
 // NewUser creates a new user with generated ID

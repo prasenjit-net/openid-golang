@@ -51,6 +51,9 @@ issues:
     - path: cmd/
       linters:
         - gocyclo
+    - path: pkg/handlers/authorize\.go
+      linters:
+        - gocyclo
   exclude-dirs:
     - vendor
     - frontend/node_modules

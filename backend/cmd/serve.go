@@ -18,6 +18,7 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/handlers"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
+	"github.com/prasenjit-net/openid-golang/pkg/session"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
 	"github.com/prasenjit-net/openid-golang/pkg/ui"
 )
@@ -201,6 +202,11 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 		log.Fatalf("Failed to initialize JWT manager: %v", err)
 	}
 
+	// Create session manager
+	sessionConfig := session.DefaultConfig(store)
+	sessionConfig.CookieSecure = cfg.Server.Port == 443 // Secure cookies for HTTPS
+	sessionManager := session.NewManager(sessionConfig)
+
 	// Create Echo instance
 	e := echo.New()
 	e.HideBanner = true
@@ -210,9 +216,10 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+	e.Use(sessionManager.Middleware()) // Add session middleware
 
 	// Initialize handlers
-	h := handlers.NewHandlers(store, jwtManager, cfg)
+	h := handlers.NewHandlers(store, jwtManager, cfg, sessionManager)
 
 	// Register routes (without /setup - it's disabled in normal mode)
 	registerRoutes(e, h, cfg)
