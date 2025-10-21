@@ -131,7 +131,7 @@ func (h *Handlers) Authorize(c echo.Context) error {
 // Login handles the login page (GET/POST /login)
 func (h *Handlers) Login(c echo.Context) error {
 	authSessionID := c.QueryParam("auth_session")
-	
+
 	if c.Request().Method == "GET" {
 		// Render login page
 		return h.renderLoginPage(c, authSessionID)
@@ -212,7 +212,7 @@ func (h *Handlers) Login(c echo.Context) error {
 // Consent handles the consent page (GET/POST /consent)
 func (h *Handlers) Consent(c echo.Context) error {
 	authSessionID := c.QueryParam("auth_session")
-	
+
 	if authSessionID == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error":             "invalid_request",

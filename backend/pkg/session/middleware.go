@@ -28,15 +28,15 @@ const (
 
 // Config holds session middleware configuration
 type Config struct {
-	Storage              storage.Storage
-	UserSessionTimeout   time.Duration
-	AuthSessionTimeout   time.Duration
-	CookieSecure         bool
-	CookieHTTPOnly       bool
-	CookieSameSite       http.SameSite
-	CookieDomain         string
-	CookiePath           string
-	CleanupInterval      time.Duration
+	Storage            storage.Storage
+	UserSessionTimeout time.Duration
+	AuthSessionTimeout time.Duration
+	CookieSecure       bool
+	CookieHTTPOnly     bool
+	CookieSameSite     http.SameSite
+	CookieDomain       string
+	CookiePath         string
+	CleanupInterval    time.Duration
 }
 
 // DefaultConfig returns default configuration
@@ -181,7 +181,7 @@ func (m *Manager) CreateAuthSession(c echo.Context, clientID, redirectURI, respo
 
 	// Parse max_age
 	if maxAgeStr := c.QueryParam("max_age"); maxAgeStr != "" {
-		fmt.Sscanf(maxAgeStr, "%d", &session.MaxAge)
+		_, _ = fmt.Sscanf(maxAgeStr, "%d", &session.MaxAge)
 	}
 
 	if err := m.store.CreateAuthSession(session); err != nil {

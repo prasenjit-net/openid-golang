@@ -1,8 +1,6 @@
 package session
 
 import (
-	"encoding/json"
-
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
 )
@@ -128,18 +126,4 @@ func (s *sessionStore) DeleteExpiredUserSessions() error {
 // CleanupExpiredSessions removes all expired sessions
 func (s *sessionStore) CleanupExpiredSessions() error {
 	return s.DeleteExpiredUserSessions()
-}
-
-// Helper function to serialize session data
-func serializeSession(session interface{}) (string, error) {
-	data, err := json.Marshal(session)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-// Helper function to deserialize session data
-func deserializeSession(data string, target interface{}) error {
-	return json.Unmarshal([]byte(data), target)
 }

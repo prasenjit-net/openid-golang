@@ -101,10 +101,8 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	now := time.Now()
 	authCode.Used = true
 	authCode.UsedAt = &now
-	if updateErr := h.storage.UpdateAuthorizationCode(authCode); updateErr != nil {
-		// Log error but continue - deletion will handle cleanup
-		// This is for tracking purposes
-	}
+	// Update the code - if this fails, deletion will still cleanup
+	_ = h.storage.UpdateAuthorizationCode(authCode)
 
 	// Check if code is expired
 	if authCode.IsExpired() {

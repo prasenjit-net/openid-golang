@@ -102,7 +102,7 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce string, authTime time.Time, acr string, amr []string) (string, error) {
 	now := time.Now()
 	authTimeUnix := authTime.Unix()
-	
+
 	claims := IDTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    jm.issuer,
