@@ -37,47 +37,47 @@ func (m *MockStorage) GetUserByID(id string) (*models.User, error) {
 }
 
 // Add stubs for other required storage methods
-func (m *MockStorage) CreateUser(user *models.User) error                         { return nil }
-func (m *MockStorage) GetUserByUsername(username string) (*models.User, error)    { return nil, nil }
-func (m *MockStorage) GetUserByEmail(email string) (*models.User, error)          { return nil, nil }
-func (m *MockStorage) GetAllUsers() ([]*models.User, error)                       { return nil, nil }
-func (m *MockStorage) UpdateUser(user *models.User) error                         { return nil }
-func (m *MockStorage) DeleteUser(id string) error                                 { return nil }
-func (m *MockStorage) CreateClient(client *models.Client) error                   { return nil }
-func (m *MockStorage) GetClientByID(id string) (*models.Client, error)            { return nil, nil }
-func (m *MockStorage) GetAllClients() ([]*models.Client, error)                   { return nil, nil }
-func (m *MockStorage) UpdateClient(client *models.Client) error                   { return nil }
-func (m *MockStorage) DeleteClient(id string) error                               { return nil }
+func (m *MockStorage) CreateUser(user *models.User) error                      { return nil }
+func (m *MockStorage) GetUserByUsername(username string) (*models.User, error) { return nil, nil }
+func (m *MockStorage) GetUserByEmail(email string) (*models.User, error)       { return nil, nil }
+func (m *MockStorage) GetAllUsers() ([]*models.User, error)                    { return nil, nil }
+func (m *MockStorage) UpdateUser(user *models.User) error                      { return nil }
+func (m *MockStorage) DeleteUser(id string) error                              { return nil }
+func (m *MockStorage) CreateClient(client *models.Client) error                { return nil }
+func (m *MockStorage) GetClientByID(id string) (*models.Client, error)         { return nil, nil }
+func (m *MockStorage) GetAllClients() ([]*models.Client, error)                { return nil, nil }
+func (m *MockStorage) UpdateClient(client *models.Client) error                { return nil }
+func (m *MockStorage) DeleteClient(id string) error                            { return nil }
 func (m *MockStorage) ValidateClient(clientID, clientSecret string) (*models.Client, error) {
 	return nil, nil
 }
-func (m *MockStorage) CreateAuthorizationCode(code *models.AuthorizationCode) error      { return nil }
+func (m *MockStorage) CreateAuthorizationCode(code *models.AuthorizationCode) error { return nil }
 func (m *MockStorage) GetAuthorizationCode(code string) (*models.AuthorizationCode, error) {
 	return nil, nil
 }
-func (m *MockStorage) UpdateAuthorizationCode(code *models.AuthorizationCode) error     { return nil }
-func (m *MockStorage) DeleteAuthorizationCode(code string) error                        { return nil }
-func (m *MockStorage) CreateToken(token *models.Token) error                            { return nil }
+func (m *MockStorage) UpdateAuthorizationCode(code *models.AuthorizationCode) error { return nil }
+func (m *MockStorage) DeleteAuthorizationCode(code string) error                    { return nil }
+func (m *MockStorage) CreateToken(token *models.Token) error                        { return nil }
 func (m *MockStorage) GetTokenByRefreshToken(refreshToken string) (*models.Token, error) {
 	return nil, nil
 }
-func (m *MockStorage) DeleteToken(accessToken string) error                      { return nil }
-func (m *MockStorage) CreateSession(session *models.Session) error               { return nil }
-func (m *MockStorage) GetSession(id string) (*models.Session, error)             { return nil, nil }
-func (m *MockStorage) DeleteSession(id string) error                             { return nil }
-func (m *MockStorage) CreateAuthSession(session *models.AuthSession) error       { return nil }
-func (m *MockStorage) GetAuthSession(id string) (*models.AuthSession, error)     { return nil, nil }
-func (m *MockStorage) UpdateAuthSession(session *models.AuthSession) error       { return nil }
-func (m *MockStorage) DeleteAuthSession(id string) error                         { return nil }
-func (m *MockStorage) CreateUserSession(session *models.UserSession) error       { return nil }
-func (m *MockStorage) GetUserSession(id string) (*models.UserSession, error)     { return nil, nil }
+func (m *MockStorage) DeleteToken(accessToken string) error                  { return nil }
+func (m *MockStorage) CreateSession(session *models.Session) error           { return nil }
+func (m *MockStorage) GetSession(id string) (*models.Session, error)         { return nil, nil }
+func (m *MockStorage) DeleteSession(id string) error                         { return nil }
+func (m *MockStorage) CreateAuthSession(session *models.AuthSession) error   { return nil }
+func (m *MockStorage) GetAuthSession(id string) (*models.AuthSession, error) { return nil, nil }
+func (m *MockStorage) UpdateAuthSession(session *models.AuthSession) error   { return nil }
+func (m *MockStorage) DeleteAuthSession(id string) error                     { return nil }
+func (m *MockStorage) CreateUserSession(session *models.UserSession) error   { return nil }
+func (m *MockStorage) GetUserSession(id string) (*models.UserSession, error) { return nil, nil }
 func (m *MockStorage) GetUserSessionByUserID(userID string) (*models.UserSession, error) {
 	return nil, nil
 }
-func (m *MockStorage) UpdateUserSession(session *models.UserSession) error     { return nil }
-func (m *MockStorage) DeleteUserSession(id string) error                       { return nil }
-func (m *MockStorage) CleanupExpiredSessions() error                           { return nil }
-func (m *MockStorage) Close() error                                            { return nil }
+func (m *MockStorage) UpdateUserSession(session *models.UserSession) error { return nil }
+func (m *MockStorage) DeleteUserSession(id string) error                   { return nil }
+func (m *MockStorage) CleanupExpiredSessions() error                       { return nil }
+func (m *MockStorage) Close() error                                        { return nil }
 
 func TestUserInfo_Success(t *testing.T) {
 	// Setup
@@ -107,13 +107,13 @@ func TestUserInfo_Success(t *testing.T) {
 
 	// Create test token with openid and profile scopes
 	token := &models.Token{
-		ID:           "token123",
-		AccessToken:  "valid_access_token",
-		UserID:       "user123",
-		ClientID:     "client123",
-		Scope:        "openid profile email",
-		ExpiresAt:    time.Now().Add(1 * time.Hour),
-		CreatedAt:    time.Now(),
+		ID:          "token123",
+		AccessToken: "valid_access_token",
+		UserID:      "user123",
+		ClientID:    "client123",
+		Scope:       "openid profile email",
+		ExpiresAt:   time.Now().Add(1 * time.Hour),
+		CreatedAt:   time.Now(),
 	}
 
 	// Setup mock expectations
@@ -194,7 +194,8 @@ func TestUserInfo_ProfileScopeOnly(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var response UserInfoResponse
-	json.Unmarshal(rec.Body.Bytes(), &response)
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	assert.NoError(t, err)
 
 	// Should include profile claims
 	assert.Equal(t, "Test User", response.Name)
@@ -219,7 +220,8 @@ func TestUserInfo_MissingAuthHeader(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 
 	var response map[string]string
-	json.Unmarshal(rec.Body.Bytes(), &response)
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Equal(t, "invalid_token", response["error"])
 }
 
@@ -243,7 +245,8 @@ func TestUserInfo_InvalidToken(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 
 	var response map[string]string
-	json.Unmarshal(rec.Body.Bytes(), &response)
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Equal(t, "invalid_token", response["error"])
 }
 
@@ -275,7 +278,8 @@ func TestUserInfo_ExpiredToken(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 
 	var response map[string]string
-	json.Unmarshal(rec.Body.Bytes(), &response)
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Equal(t, "invalid_token", response["error"])
 }
 
@@ -307,6 +311,7 @@ func TestUserInfo_MissingOpenIDScope(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 
 	var response map[string]string
-	json.Unmarshal(rec.Body.Bytes(), &response)
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	assert.NoError(t, err)
 	assert.Equal(t, "insufficient_scope", response["error"])
 }
