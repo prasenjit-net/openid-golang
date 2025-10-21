@@ -2,7 +2,6 @@ package session
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
