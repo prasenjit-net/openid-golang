@@ -42,6 +42,19 @@ type Storage interface {
 	GetSession(id string) (*models.Session, error)
 	DeleteSession(id string) error
 
+	// AuthSession operations (OpenID Connect authorization sessions)
+	CreateAuthSession(session *models.AuthSession) error
+	GetAuthSession(id string) (*models.AuthSession, error)
+	UpdateAuthSession(session *models.AuthSession) error
+	DeleteAuthSession(id string) error
+
+	// UserSession operations (authenticated user sessions)
+	CreateUserSession(session *models.UserSession) error
+	GetUserSession(id string) (*models.UserSession, error)
+	UpdateUserSession(session *models.UserSession) error
+	DeleteUserSession(id string) error
+	CleanupExpiredSessions() error
+
 	Close() error
 }
 
