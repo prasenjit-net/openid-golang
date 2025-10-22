@@ -203,7 +203,8 @@ func (h *Handlers) Login(c echo.Context) error {
 	// Get authorization session if exists
 	var authSession *models.AuthSession
 	if authSessionID != "" {
-		authSession, authErr := h.storage.GetAuthSession(authSessionID)
+		var authErr error
+		authSession, authErr = h.storage.GetAuthSession(authSessionID)
 		if authErr != nil || authSession == nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error":             "invalid_request",
@@ -269,8 +270,8 @@ func (h *Handlers) Consent(c echo.Context) error {
 	}
 
 	// Get authorization session
-	authSession, err := h.storage.GetAuthSession(authSessionID)
-	if err != nil || authSession == nil {
+	authSession, authErr := h.storage.GetAuthSession(authSessionID)
+	if authErr != nil || authSession == nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error":             "invalid_request",
 			"error_description": "Invalid or expired authorization session",
@@ -284,8 +285,8 @@ func (h *Handlers) Consent(c echo.Context) error {
 	}
 
 	// Get client info
-	client, err := h.storage.GetClientByID(authSession.ClientID)
-	if err != nil || client == nil {
+	client, clientErr := h.storage.GetClientByID(authSession.ClientID)
+	if clientErr != nil || client == nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error":             "invalid_request",
 			"error_description": "Invalid client",
