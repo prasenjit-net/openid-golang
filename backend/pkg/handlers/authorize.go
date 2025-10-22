@@ -240,7 +240,7 @@ func (h *Handlers) Login(c echo.Context) error {
 		authSession.AMR = amr
 		authSession.AuthenticationMethod = authMethod
 
-		if err := h.storage.UpdateAuthSession(authSession); err != nil {
+		if updateErr := h.storage.UpdateAuthSession(authSession); updateErr != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error":             "server_error",
 				"error_description": "Failed to update authorization session",
