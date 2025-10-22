@@ -258,8 +258,8 @@ func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, cl
 	}
 
 	// Get user
-	user, err := h.storage.GetUserByID(oldToken.UserID)
-	if err != nil {
+	user, userErr := h.storage.GetUserByID(oldToken.UserID)
+	if userErr != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error":             "server_error",
 			"error_description": "Failed to get user",
@@ -276,8 +276,8 @@ func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, cl
 	}
 
 	// Generate new ID token
-	idToken, err := h.jwtManager.GenerateIDToken(user, client.ID, "")
-	if err != nil {
+	idToken, tokenErr := h.jwtManager.GenerateIDToken(user, client.ID, "")
+	if tokenErr != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error":             "server_error",
 			"error_description": "Failed to generate ID token",

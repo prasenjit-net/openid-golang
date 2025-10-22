@@ -203,8 +203,8 @@ func (h *Handlers) Login(c echo.Context) error {
 	// Get authorization session if exists
 	var authSession *models.AuthSession
 	if authSessionID != "" {
-		authSession, err = h.storage.GetAuthSession(authSessionID)
-		if err != nil || authSession == nil {
+		authSession, authErr := h.storage.GetAuthSession(authSessionID)
+		if authErr != nil || authSession == nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error":             "invalid_request",
 				"error_description": "Invalid or expired authorization session",
@@ -222,8 +222,8 @@ func (h *Handlers) Login(c echo.Context) error {
 	acr := "urn:mace:incommon:iap:silver" // Authentication Context Class Reference
 	amr := []string{"pwd"}                // Authentication Methods References
 
-	userSession, err := h.sessionManager.CreateUserSession(c, user.ID, authMethod, acr, amr)
-	if err != nil {
+	userSession, sessionErr := h.sessionManager.CreateUserSession(c, user.ID, authMethod, acr, amr)
+	if sessionErr != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"error":             "server_error",
 			"error_description": "Failed to create user session",
