@@ -90,10 +90,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 		// Spec 4.1.2: Authorization code MUST be single-use
 		// If code is reused, revoke all tokens issued with this code
 		// This prevents attackers from using tokens obtained through replay attacks
-		if err := h.storage.RevokeTokensByAuthCode(authCode.Code); err != nil {
-			// Log error but continue with rejection
-			// Token revocation failure shouldn't prevent security response
-		}
+		_ = h.storage.RevokeTokensByAuthCode(authCode.Code) // Ignore revocation errors, deletion is main goal
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error":             "invalid_grant",

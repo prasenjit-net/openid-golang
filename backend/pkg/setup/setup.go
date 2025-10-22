@@ -224,7 +224,7 @@ func setupConfig(reader *bufio.Reader) error {
 
 	// Build and write configuration
 	configContent := buildConfigContent(host, port, storageType, jsonFilePath, mongoURI, issuer)
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0600); err != nil {
 		return fmt.Errorf("failed to write config.toml file: %w", err)
 	}
 
@@ -238,9 +238,9 @@ func initializeDatabase() error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	store, err := storage.NewStorage(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to initialize storage: %w", err)
+	store, storeErr := storage.NewStorage(cfg)
+	if storeErr != nil {
+		return fmt.Errorf("failed to initialize storage: %w", storeErr)
 	}
 	defer store.Close()
 
