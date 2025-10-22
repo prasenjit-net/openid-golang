@@ -57,6 +57,13 @@ type Storage interface {
 	DeleteUserSession(id string) error
 	CleanupExpiredSessions() error
 
+	// Consent operations (user consent tracking)
+	CreateConsent(consent *models.Consent) error
+	GetConsent(userID, clientID string) (*models.Consent, error)
+	UpdateConsent(consent *models.Consent) error
+	DeleteConsent(userID, clientID string) error
+	DeleteConsentsForUser(userID string) error
+
 	Close() error
 }
 

@@ -152,6 +152,36 @@ func (us *UserSession) IsAuthTimeFresh(maxAge int) bool {
 	return elapsed <= float64(maxAge)
 }
 
+// Consent represents a user's consent to a client accessing specific scopes
+type Consent struct {
+	ID        string    `json:"id" bson:"_id"`
+	UserID    string    `json:"user_id" bson:"user_id"`
+	ClientID  string    `json:"client_id" bson:"client_id"`
+	Scopes    []string  `json:"scopes" bson:"scopes"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
+}
+
+// HasScope checks if the consent includes a specific scope
+func (c *Consent) HasScope(scope string) bool {
+	for _, s := range c.Scopes {
+		if s == scope {
+			return true
+		}
+	}
+	return false
+}
+
+// HasAllScopes checks if the consent includes all requested scopes
+func (c *Consent) HasAllScopes(requestedScopes []string) bool {
+	for _, requested := range requestedScopes {
+		if !c.HasScope(requested) {
+			return false
+		}
+	}
+	return true
+}
+
 // NewUser creates a new user with generated ID
 func NewUser(username, email, passwordHash string, role UserRole) *User {
 	now := time.Now()
@@ -240,4 +270,17 @@ func (ac *AuthorizationCode) IsExpired() bool {
 // IsExpired checks if the token is expired
 func (t *Token) IsExpired() bool {
 	return time.Now().After(t.ExpiresAt)
+}
+
+// NewConsent creates a new consent record
+func NewConsent(userID, clientID string, scopes []string) *Consent {
+	now := time.Now()
+	return &Consent{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		ClientID:  clientID,
+		Scopes:    scopes,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
 }

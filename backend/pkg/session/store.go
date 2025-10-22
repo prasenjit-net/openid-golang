@@ -38,92 +38,50 @@ func NewStore(storage storage.Storage) Store {
 
 // CreateAuthSession creates a new authorization session
 func (s *sessionStore) CreateAuthSession(session *models.AuthSession) error {
-	// Store as a generic session in the storage backend
-	genericSession := &models.Session{
-		ID:        session.ID,
-		UserID:    session.UserID,
-		ExpiresAt: session.ExpiresAt,
-		CreatedAt: session.CreatedAt,
-	}
-	return s.storage.CreateSession(genericSession)
+	return s.storage.CreateAuthSession(session)
 }
 
 // GetAuthSession retrieves an authorization session by ID
 func (s *sessionStore) GetAuthSession(id string) (*models.AuthSession, error) {
-	session, err := s.storage.GetSession(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// For now, return a basic mapping
-	// TODO: Extend storage to support full AuthSession
-	authSession := &models.AuthSession{
-		ID:        session.ID,
-		UserID:    session.UserID,
-		ExpiresAt: session.ExpiresAt,
-		CreatedAt: session.CreatedAt,
-	}
-	return authSession, nil
+	return s.storage.GetAuthSession(id)
 }
 
 // UpdateAuthSession updates an authorization session
 func (s *sessionStore) UpdateAuthSession(session *models.AuthSession) error {
-	// For now, use create/update logic
-	return s.CreateAuthSession(session)
+	return s.storage.UpdateAuthSession(session)
 }
 
 // DeleteAuthSession deletes an authorization session
 func (s *sessionStore) DeleteAuthSession(id string) error {
-	return s.storage.DeleteSession(id)
+	return s.storage.DeleteAuthSession(id)
 }
 
 // CreateUserSession creates a new user session
 func (s *sessionStore) CreateUserSession(session *models.UserSession) error {
-	genericSession := &models.Session{
-		ID:        session.ID,
-		UserID:    session.UserID,
-		ExpiresAt: session.ExpiresAt,
-		CreatedAt: session.CreatedAt,
-	}
-	return s.storage.CreateSession(genericSession)
+	return s.storage.CreateUserSession(session)
 }
 
 // GetUserSession retrieves a user session by ID
 func (s *sessionStore) GetUserSession(id string) (*models.UserSession, error) {
-	session, err := s.storage.GetSession(id)
-	if err != nil {
-		return nil, err
-	}
-
-	userSession := &models.UserSession{
-		ID:             session.ID,
-		UserID:         session.UserID,
-		AuthTime:       session.CreatedAt,
-		LastActivityAt: session.CreatedAt,
-		ExpiresAt:      session.ExpiresAt,
-		CreatedAt:      session.CreatedAt,
-	}
-	return userSession, nil
+	return s.storage.GetUserSession(id)
 }
 
 // UpdateUserSession updates a user session
 func (s *sessionStore) UpdateUserSession(session *models.UserSession) error {
-	return s.CreateUserSession(session)
+	return s.storage.UpdateUserSession(session)
 }
 
 // DeleteUserSession deletes a user session
 func (s *sessionStore) DeleteUserSession(id string) error {
-	return s.storage.DeleteSession(id)
+	return s.storage.DeleteUserSession(id)
 }
 
 // DeleteExpiredUserSessions removes all expired user sessions
 func (s *sessionStore) DeleteExpiredUserSessions() error {
-	// This requires iterating through sessions
-	// For now, return nil (individual checks on retrieval)
-	return nil
+	return s.storage.CleanupExpiredSessions()
 }
 
 // CleanupExpiredSessions removes all expired sessions
 func (s *sessionStore) CleanupExpiredSessions() error {
-	return s.DeleteExpiredUserSessions()
+	return s.storage.CleanupExpiredSessions()
 }

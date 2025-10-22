@@ -23,6 +23,7 @@ type MongoDBStorage struct {
 	sessions     *mongo.Collection
 	authSessions *mongo.Collection
 	userSessions *mongo.Collection
+	consents     *mongo.Collection
 }
 
 // NewMongoDBStorage creates a new MongoDB storage
@@ -51,6 +52,7 @@ func NewMongoDBStorage(connectionString, database string) (*MongoDBStorage, erro
 		sessions:     db.Collection("sessions"),
 		authSessions: db.Collection("auth_sessions"),
 		userSessions: db.Collection("user_sessions"),
+		consents:     db.Collection("consents"),
 	}
 
 	// Create indexes
@@ -98,6 +100,12 @@ func (m *MongoDBStorage) createIndexes() error {
 	_, _ = m.userSessions.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{Keys: bson.D{{Key: "expires_at", Value: 1}}, Options: options.Index().SetExpireAfterSeconds(0)},
 		{Keys: bson.D{{Key: "user_id", Value: 1}}},
+	})
+
+	// Consents indexes
+	_, _ = m.consents.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "client_id", Value: 1}},
+		Options: options.Index().SetUnique(true),
 	})
 
 	return nil
@@ -488,4 +496,64 @@ func (m *MongoDBStorage) CleanupExpiredSessions() error {
 	_, _ = m.userSessions.DeleteMany(ctx, filter)
 
 	return nil
+}
+
+// Consent operations
+func (m *MongoDBStorage) CreateConsent(consent *models.Consent) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if consent.CreatedAt.IsZero() {
+		consent.CreatedAt = time.Now()
+	}
+	consent.UpdatedAt = time.Now()
+
+	_, err := m.consents.InsertOne(ctx, consent)
+	return err
+}
+
+func (m *MongoDBStorage) GetConsent(userID, clientID string) (*models.Consent, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var consent models.Consent
+	err := m.consents.FindOne(ctx, bson.M{"user_id": userID, "client_id": clientID}).Decode(&consent)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &consent, nil
+}
+
+func (m *MongoDBStorage) UpdateConsent(consent *models.Consent) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	consent.UpdatedAt = time.Now()
+	_, err := m.consents.ReplaceOne(
+		ctx,
+		bson.M{"user_id": consent.UserID, "client_id": consent.ClientID},
+		consent,
+		options.Replace().SetUpsert(true),
+	)
+	return err
+}
+
+func (m *MongoDBStorage) DeleteConsent(userID, clientID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.consents.DeleteOne(ctx, bson.M{"user_id": userID, "client_id": clientID})
+	return err
+}
+
+func (m *MongoDBStorage) DeleteConsentsForUser(userID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.consents.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
 }

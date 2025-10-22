@@ -32,6 +32,7 @@ type JSONData struct {
 	Sessions           map[string]*models.Session           `json:"sessions"`
 	AuthSessions       map[string]*models.AuthSession       `json:"auth_sessions"`
 	UserSessions       map[string]*models.UserSession       `json:"user_sessions"`
+	Consents           map[string]*models.Consent           `json:"consents"` // Key: userID:clientID
 }
 
 // NewJSONStorage creates a new JSON file storage
@@ -46,6 +47,7 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 			Sessions:           make(map[string]*models.Session),
 			AuthSessions:       make(map[string]*models.AuthSession),
 			UserSessions:       make(map[string]*models.UserSession),
+			Consents:           make(map[string]*models.Consent),
 		},
 	}
 
@@ -544,6 +546,71 @@ func (j *JSONStorage) CleanupExpiredSessions() error {
 	for id, session := range j.data.Sessions {
 		if now.After(session.ExpiresAt) {
 			delete(j.data.Sessions, id)
+			deleted++
+		}
+	}
+
+	if deleted > 0 {
+		return j.save()
+	}
+	return nil
+}
+
+// Consent operations
+func (j *JSONStorage) CreateConsent(consent *models.Consent) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if consent.CreatedAt.IsZero() {
+		consent.CreatedAt = time.Now()
+	}
+	consent.UpdatedAt = time.Now()
+
+	key := fmt.Sprintf("%s:%s", consent.UserID, consent.ClientID)
+	j.data.Consents[key] = consent
+	return j.save()
+}
+
+func (j *JSONStorage) GetConsent(userID, clientID string) (*models.Consent, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	key := fmt.Sprintf("%s:%s", userID, clientID)
+	consent, exists := j.data.Consents[key]
+	if !exists {
+		return nil, nil
+	}
+
+	return consent, nil
+}
+
+func (j *JSONStorage) UpdateConsent(consent *models.Consent) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	consent.UpdatedAt = time.Now()
+	key := fmt.Sprintf("%s:%s", consent.UserID, consent.ClientID)
+	j.data.Consents[key] = consent
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteConsent(userID, clientID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	key := fmt.Sprintf("%s:%s", userID, clientID)
+	delete(j.data.Consents, key)
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteConsentsForUser(userID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	deleted := 0
+	for key, consent := range j.data.Consents {
+		if consent.UserID == userID {
+			delete(j.data.Consents, key)
 			deleted++
 		}
 	}

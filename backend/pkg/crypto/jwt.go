@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -56,6 +57,21 @@ func NewJWTManagerFromPEM(privateKeyPEM, publicKeyPEM, issuer string, expiryMinu
 	return &JWTManager{
 		privateKey: privateKey,
 		publicKey:  publicKey,
+		issuer:     issuer,
+		expiry:     time.Duration(expiryMinutes) * time.Minute,
+	}, nil
+}
+
+// NewJWTManagerForTesting creates a new JWT manager with generated keys for testing
+func NewJWTManagerForTesting(issuer string, expiryMinutes int) (*JWTManager, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	return &JWTManager{
+		privateKey: privateKey,
+		publicKey:  &privateKey.PublicKey,
 		issuer:     issuer,
 		expiry:     time.Duration(expiryMinutes) * time.Minute,
 	}, nil

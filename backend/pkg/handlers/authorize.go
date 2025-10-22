@@ -115,6 +115,17 @@ func (h *Handlers) Authorize(c echo.Context) error {
 		}
 
 		// User is authenticated and meets requirements, check consent
+		// Check if user has previously consented to this client
+		existingConsent, err := h.storage.GetConsent(userSession.UserID, clientID)
+		if err == nil && existingConsent != nil {
+			// Check if existing consent covers all requested scopes
+			requestedScopes := strings.Split(scope, " ")
+			if existingConsent.HasAllScopes(requestedScopes) {
+				authSession.ConsentGiven = true
+				authSession.ConsentedScopes = existingConsent.Scopes
+			}
+		}
+
 		if !authSession.ConsentGiven {
 			// Redirect to consent screen
 			return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
@@ -250,8 +261,8 @@ func (h *Handlers) Consent(c echo.Context) error {
 	}
 
 	// POST - handle consent decision
-	consent := c.FormValue("consent")
-	if consent != "allow" {
+	consentDecision := c.FormValue("consent")
+	if consentDecision != "allow" {
 		// User denied consent
 		return redirectWithError(c, authSession.RedirectURI, "access_denied", "User denied consent", authSession.State)
 	}
@@ -265,6 +276,19 @@ func (h *Handlers) Consent(c echo.Context) error {
 			"error":             "server_error",
 			"error_description": "Failed to update authorization session",
 		})
+	}
+
+	// Save consent for future authorization requests
+	// Check if consent already exists
+	existingConsent, err := h.storage.GetConsent(userSession.UserID, authSession.ClientID)
+	if err == nil && existingConsent != nil {
+		// Update existing consent with new scopes
+		existingConsent.Scopes = authSession.ConsentedScopes
+		_ = h.storage.UpdateConsent(existingConsent)
+	} else {
+		// Create new consent record
+		newConsent := models.NewConsent(userSession.UserID, authSession.ClientID, authSession.ConsentedScopes)
+		_ = h.storage.CreateConsent(newConsent)
 	}
 
 	// Complete authorization
