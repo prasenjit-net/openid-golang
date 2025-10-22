@@ -36,7 +36,9 @@ type Storage interface {
 	CreateToken(token *models.Token) error
 	GetTokenByAccessToken(accessToken string) (*models.Token, error)
 	GetTokenByRefreshToken(refreshToken string) (*models.Token, error)
+	GetTokensByAuthCode(authCodeID string) ([]*models.Token, error)
 	DeleteToken(accessToken string) error
+	RevokeTokensByAuthCode(authCodeID string) error
 
 	// Session operations
 	CreateSession(session *models.Session) error

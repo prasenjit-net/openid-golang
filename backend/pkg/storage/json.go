@@ -372,6 +372,32 @@ func (j *JSONStorage) DeleteToken(tokenID string) error {
 	return j.save()
 }
 
+func (j *JSONStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	var tokens []*models.Token
+	for _, token := range j.data.Tokens {
+		if token.AuthorizationCodeID == authCodeID {
+			tokens = append(tokens, token)
+		}
+	}
+	return tokens, nil
+}
+
+func (j *JSONStorage) RevokeTokensByAuthCode(authCodeID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	// Find and delete all tokens associated with this authorization code
+	for tokenID, token := range j.data.Tokens {
+		if token.AuthorizationCodeID == authCodeID {
+			delete(j.data.Tokens, tokenID)
+		}
+	}
+	return j.save()
+}
+
 // Session operations
 func (j *JSONStorage) CreateSession(session *models.Session) error {
 	j.mu.Lock()

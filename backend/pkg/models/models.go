@@ -76,15 +76,16 @@ type AuthorizationCode struct {
 
 // Token represents an access or refresh token
 type Token struct {
-	ID           string    `json:"id"`
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	TokenType    string    `json:"token_type"`
-	ClientID     string    `json:"client_id"`
-	UserID       string    `json:"user_id"`
-	Scope        string    `json:"scope"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                  string    `json:"id"`
+	AccessToken         string    `json:"access_token"`
+	RefreshToken        string    `json:"refresh_token,omitempty"`
+	TokenType           string    `json:"token_type"`
+	ClientID            string    `json:"client_id"`
+	UserID              string    `json:"user_id"`
+	Scope               string    `json:"scope"`
+	AuthorizationCodeID string    `json:"authorization_code_id,omitempty" bson:"authorization_code_id,omitempty"`
+	ExpiresAt           time.Time `json:"expires_at"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // Session represents a user session
