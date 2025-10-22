@@ -355,8 +355,31 @@ func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.Aut
 
 	// Handle implicit flow (id_token or token id_token)
 	if authSession.ResponseType == ResponseTypeIDToken || authSession.ResponseType == ResponseTypeTokenIDToken {
-		// Generate ID token with auth_time, acr, amr
-		idToken, err := h.jwtManager.GenerateIDTokenWithClaims(user, authSession.ClientID, authSession.Nonce, userSession.AuthTime, userSession.ACR, userSession.AMR)
+		var accessToken string
+		var err error
+
+		// If response_type includes 'token', generate access token first
+		if authSession.ResponseType == ResponseTypeTokenIDToken {
+			accessToken, err = h.jwtManager.GenerateAccessToken(user, client.ID, authSession.Scope)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{
+					"error":             "server_error",
+					"error_description": "Failed to generate access token",
+				})
+			}
+		}
+
+		// Generate ID token with auth_time, acr, amr, and at_hash (if access token present)
+		idToken, err := h.jwtManager.GenerateIDTokenWithClaims(
+			user,
+			authSession.ClientID,
+			authSession.Nonce,
+			userSession.AuthTime,
+			userSession.ACR,
+			userSession.AMR,
+			accessToken, // at_hash will be included if this is not empty
+			"",          // c_hash not used in implicit flow
+		)
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{
 				"error":             "server_error",
@@ -367,15 +390,8 @@ func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.Aut
 		// Build redirect URL with fragment
 		fragment := fmt.Sprintf("id_token=%s&state=%s", idToken, authSession.State)
 
-		// If response_type includes 'token', also generate access token
-		if authSession.ResponseType == ResponseTypeTokenIDToken {
-			accessToken, err := h.jwtManager.GenerateAccessToken(user, client.ID, authSession.Scope)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{
-					"error":             "server_error",
-					"error_description": "Failed to generate access token",
-				})
-			}
+		// Add access token to fragment if present
+		if accessToken != "" {
 			fragment += fmt.Sprintf("&access_token=%s&token_type=Bearer&expires_in=3600", accessToken)
 		}
 

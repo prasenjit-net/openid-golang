@@ -96,3 +96,17 @@ func GenerateState() (string, error) {
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
 }
+
+// CalculateTokenHash calculates the hash of a token for at_hash or c_hash claims
+// as specified in OIDC Core spec sections 3.2.2.9 (at_hash) and 3.3.2.11 (c_hash)
+// For RS256, uses SHA-256 and takes the left-most 128 bits (16 bytes), base64url encoded
+func CalculateTokenHash(token string) string {
+	// Hash the token using SHA-256 (for RS256 algorithm)
+	hash := sha256.Sum256([]byte(token))
+
+	// Take the left-most half (128 bits = 16 bytes for SHA-256)
+	leftHalf := hash[:len(hash)/2]
+
+	// Base64url encode without padding
+	return base64.RawURLEncoding.EncodeToString(leftHalf)
+}

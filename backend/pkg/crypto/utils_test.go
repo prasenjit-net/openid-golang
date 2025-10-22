@@ -88,3 +88,51 @@ func TestGenerateState(t *testing.T) {
 		t.Error("Two state values should be different")
 	}
 }
+
+func TestCalculateTokenHash(t *testing.T) {
+	tests := []struct {
+		name     string
+		token    string
+		expected string // Expected hash in base64url format
+	}{
+		{
+			name:     "Simple token",
+			token:    "jHkWEdUXMU1BwAsC4vtUsZwnNvTIxEl0z9K3vx5KF0Y",
+			expected: "77QmUPtjPfzWtF2AnpK9RQ", // Pre-calculated expected hash
+		},
+		{
+			name:     "Empty string",
+			token:    "",
+			expected: "47DEQpj8HBSa-_TImW-5JA", // SHA-256 of empty string, left 128 bits
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateTokenHash(tt.token)
+			if result == "" {
+				t.Error("Hash should not be empty")
+			}
+
+			// Verify it's base64url encoded (no padding)
+			if len(result) != 22 { // 16 bytes base64url encoded = 22 chars
+				t.Errorf("Expected hash length 22, got %d", len(result))
+			}
+
+			// Verify consistency
+			result2 := CalculateTokenHash(tt.token)
+			if result != result2 {
+				t.Error("Hash should be consistent for same input")
+			}
+		})
+	}
+
+	// Test that different tokens produce different hashes
+	t.Run("Different tokens produce different hashes", func(t *testing.T) {
+		hash1 := CalculateTokenHash("token1")
+		hash2 := CalculateTokenHash("token2")
+		if hash1 == hash2 {
+			t.Error("Different tokens should produce different hashes")
+		}
+	})
+}

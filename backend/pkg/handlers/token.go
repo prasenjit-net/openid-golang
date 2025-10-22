@@ -164,6 +164,7 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 
 	if userSession != nil && userSession.IsAuthenticated() {
 		// Include auth_time, acr, amr from user session
+		// No at_hash/c_hash needed for authorization code flow
 		idToken, err = h.jwtManager.GenerateIDTokenWithClaims(
 			user,
 			client.ID,
@@ -171,6 +172,8 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 			userSession.AuthTime,
 			userSession.ACR,
 			userSession.AMR,
+			"", // accessToken - not included in code flow
+			"", // authCode - not included in code flow
 		)
 	} else {
 		// Fallback to basic ID token without session-specific claims

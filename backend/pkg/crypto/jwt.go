@@ -89,6 +89,8 @@ type IDTokenClaims struct {
 	AuthTime   *int64   `json:"auth_time,omitempty"`
 	ACR        string   `json:"acr,omitempty"`
 	AMR        []string `json:"amr,omitempty"`
+	AtHash     string   `json:"at_hash,omitempty"` // Access token hash for implicit/hybrid flows
+	CHash      string   `json:"c_hash,omitempty"`  // Authorization code hash for hybrid flows
 }
 
 // GenerateIDToken generates an OpenID Connect ID token
@@ -115,7 +117,8 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 }
 
 // GenerateIDTokenWithClaims generates an OpenID Connect ID token with additional OIDC claims
-func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce string, authTime time.Time, acr string, amr []string) (string, error) {
+// accessToken and authCode are optional - if provided, at_hash and c_hash will be included
+func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce string, authTime time.Time, acr string, amr []string, accessToken, authCode string) (string, error) {
 	now := time.Now()
 	authTimeUnix := authTime.Unix()
 
@@ -136,6 +139,16 @@ func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, non
 		AuthTime:   &authTimeUnix,
 		ACR:        acr,
 		AMR:        amr,
+	}
+
+	// Include at_hash if access token is provided (implicit/hybrid flows)
+	if accessToken != "" {
+		claims.AtHash = CalculateTokenHash(accessToken)
+	}
+
+	// Include c_hash if authorization code is provided (hybrid flows)
+	if authCode != "" {
+		claims.CHash = CalculateTokenHash(authCode)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
