@@ -188,8 +188,8 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	}
 
 	// Validate constraints (expiry, client, redirect URI, PKCE)
-	if err := h.validateAuthCodeConstraints(c, authCode, req); err != nil {
-		return err
+	if validationErr := h.validateAuthCodeConstraints(c, authCode, req); validationErr != nil {
+		return validationErr
 	}
 
 	// Get user
