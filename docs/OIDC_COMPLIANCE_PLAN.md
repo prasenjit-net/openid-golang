@@ -28,12 +28,12 @@ This document outlines the compliance plan for implementing OpenID Connect Core 
 **Key Findings:**
 - ✅ **10 of 15 mandatory features** implemented
 - ⚠️ **5 mandatory features** missing or incomplete
-- 🔒 **1 critical security gap** remaining (Token Hash Validation)
-- 📋 **17 tasks remaining** across 3 priority levels
-- ✅ **3 tasks completed** (Session Management, ID Token Claims, Nonce Protection)
+- ✅ **All critical security gaps resolved** (Nonce Protection, Token Hash Validation)
+- 📋 **16 tasks remaining** across 3 priority levels
+- ✅ **4 tasks completed** (Session Management, ID Token Claims, Nonce Protection, Token Hash Validation)
 
 **Recommended Approach:**
-Priority 1 has 4 remaining critical tasks. Start with Task 4 (Token Hash Validation) for implicit/hybrid flow security, then proceed to remaining mandatory requirements, followed by Priority 2 (13 tasks) for important features, and finally Priority 3 (optional enhancements).
+Priority 1 now has 3 remaining mandatory tasks (Error Handling, Claims Parameter, Request Objects). Priority 2 has 13 tasks for important features including hybrid flows, and Priority 3 covers optional enhancements.
 
 ---
 
@@ -97,7 +97,7 @@ Priority 1 has 4 remaining critical tasks. Start with Task 4 (Token Hash Validat
 | Vulnerability | Risk Level | Task | Status |
 |---------------|------------|------|--------|
 | Nonce Replay Attack | 🔴 High | P1-3 | ✅ Complete |
-| Token Substitution | 🔴 High | P1-4 | ❌ Missing |
+| Token Substitution | 🔴 High | P1-4 | ✅ Complete |
 | Incomplete Error Handling | 🟡 Medium | P1-17 | ⚠️ Partial |
 | TLS Enforcement | 🟡 Medium | P2-18 | ❌ Missing |
 
@@ -312,14 +312,68 @@ Priority 1 has 4 remaining critical tasks. Start with Task 4 (Token Hash Validat
 
 ### Task 4: Implement at_hash and c_hash Validation
 
-**Status:** 🔴 Critical Security  
+**Status:** ✅ **COMPLETED** (October 22, 2025)  
 **Spec References:** 3.2.2.9, 3.2.2.10, 3.3.2.10, 3.3.2.11, 16.11  
-**Estimated Effort:** 2-3 days
+**Actual Effort:** ~1 day
 
 #### Problem
 - Missing `at_hash` (access token hash) claim
 - Missing `c_hash` (code hash) claim
 - Token substitution attacks possible in implicit/hybrid flows
+
+#### Implementation Summary
+
+1. **IDTokenClaims Structure Updated**
+   - Added `AtHash` field for access token hash validation
+   - Added `CHash` field for authorization code hash validation
+   - Fields are optional (omitempty) and included only when relevant
+
+2. **CalculateTokenHash Function**
+   ```go
+   // In pkg/crypto/utils.go
+   func CalculateTokenHash(token string) string {
+       // Hash using SHA-256 (for RS256 algorithm)
+       hash := sha256.Sum256([]byte(token))
+       // Take left-most half (128 bits = 16 bytes)
+       leftHalf := hash[:len(hash)/2]
+       // Base64url encode without padding
+       return base64.RawURLEncoding.EncodeToString(leftHalf)
+   }
+   ```
+
+3. **GenerateIDTokenWithClaims Updated**
+   - Added optional `accessToken` parameter
+   - Added optional `authCode` parameter
+   - Automatically includes `at_hash` when access token provided
+   - Automatically includes `c_hash` when authorization code provided
+
+4. **Implicit Flow Integration**
+   - Modified authorize.go implicit flow handler
+   - Generates access token first when `response_type=token id_token`
+   - Passes access token to ID token generation
+   - `at_hash` included in ID tokens for implicit flow with token
+
+5. **Authorization Code Flow**
+   - No changes needed (at_hash/c_hash not used in pure code flow)
+   - Token endpoint updated to pass empty strings for hashes
+
+#### Acceptance Criteria
+- [x] at_hash included in implicit flow ID tokens when access token present
+- [x] c_hash support ready for hybrid flows (to be implemented)
+- [x] Hash calculation follows OIDC spec (SHA-256, left 128 bits, base64url)
+- [x] Unit tests verify hash calculation correctness
+- [x] All existing tests pass
+- [x] No linting issues
+
+#### Security Improvements
+- Prevents token substitution attacks in implicit flow
+- Client can verify access token matches ID token
+- Prepared for hybrid flow implementation (Task in P2)
+- Complies with OIDC Core security best practices
+
+**Note:** Full hybrid flow implementation (code id_token, code token, code id_token token) is deferred to Priority 2 tasks. The c_hash infrastructure is ready when hybrid flows are implemented.
+
+---
 
 #### Required Implementation
 
