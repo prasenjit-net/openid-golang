@@ -1,4 +1,7 @@
-.PHONY: build run test clean deps fmt lint generate-keys help
+.PHONY: build run test clean deps fmt lint generate-keys help install-tools check-tools
+
+# Configuration
+GOLANGCI_LINT_VERSION := v2.5.0
 
 # Default target
 .DEFAULT_GOAL := help
@@ -49,10 +52,23 @@ fmt:
 	@echo "Formatting Go code..."
 	@cd backend && go fmt ./...
 
+# Install development tools
+install-tools:
+	@echo "Installing development tools..."
+	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION)
+	@echo "✅ golangci-lint $(GOLANGCI_LINT_VERSION) installed successfully"
+
+# Check installed tools
+check-tools:
+	@echo "Checking development tools..."
+	@command -v golangci-lint >/dev/null 2>&1 && echo "✅ golangci-lint $$(golangci-lint version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || echo "❌ golangci-lint not found. Run 'make install-tools'"
+	@echo "✅ go $$(go version | grep -oE 'go[0-9]+\.[0-9]+(\.[0-9]+)?' | sed 's/go//')"
+
 # Run linter
 lint:
 	@echo "Running Go linter..."
-	@cd backend && golangci-lint run
+	@cd backend && golangci-lint run --timeout=5m
 	@echo "Running frontend linter..."
 	@cd frontend && npm run lint || true
 
@@ -78,15 +94,17 @@ help:
 	@echo "OpenID Connect Server - Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build        - Build backend only"
-	@echo "  make build-all    - Build frontend + backend with embedded UI"
-	@echo "  make run          - Run backend in development mode"
-	@echo "  make dev          - Build all and run server"
-	@echo "  make test         - Run backend tests"
-	@echo "  make clean        - Clean build artifacts"
-	@echo "  make deps         - Download all dependencies (Go + NPM)"
-	@echo "  make fmt          - Format Go code"
-	@echo "  make lint         - Run linters (Go + frontend)"
+	@echo "  make build         - Build backend only"
+	@echo "  make build-all     - Build frontend + backend with embedded UI"
+	@echo "  make run           - Run backend in development mode"
+	@echo "  make dev           - Build all and run server"
+	@echo "  make test          - Run backend tests"
+	@echo "  make clean         - Clean build artifacts"
+	@echo "  make deps          - Download all dependencies (Go + NPM)"
+	@echo "  make fmt           - Format Go code"
+	@echo "  make lint          - Run linters (Go + frontend)"
+	@echo "  make install-tools - Install development tools (golangci-lint v$(GOLANGCI_LINT_VERSION))"
+	@echo "  make check-tools   - Check installed development tools"
 	@echo "  make generate-keys - Generate RSA keys for JWT"
-	@echo "  make setup        - Run setup wizard"
-	@echo "  make help         - Show this help message"
+	@echo "  make setup         - Run setup wizard"
+	@echo "  make help          - Show this help message"

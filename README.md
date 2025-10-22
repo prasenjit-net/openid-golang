@@ -277,12 +277,39 @@ Key configuration options:
 ## 💻 Development Commands
 
 ```bash
-make build      # Build the application
-make run        # Run the server
-make test       # Run tests
-make fmt        # Format code
-make clean      # Clean build artifacts
-make deps       # Download dependencies
+# Basic commands
+make build         # Build the application
+make run           # Run the server
+make test          # Run tests
+make fmt           # Format code
+make lint          # Run linters
+make clean         # Clean build artifacts
+make deps          # Download dependencies
+
+# Tool management
+make install-tools # Install golangci-lint v2.5.0 and other dev tools
+make check-tools   # Check versions of installed tools
+
+# Or use the shell script
+./lint.sh          # Run all quality checks (fmt, vet, test, lint)
+```
+
+### Code Quality Tools
+
+This project uses **golangci-lint v2.5.0** consistently across:
+- ✅ Local development (Makefile)
+- ✅ CI/CD pipeline (GitHub Actions)
+- ✅ Shell scripts (lint.sh)
+
+To install or upgrade golangci-lint to the correct version:
+```bash
+make install-tools
+```
+
+To check your installed version:
+```bash
+make check-tools
+golangci-lint version  # Should show v2.5.0
 ```
 
 ## 🔐 Security Considerations

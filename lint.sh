@@ -5,6 +5,9 @@
 
 set -e
 
+# Configuration
+GOLANGCI_LINT_VERSION="v2.5.0"
+
 echo "🔍 Running code quality checks..."
 echo ""
 
@@ -53,14 +56,26 @@ echo ""
 
 # Check for golangci-lint (optional)
 if command -v golangci-lint &> /dev/null; then
-    echo "🔍 Running golangci-lint..."
-    if golangci-lint run --timeout=5m --disable=typecheck 2>&1 | grep -v "typecheck"; then
+    INSTALLED_VERSION=$(golangci-lint version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    echo "🔍 Running golangci-lint (v$INSTALLED_VERSION)..."
+    
+    # Check if version matches
+    EXPECTED_VERSION=$(echo "$GOLANGCI_LINT_VERSION" | sed 's/v//')
+    if [ "$INSTALLED_VERSION" != "$EXPECTED_VERSION" ]; then
+        echo "⚠️  Warning: golangci-lint version mismatch"
+        echo "   Expected: v$EXPECTED_VERSION"
+        echo "   Installed: v$INSTALLED_VERSION"
+        echo "   Run 'make install-tools' to install the correct version"
+    fi
+    
+    if golangci-lint run --timeout=5m 2>&1 | grep -v "typecheck"; then
         echo "⚠️  golangci-lint found some issues (typecheck warnings ignored)"
     else
         echo "✅ golangci-lint passed"
     fi
 else
     echo "ℹ️  golangci-lint not installed (optional)"
+    echo "   Run 'make install-tools' to install golangci-lint $GOLANGCI_LINT_VERSION"
 fi
 
 echo ""
