@@ -26,7 +26,9 @@ func TestCompleteAuthorizationFlow(t *testing.T) {
 	tmpFile := t.TempDir() + "/test_auth_flow.json"
 	store, err := storage.NewJSONStorage(tmpFile)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close in test
+	}()
 
 	// Create JWT manager with generated test keys
 	jwtManager, err := crypto.NewJWTManagerForTesting("https://localhost:8080", 60)

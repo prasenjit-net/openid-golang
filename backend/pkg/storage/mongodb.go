@@ -162,7 +162,9 @@ func (m *MongoDBStorage) GetAllUsers() ([]*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		_ = cursor.Close(ctx) // Best effort close
+	}()
 
 	var users []*models.User
 	if err := cursor.All(ctx, &users); err != nil {
@@ -212,7 +214,9 @@ func (m *MongoDBStorage) GetAllClients() ([]*models.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		_ = cursor.Close(ctx) // Best effort close
+	}()
 
 	var clients []*models.Client
 	if err := cursor.All(ctx, &clients); err != nil {
@@ -330,7 +334,9 @@ func (m *MongoDBStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		_ = cursor.Close(ctx) // Best effort close
+	}()
 
 	var tokens []*models.Token
 	if err = cursor.All(ctx, &tokens); err != nil {

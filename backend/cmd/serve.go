@@ -48,7 +48,11 @@ func runServe(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("Failed to load config store: %v", err)
 	}
-	defer configStoreInstance.Close()
+	defer func() {
+		if err := configStoreInstance.Close(); err != nil {
+			log.Printf("Error closing config store: %v", err)
+		}
+	}()
 
 	// If not initialized, start in setup mode with hot-reload capability
 	if !initialized {
@@ -178,7 +182,11 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	if err != nil {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			log.Printf("Error closing storage: %v", err)
+		}
+	}()
 
 	// Ensure admin-ui client exists
 	adminClient, err := store.GetClientByID("admin-ui")

@@ -109,7 +109,9 @@ func setupKeys(reader *bufio.Reader) error {
 	if createErr != nil {
 		return fmt.Errorf("failed to create private key file: %w", createErr)
 	}
-	defer privateKeyFile.Close()
+	defer func() {
+		_ = privateKeyFile.Close() // Best effort close
+	}()
 
 	privateKeyPEM := &pem.Block{
 		Type:  "RSA PRIVATE KEY",
@@ -124,7 +126,9 @@ func setupKeys(reader *bufio.Reader) error {
 	if createErr != nil {
 		return fmt.Errorf("failed to create public key file: %w", createErr)
 	}
-	defer publicKeyFile.Close()
+	defer func() {
+		_ = publicKeyFile.Close() // Best effort close
+	}()
 
 	publicKeyBytes, marshalErr := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if marshalErr != nil {
@@ -242,7 +246,9 @@ func initializeDatabase() error {
 	if storeErr != nil {
 		return fmt.Errorf("failed to initialize storage: %w", storeErr)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close
+	}()
 
 	// Create admin UI client automatically for implicit flow
 	adminUIClient := models.NewAdminUIClient(cfg.Issuer)
@@ -268,7 +274,9 @@ func createAdminUser(reader *bufio.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close
+	}()
 
 	// Get username
 	fmt.Print("Admin username: ")
@@ -329,7 +337,9 @@ func createOAuthClient(reader *bufio.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close
+	}()
 
 	// Get client name
 	fmt.Print("Client name: ")

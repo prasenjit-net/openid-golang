@@ -205,7 +205,9 @@ func (h *BootstrapHandler) createAdminUser(ctx context.Context, req SetupRequest
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close
+	}()
 
 	// Hash the password
 	hashedPassword, err := crypto.HashPassword(req.AdminPassword)

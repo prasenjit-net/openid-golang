@@ -117,7 +117,7 @@ func (s *JSONConfigStore) SaveConfig(ctx context.Context, config *ConfigData) er
 
 	// Atomic rename
 	if err := os.Rename(tempFile, s.filePath); err != nil {
-		os.Remove(tempFile) // Clean up temp file
+		_ = os.Remove(tempFile) // Clean up temp file, ignore error
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 

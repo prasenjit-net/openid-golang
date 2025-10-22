@@ -51,7 +51,7 @@ func AutoLoadConfigStore(ctx context.Context, cfg LoaderConfig) (ConfigStore, bo
 		// Check if initialized
 		initialized, err := store.IsInitialized(ctx)
 		if err != nil {
-			store.Close()
+			_ = store.Close() // Best effort close on error
 			return nil, false, fmt.Errorf("failed to check MongoDB initialization: %w", err)
 		}
 

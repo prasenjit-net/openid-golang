@@ -74,7 +74,11 @@ func runSetup(cmd *cobra.Command, args []string) {
 		fmt.Printf("❌ Failed to initialize config store: %v\n", err)
 		os.Exit(1)
 	}
-	defer configStoreInstance.Close()
+	defer func() {
+		if err := configStoreInstance.Close(); err != nil {
+			fmt.Printf("Warning: Error closing config store: %v\n", err)
+		}
+	}()
 
 	// Check if already initialized
 	if initialized {
@@ -209,7 +213,9 @@ func createAdminUserCLI(ctx context.Context, configStoreInstance configstore.Con
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		_ = store.Close() // Best effort close
+	}()
 
 	// Hash password
 	hashedPassword, err := crypto.HashPassword(adminPassword)
