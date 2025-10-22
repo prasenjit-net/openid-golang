@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -33,19 +34,13 @@ func (h *Handlers) UserInfo(c echo.Context) error {
 	// Extract access token from Authorization header
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":             "invalid_token",
-			"error_description": "Missing authorization header",
-		})
+		return ErrorInvalidAccessToken(c, "Missing authorization header")
 	}
 
 	// Parse Bearer token
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":             "invalid_token",
-			"error_description": "Invalid authorization header format",
-		})
+		return ErrorInvalidAccessToken(c, "Invalid authorization header format")
 	}
 
 	accessToken := parts[1]
@@ -53,24 +48,19 @@ func (h *Handlers) UserInfo(c echo.Context) error {
 	// Validate access token
 	token, err := h.storage.GetTokenByAccessToken(accessToken)
 	if err != nil || token == nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":             "invalid_token",
-			"error_description": "Invalid or expired access token",
-		})
+		return ErrorInvalidAccessToken(c, "Invalid or expired access token")
 	}
 
 	// Check if token is expired
 	if token.IsExpired() {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":             "invalid_token",
-			"error_description": "Access token has expired",
-		})
+		return ErrorInvalidAccessToken(c, "Access token has expired")
 	}
 
 	// Verify token has openid scope (required for UserInfo endpoint)
 	if !h.hasScope(token.Scope, "openid") {
+		c.Response().Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer error="%s", error_description="%s"`, ErrorInsufficientScope, "Access token does not have openid scope"))
 		return c.JSON(http.StatusForbidden, map[string]string{
-			"error":             "insufficient_scope",
+			"error":             ErrorInsufficientScope,
 			"error_description": "Access token does not have openid scope",
 		})
 	}
@@ -78,10 +68,7 @@ func (h *Handlers) UserInfo(c echo.Context) error {
 	// Get user information
 	user, err := h.storage.GetUserByID(token.UserID)
 	if err != nil || user == nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to retrieve user information",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to retrieve user information")
 	}
 
 	// Build response based on requested scopes

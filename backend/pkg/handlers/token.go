@@ -56,10 +56,7 @@ func (h *Handlers) Token(c echo.Context) error {
 	// Validate client
 	client, err := h.storage.ValidateClient(req.ClientID, req.ClientSecret)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error":             "invalid_client",
-			"error_description": "Invalid client credentials",
-		})
+		return ErrorInvalidClientAuth(c, "Invalid client credentials")
 	}
 
 	switch req.GrantType {
@@ -68,10 +65,7 @@ func (h *Handlers) Token(c echo.Context) error {
 	case "refresh_token":
 		return h.handleRefreshTokenGrant(c, req, client)
 	default:
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "unsupported_grant_type",
-			"error_description": "Grant type not supported",
-		})
+		return jsonError(c, http.StatusBadRequest, ErrorUnsupportedGrantType, "Grant type not supported")
 	}
 }
 
@@ -79,20 +73,14 @@ func (h *Handlers) Token(c echo.Context) error {
 func (h *Handlers) validateAndMarkAuthCode(c echo.Context, req *TokenRequest) (*models.AuthorizationCode, error) {
 	authCode, err := h.storage.GetAuthorizationCode(req.Code)
 	if err != nil || authCode == nil {
-		return nil, c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Invalid authorization code",
-		})
+		return nil, ErrorInvalidAuthorizationCode(c, "Invalid authorization code")
 	}
 
 	// Check if code has already been used (replay attack prevention)
 	if authCode.Used {
 		_ = h.storage.RevokeTokensByAuthCode(authCode.Code)
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return nil, c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Authorization code has already been used",
-		})
+		return nil, ErrorInvalidAuthorizationCode(c, "Authorization code has already been used")
 	}
 
 	// Mark code as used immediately to prevent concurrent replay
@@ -109,45 +97,30 @@ func (h *Handlers) validateAuthCodeConstraints(c echo.Context, authCode *models.
 	// Check if code is expired
 	if authCode.IsExpired() {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Authorization code expired",
-		})
+		return ErrorInvalidAuthorizationCode(c, "Authorization code expired")
 	}
 
 	// Validate client ID
 	if authCode.ClientID != req.ClientID {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Client ID mismatch",
-		})
+		return ErrorInvalidAuthorizationCode(c, "Client ID mismatch")
 	}
 
 	// Validate redirect URI
 	if authCode.RedirectURI != req.RedirectURI {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Redirect URI mismatch",
-		})
+		return ErrorInvalidAuthorizationCode(c, "Redirect URI mismatch")
 	}
 
 	// Verify PKCE if used
 	if authCode.CodeChallenge != "" {
 		if req.CodeVerifier == "" {
 			_ = h.storage.DeleteAuthorizationCode(req.Code)
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error":             "invalid_request",
-				"error_description": "code_verifier required",
-			})
+			return jsonError(c, http.StatusBadRequest, ErrorInvalidRequest, "code_verifier required")
 		}
 		if !crypto.VerifyCodeChallenge(req.CodeVerifier, authCode.CodeChallenge, authCode.CodeChallengeMethod) {
 			_ = h.storage.DeleteAuthorizationCode(req.Code)
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error":             "invalid_grant",
-				"error_description": "Invalid code_verifier",
-			})
+			return ErrorInvalidAuthorizationCode(c, "Invalid code_verifier")
 		}
 	}
 
@@ -199,10 +172,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	user, err := h.storage.GetUserByID(authCode.UserID)
 	if err != nil {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to get user",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to get user")
 	}
 
 	// Create tokens
@@ -210,10 +180,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	token.AuthorizationCodeID = authCode.Code
 	if createErr := h.storage.CreateToken(token); createErr != nil {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to create token",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to create token")
 	}
 
 	// Generate ID token with enhanced claims if user session exists
@@ -221,10 +188,7 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	if err != nil {
 		_ = h.storage.DeleteAuthorizationCode(req.Code)
 		_ = h.storage.DeleteToken(token.AccessToken)
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to generate ID token",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
 	}
 
 	// Delete authorization code (one-time use completed)
@@ -246,45 +210,30 @@ func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, cl
 	// Get token by refresh token
 	oldToken, err := h.storage.GetTokenByRefreshToken(req.RefreshToken)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Invalid refresh token",
-		})
+		return jsonError(c, http.StatusBadRequest, ErrorInvalidGrant, "Invalid refresh token")
 	}
 
 	// Validate client ID
 	if oldToken.ClientID != req.ClientID {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_grant",
-			"error_description": "Client ID mismatch",
-		})
+		return jsonError(c, http.StatusBadRequest, ErrorInvalidGrant, "Client ID mismatch")
 	}
 
 	// Get user
 	user, userErr := h.storage.GetUserByID(oldToken.UserID)
 	if userErr != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to get user",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to get user")
 	}
 
 	// Create new tokens
 	newToken := models.NewToken(client.ID, user.ID, oldToken.Scope, h.config.JWT.ExpiryMinutes)
 	if createErr := h.storage.CreateToken(newToken); createErr != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to create token",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to create token")
 	}
 
 	// Generate new ID token
 	idToken, tokenErr := h.jwtManager.GenerateIDToken(user, client.ID, "")
 	if tokenErr != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to generate ID token",
-		})
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
 	}
 
 	// Delete old token
