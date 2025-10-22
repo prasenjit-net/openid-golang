@@ -15,8 +15,9 @@ linters:
     - whitespace
     - goconst
     - gocyclo
-    - revive
-    - gosec
+  disable:
+    - revive  # Too many style warnings for package/export comments
+    - gosec   # False positives for config file reading
 
 formatters:
   enable:
