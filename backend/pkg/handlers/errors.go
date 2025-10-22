@@ -105,16 +105,6 @@ func jsonError(c echo.Context, statusCode int, errorCode, errorDescription strin
 	})
 }
 
-// redirectWithErrorQuery is a helper for authorization code flow errors (query params)
-func redirectWithErrorQuery(c echo.Context, redirectURI, errorCode, errorDescription, state string) error {
-	return redirectWithError(c, redirectURI, errorCode, errorDescription, state, false)
-}
-
-// redirectWithErrorFragment is a helper for implicit/hybrid flow errors (fragment)
-func redirectWithErrorFragment(c echo.Context, redirectURI, errorCode, errorDescription, state string) error {
-	return redirectWithError(c, redirectURI, errorCode, errorDescription, state, true)
-}
-
 // determineErrorRedirectMethod determines whether to use query or fragment for error redirect
 // based on response_type
 func determineErrorRedirectMethod(responseType string) bool {
