@@ -22,6 +22,123 @@ const (
 	ResponseTypeTokenIDToken = "token id_token"
 )
 
+// validateAuthorizationRequest validates required OAuth/OIDC parameters
+func (h *Handlers) validateAuthorizationRequest(c echo.Context, clientID, redirectURI, responseType, scope, state string) (*models.Client, error) {
+	// Validate parameters
+	if clientID == "" {
+		return nil, c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "client_id is required",
+		})
+	}
+
+	if redirectURI == "" {
+		return nil, c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "redirect_uri is required",
+		})
+	}
+
+	// Support both authorization code flow and implicit flow
+	if responseType != ResponseTypeCode && responseType != ResponseTypeIDToken && responseType != ResponseTypeTokenIDToken {
+		return nil, redirectWithError(c, redirectURI, "unsupported_response_type", "Only 'code', 'id_token', and 'token id_token' response types are supported", state)
+	}
+
+	if !strings.Contains(scope, "openid") {
+		return nil, redirectWithError(c, redirectURI, "invalid_scope", "scope must contain 'openid'", state)
+	}
+
+	// Validate client
+	client, err := h.storage.GetClientByID(clientID)
+	if err != nil {
+		return nil, redirectWithError(c, redirectURI, "invalid_client", "Client not found", state)
+	}
+
+	// Validate redirect URI
+	if !contains(client.RedirectURIs, redirectURI) {
+		return nil, c.JSON(http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "Invalid redirect_uri",
+		})
+	}
+
+	return client, nil
+}
+
+// handlePromptParameter handles the prompt parameter logic
+// Returns true and an error/response if prompt was handled and flow should stop
+// Returns false and nil if normal flow should continue
+func (h *Handlers) handlePromptParameter(c echo.Context, authSession *models.AuthSession, userSession *models.UserSession, redirectURI, state string) (bool, error) {
+	prompt := c.QueryParam("prompt")
+	if prompt == "" {
+		return false, nil // No prompt parameter, continue normal flow
+	}
+
+	switch prompt {
+	case "none":
+		// Must not display any UI - check if consent already given
+		if !authSession.ConsentGiven {
+			return true, redirectWithError(c, redirectURI, "consent_required", "User consent required but prompt=none", state)
+		}
+		// Proceed to generate code/tokens
+		return true, h.completeAuthorization(c, authSession, userSession)
+	case "login":
+		// Force re-authentication
+		return true, c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+	case "consent":
+		// Force consent screen
+		return true, c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
+	case "select_account":
+		// Show account selection (simplified: redirect to login)
+		return true, c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+	}
+
+	return false, nil // Unknown prompt value, ignore
+}
+
+// checkAndApplyConsent checks for existing consent and applies it if valid
+func (h *Handlers) checkAndApplyConsent(authSession *models.AuthSession, userSession *models.UserSession, clientID, scope string) error {
+	existingConsent, err := h.storage.GetConsent(userSession.UserID, clientID)
+	if err == nil && existingConsent != nil {
+		// Check if existing consent covers all requested scopes
+		requestedScopes := strings.Split(scope, " ")
+		if existingConsent.HasAllScopes(requestedScopes) {
+			authSession.ConsentGiven = true
+			authSession.ConsentedScopes = existingConsent.Scopes
+		}
+	}
+	return nil
+}
+
+// handleAuthenticatedUser processes authorization when user is already authenticated
+func (h *Handlers) handleAuthenticatedUser(c echo.Context, authSession *models.AuthSession, userSession *models.UserSession, clientID, scope, redirectURI, state string) error {
+	// Handle prompt parameter - if it was handled, return immediately
+	handled, err := h.handlePromptParameter(c, authSession, userSession, redirectURI, state)
+	if handled {
+		return err
+	}
+
+	// Check max_age parameter
+	if authSession.MaxAge > 0 {
+		if !userSession.IsAuthTimeFresh(authSession.MaxAge) {
+			// Re-authentication required
+			return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
+		}
+	}
+
+	// Note: Don't check consent if prompt=consent was handled above
+	// Check if user has previously consented to this client
+	_ = h.checkAndApplyConsent(authSession, userSession, clientID, scope)
+
+	if !authSession.ConsentGiven {
+		// Redirect to consent screen
+		return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
+	}
+
+	// All checks passed, complete authorization
+	return h.completeAuthorization(c, authSession, userSession)
+}
+
 // Authorize handles the authorization endpoint (GET /authorize)
 func (h *Handlers) Authorize(c echo.Context) error {
 	query := c.QueryParams()
@@ -34,42 +151,11 @@ func (h *Handlers) Authorize(c echo.Context) error {
 	state := query.Get("state")
 
 	// Validate parameters
-	if clientID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_request",
-			"error_description": "client_id is required",
-		})
-	}
-
-	if redirectURI == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_request",
-			"error_description": "redirect_uri is required",
-		})
-	}
-
-	// Support both authorization code flow and implicit flow
-	if responseType != ResponseTypeCode && responseType != ResponseTypeIDToken && responseType != ResponseTypeTokenIDToken {
-		return redirectWithError(c, redirectURI, "unsupported_response_type", "Only 'code', 'id_token', and 'token id_token' response types are supported", state)
-	}
-
-	if !strings.Contains(scope, "openid") {
-		return redirectWithError(c, redirectURI, "invalid_scope", "scope must contain 'openid'", state)
-	}
-
-	// Validate client
-	client, err := h.storage.GetClientByID(clientID)
+	client, err := h.validateAuthorizationRequest(c, clientID, redirectURI, responseType, scope, state)
 	if err != nil {
-		return redirectWithError(c, redirectURI, "invalid_client", "Client not found", state)
+		return err
 	}
-
-	// Validate redirect URI
-	if !contains(client.RedirectURIs, redirectURI) {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error":             "invalid_request",
-			"error_description": "Invalid redirect_uri",
-		})
-	}
+	_ = client // Client validated but not used directly in this function
 
 	// Create authorization session to store request parameters
 	authSession, err := h.sessionManager.CreateAuthSession(c, clientID, redirectURI, responseType, scope, state)
@@ -83,56 +169,7 @@ func (h *Handlers) Authorize(c echo.Context) error {
 	// Check if user is already authenticated
 	userSession := session.GetUserSession(c)
 	if userSession != nil && userSession.IsAuthenticated() {
-		// Handle prompt parameter
-		prompt := c.QueryParam("prompt")
-		if prompt != "" {
-			switch prompt {
-			case "none":
-				// Must not display any UI - check if consent already given
-				if !authSession.ConsentGiven {
-					return redirectWithError(c, redirectURI, "consent_required", "User consent required but prompt=none", state)
-				}
-				// Proceed to generate code/tokens
-				return h.completeAuthorization(c, authSession, userSession)
-			case "login":
-				// Force re-authentication
-				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
-			case "consent":
-				// Force consent screen
-				return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
-			case "select_account":
-				// Show account selection (simplified: redirect to login)
-				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
-			}
-		}
-
-		// Check max_age parameter
-		if authSession.MaxAge > 0 {
-			if !userSession.IsAuthTimeFresh(authSession.MaxAge) {
-				// Re-authentication required
-				return c.Redirect(http.StatusFound, "/login?auth_session="+authSession.ID)
-			}
-		}
-
-		// User is authenticated and meets requirements, check consent
-		// Check if user has previously consented to this client
-		existingConsent, err := h.storage.GetConsent(userSession.UserID, clientID)
-		if err == nil && existingConsent != nil {
-			// Check if existing consent covers all requested scopes
-			requestedScopes := strings.Split(scope, " ")
-			if existingConsent.HasAllScopes(requestedScopes) {
-				authSession.ConsentGiven = true
-				authSession.ConsentedScopes = existingConsent.Scopes
-			}
-		}
-
-		if !authSession.ConsentGiven {
-			// Redirect to consent screen
-			return c.Redirect(http.StatusFound, "/consent?auth_session="+authSession.ID)
-		}
-
-		// All checks passed, complete authorization
-		return h.completeAuthorization(c, authSession, userSession)
+		return h.handleAuthenticatedUser(c, authSession, userSession, clientID, scope, redirectURI, state)
 	}
 
 	// User not authenticated, redirect to login
