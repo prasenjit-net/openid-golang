@@ -60,5 +60,5 @@ temp/
 .env.*
 
 # UI build artifacts in backend
-backend/pkg/ui/dist/*
-!backend/pkg/ui/dist/.gitkeep
+backend/pkg/ui/uidist/*
+!backend/pkg/ui/uidist/README.md

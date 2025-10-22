@@ -201,14 +201,14 @@ jobs:
       shell: bash
       run: |
         mkdir -p backend/pkg/ui
-        cp -r frontend/dist backend/pkg/ui/dist
+        cp -r frontend/dist backend/pkg/ui/uidist
         
     - name: Prepare build directory (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path backend/pkg/ui
-        Copy-Item -Path frontend/dist -Destination backend/pkg/ui/dist -Recurse
+        Copy-Item -Path frontend/dist -Destination backend/pkg/ui/uidist -Recurse
         
     - name: Build binary
       working-directory: backend

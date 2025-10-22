@@ -13,8 +13,8 @@ build-frontend:
 	@echo "Building frontend..."
 	@cd frontend && npm run build
 	@mkdir -p backend/pkg/ui
-	@rm -rf backend/pkg/ui/dist
-	@cp -r frontend/dist backend/pkg/ui/dist
+	@rm -rf backend/pkg/ui/uidist
+	@cp -r frontend/dist backend/pkg/ui/uidist
 	@echo "Frontend built successfully"
 
 # Build the backend server
@@ -33,7 +33,7 @@ test:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf bin/
-	@rm -rf backend/pkg/ui/dist
+	@rm -rf backend/pkg/ui/uidist
 	@cd frontend && rm -rf dist node_modules/.vite
 	@echo "Clean complete"
 

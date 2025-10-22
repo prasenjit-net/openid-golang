@@ -17,8 +17,8 @@ cd ..
 echo ""
 echo "📋 Step 2: Copying build files for embedding..."
 mkdir -p backend/pkg/ui
-rm -rf backend/pkg/ui/dist
-cp -r frontend/dist backend/pkg/ui/dist
+rm -rf backend/pkg/ui/uidist
+cp -r frontend/dist backend/pkg/ui/uidist
 
 # Step 3: Build Go binary with embedded UI
 echo ""

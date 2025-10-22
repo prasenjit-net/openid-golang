@@ -165,7 +165,7 @@ The built UI files are embedded into the Go binary using Go's `embed` package. S
 
 During production build:
 1. React app is built to `frontend/dist/`
-2. Files are copied to `backend/pkg/ui/dist/`
+2. Files are copied to `backend/pkg/ui/uidist/`
 3. Go `embed` directive includes these files
 4. Files are served from the binary at runtime
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//go:embed dist
+//go:embed uidist
 var adminUI embed.FS
 
 //go:embed setup.html
@@ -15,7 +15,7 @@ var setupHTML embed.FS
 
 // GetAdminUI returns an http.FileSystem for the embedded admin UI
 func GetAdminUI() http.FileSystem {
-	subFS, err := fs.Sub(adminUI, "dist")
+	subFS, err := fs.Sub(adminUI, "uidist")
 	if err != nil {
 		panic(err)
 	}
@@ -24,7 +24,7 @@ func GetAdminUI() http.FileSystem {
 
 // GetAdminFS returns the embedded FS for the admin UI
 func GetAdminFS() fs.FS {
-	subFS, err := fs.Sub(adminUI, "dist")
+	subFS, err := fs.Sub(adminUI, "uidist")
 	if err != nil {
 		panic(err)
 	}

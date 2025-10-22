@@ -127,7 +127,7 @@ jobs:
       shell: bash
       run: |
         mkdir -p backend/pkg/ui
-        cp -r frontend/dist backend/pkg/ui/dist
+        cp -r frontend/dist backend/pkg/ui/uidist
         
     - name: Build Go binary (Linux/macOS)
       if: runner.os != 'Windows'

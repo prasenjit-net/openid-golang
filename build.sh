@@ -17,8 +17,8 @@ cd ..
 
 echo "==> Copying UI to embed location..."
 mkdir -p backend/pkg/ui
-rm -rf backend/pkg/ui/dist
-cp -r frontend/dist backend/pkg/ui/dist
+rm -rf backend/pkg/ui/uidist
+cp -r frontend/dist backend/pkg/ui/uidist
 
 echo "==> Building Go backend server..."
 cd backend
