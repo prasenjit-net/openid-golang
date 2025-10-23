@@ -448,22 +448,24 @@ type ClientRegistrationRequest struct {
 	SoftwareStatement       string   `json:"software_statement,omitempty"` // JWT
 
 	// OPTIONAL OIDC-specific fields
-	ApplicationType              string   `json:"application_type,omitempty"`
-	SectorIdentifierURI          string   `json:"sector_identifier_uri,omitempty"`
-	SubjectType                  string   `json:"subject_type,omitempty"`
-	RequestObjectSigningAlg      string   `json:"request_object_signing_alg,omitempty"`
-	UserInfoSignedResponseAlg    string   `json:"userinfo_signed_response_alg,omitempty"`
-	UserInfoEncryptedResponseAlg string   `json:"userinfo_encrypted_response_alg,omitempty"`
-	UserInfoEncryptedResponseEnc string   `json:"userinfo_encrypted_response_enc,omitempty"`
-	IDTokenSignedResponseAlg     string   `json:"id_token_signed_response_alg,omitempty"`
-	IDTokenEncryptedResponseAlg  string   `json:"id_token_encrypted_response_alg,omitempty"`
-	IDTokenEncryptedResponseEnc  string   `json:"id_token_encrypted_response_enc,omitempty"`
-	TokenEndpointAuthSigningAlg  string   `json:"token_endpoint_auth_signing_alg,omitempty"`
-	DefaultMaxAge                int      `json:"default_max_age,omitempty"`
-	RequireAuthTime              bool     `json:"require_auth_time,omitempty"`
-	DefaultACRValues             []string `json:"default_acr_values,omitempty"`
-	InitiateLoginURI             string   `json:"initiate_login_uri,omitempty"`
-	RequestURIs                  []string `json:"request_uris,omitempty"`
+	ApplicationType               string   `json:"application_type,omitempty"`
+	SectorIdentifierURI           string   `json:"sector_identifier_uri,omitempty"`
+	SubjectType                   string   `json:"subject_type,omitempty"`
+	RequestObjectSigningAlg       string   `json:"request_object_signing_alg,omitempty"`
+	RequestObjectEncryptionAlg    string   `json:"request_object_encryption_alg,omitempty"`
+	RequestObjectEncryptionEnc    string   `json:"request_object_encryption_enc,omitempty"`
+	UserInfoSignedResponseAlg     string   `json:"userinfo_signed_response_alg,omitempty"`
+	UserInfoEncryptedResponseAlg  string   `json:"userinfo_encrypted_response_alg,omitempty"`
+	UserInfoEncryptedResponseEnc  string   `json:"userinfo_encrypted_response_enc,omitempty"`
+	IDTokenSignedResponseAlg      string   `json:"id_token_signed_response_alg,omitempty"`
+	IDTokenEncryptedResponseAlg   string   `json:"id_token_encrypted_response_alg,omitempty"`
+	IDTokenEncryptedResponseEnc   string   `json:"id_token_encrypted_response_enc,omitempty"`
+	TokenEndpointAuthSigningAlg   string   `json:"token_endpoint_auth_signing_alg,omitempty"`
+	DefaultMaxAge                 int      `json:"default_max_age,omitempty"`
+	RequireAuthTime               bool     `json:"require_auth_time,omitempty"`
+	DefaultACRValues              []string `json:"default_acr_values,omitempty"`
+	InitiateLoginURI              string   `json:"initiate_login_uri,omitempty"`
+	RequestURIs                   []string `json:"request_uris,omitempty"`
 }
 
 // ClientRegistrationResponse represents the successful registration response
