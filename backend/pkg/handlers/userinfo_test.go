@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
@@ -97,8 +97,8 @@ func TestUserInfo_Success(t *testing.T) {
 
 	handlers := &Handlers{
 		storage: mockStorage,
-		config: &config.Config{
-			JWT: config.JWTConfig{
+		config: &configstore.ConfigData{
+			JWT: configstore.JWTConfig{
 				ExpiryMinutes: 60,
 			},
 		},
@@ -167,8 +167,8 @@ func TestUserInfo_ProfileScopeOnly(t *testing.T) {
 
 	handlers := &Handlers{
 		storage: mockStorage,
-		config: &config.Config{
-			JWT: config.JWTConfig{
+		config: &configstore.ConfigData{
+			JWT: configstore.JWTConfig{
 				ExpiryMinutes: 60,
 			},
 		},

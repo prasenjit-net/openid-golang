@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
-	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,9 +18,9 @@ func TestDiscovery_WithoutRegistration(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	cfg := &config.Config{
+	cfg := &configstore.ConfigData{
 		Issuer: "https://example.com",
-		Registration: config.RegistrationConfig{
+		Registration: configstore.RegistrationConfig{
 			Enabled: false,
 		},
 	}
@@ -80,9 +80,9 @@ func TestDiscovery_WithRegistrationEnabled(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	cfg := &config.Config{
+	cfg := &configstore.ConfigData{
 		Issuer: "https://example.com",
-		Registration: config.RegistrationConfig{
+		Registration: configstore.RegistrationConfig{
 			Enabled:              true,
 			Endpoint:             "/register",
 			ServiceDocumentation: "https://example.com/docs",
@@ -122,9 +122,9 @@ func TestDiscovery_CustomRegistrationEndpoint(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	cfg := &config.Config{
+	cfg := &configstore.ConfigData{
 		Issuer: "https://example.com",
-		Registration: config.RegistrationConfig{
+		Registration: configstore.RegistrationConfig{
 			Enabled:  true,
 			Endpoint: "/oauth2/register",
 		},
@@ -155,9 +155,9 @@ func TestDiscovery_JSONStructure(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	cfg := &config.Config{
+	cfg := &configstore.ConfigData{
 		Issuer: "https://example.com",
-		Registration: config.RegistrationConfig{
+		Registration: configstore.RegistrationConfig{
 			Enabled: false,
 		},
 	}

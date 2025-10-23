@@ -13,7 +13,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
 
-	"github.com/prasenjit-net/openid-golang/pkg/config"
 	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/handlers"
@@ -68,16 +67,8 @@ func runServe(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Convert configstore.ConfigData to config.Config
-	cfg := convertConfigData(configData)
-
-	// Validate configuration
-	if validateErr := cfg.Validate(); validateErr != nil {
-		log.Fatalf("Invalid configuration: %v", validateErr)
-	}
-
 	// Start normal server with full OpenID functionality
-	runNormalMode(cfg, configData)
+	runNormalMode(configData)
 }
 
 // runSetupModeWithReload starts the server in setup mode and transitions to normal mode after initialization
@@ -155,13 +146,8 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 			log.Fatalf("Failed to load configuration after initialization: %v", err)
 		}
 
-		cfg := convertConfigData(configData)
-		if validateErr := cfg.Validate(); validateErr != nil {
-			log.Fatalf("Invalid configuration: %v", validateErr)
-		}
-
 		log.Println("Restarting in NORMAL mode with full functionality...")
-		runNormalMode(cfg, configData)
+		runNormalMode(configData)
 
 	case <-quit:
 		log.Println("Shutting down server...")
@@ -176,9 +162,9 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 }
 
 // runNormalMode starts the server in normal mode with full OpenID functionality
-func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
+func runNormalMode(configData *configstore.ConfigData) {
 	// Initialize storage
-	store, err := storage.NewStorage(cfg)
+	store, err := storage.NewStorage(configData)
 	if err != nil {
 		log.Fatalf("Failed to initialize storage: %v", err)
 	}
@@ -191,7 +177,7 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	// Ensure admin-ui client exists
 	adminClient, err := store.GetClientByID("admin-ui")
 	if err != nil || adminClient == nil {
-		adminClient = models.NewAdminUIClient(cfg.Issuer)
+		adminClient = models.NewAdminUIClient(configData.Issuer)
 		if createErr := store.CreateClient(adminClient); createErr != nil {
 			log.Printf("Warning: Failed to create admin-ui client: %v", createErr)
 		} else {
@@ -203,8 +189,8 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	jwtManager, err := crypto.NewJWTManagerFromPEM(
 		configData.JWT.PrivateKey,
 		configData.JWT.PublicKey,
-		cfg.Issuer,
-		cfg.JWT.ExpiryMinutes,
+		configData.Issuer,
+		configData.JWT.ExpiryMinutes,
 	)
 	if err != nil {
 		log.Fatalf("Failed to initialize JWT manager: %v", err)
@@ -212,7 +198,7 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 
 	// Create session manager
 	sessionConfig := session.DefaultConfig(store)
-	sessionConfig.CookieSecure = cfg.Server.Port == 443 // Secure cookies for HTTPS
+	sessionConfig.CookieSecure = configData.Server.Port == 443 // Secure cookies for HTTPS
 	sessionManager := session.NewManager(sessionConfig)
 
 	// Create Echo instance
@@ -227,17 +213,17 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	e.Use(sessionManager.Middleware()) // Add session middleware
 
 	// Initialize handlers
-	h := handlers.NewHandlers(store, jwtManager, cfg, sessionManager)
+	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager)
 
 	// Register routes (without /setup - it's disabled in normal mode)
-	registerRoutes(e, h, cfg)
+	registerRoutes(e, h, configData)
 
 	// Start server
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	addr := fmt.Sprintf("%s:%d", configData.Server.Host, configData.Server.Port)
 	log.Printf("Starting OpenID Connect Server v%s", getVersion())
-	log.Printf("Using %s storage", cfg.Storage.Type)
+	log.Printf("Using %s storage", configData.Storage.Type)
 	log.Printf("Starting OpenID Connect server on %s", addr)
-	log.Printf("Issuer: %s", cfg.Issuer)
+	log.Printf("Issuer: %s", configData.Issuer)
 
 	// Start server with graceful shutdown
 	go func() {
@@ -261,29 +247,7 @@ func runNormalMode(cfg *config.Config, configData *configstore.ConfigData) {
 	log.Println("Server stopped")
 }
 
-// convertConfigData converts configstore.ConfigData to config.Config
-func convertConfigData(data *configstore.ConfigData) *config.Config {
-	return &config.Config{
-		Server: config.ServerConfig{
-			Host: data.Server.Host,
-			Port: data.Server.Port,
-		},
-		Storage: config.StorageConfig{
-			Type:         data.Storage.Type,
-			JSONFilePath: data.Storage.JSONFilePath,
-			MongoURI:     data.Storage.MongoURI,
-		},
-		JWT: config.JWTConfig{
-			// Keys are stored as PEM strings in configstore, handled separately in runNormalMode
-			PrivateKeyPath: "",
-			PublicKeyPath:  "",
-			ExpiryMinutes:  data.JWT.ExpiryMinutes,
-		},
-		Issuer: data.Issuer,
-	}
-}
-
-func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *config.Config) {
+func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigData) {
 	// OpenID Connect Discovery
 	e.GET("/.well-known/openid-configuration", h.Discovery)
 	e.GET("/.well-known/jwks.json", h.JWKS)

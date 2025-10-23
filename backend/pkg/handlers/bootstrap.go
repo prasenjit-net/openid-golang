@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"github.com/prasenjit-net/openid-golang/pkg/config"
 	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
@@ -191,17 +190,8 @@ func (h *BootstrapHandler) createAdminUser(ctx context.Context, req SetupRequest
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Convert to config.Config for storage initialization
-	cfg := &config.Config{
-		Storage: config.StorageConfig{
-			Type:         configData.Storage.Type,
-			JSONFilePath: configData.Storage.JSONFilePath,
-			MongoURI:     configData.Storage.MongoURI,
-		},
-	}
-
-	// Initialize storage
-	store, err := storage.NewStorage(cfg)
+	// Initialize storage directly with ConfigData
+	store, err := storage.NewStorage(configData)
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}

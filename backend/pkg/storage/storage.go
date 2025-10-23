@@ -3,7 +3,7 @@ package storage
 import (
 	"strings"
 
-	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
@@ -70,9 +70,9 @@ type Storage interface {
 }
 
 // NewStorage creates a new storage instance based on configuration
-func NewStorage(cfg *config.Config) (Storage, error) {
+func NewStorage(cfg *configstore.ConfigData) (Storage, error) {
 	switch cfg.Storage.Type {
-	case config.StorageTypeMongoDB:
+	case "mongodb":
 		// Parse database name from MongoDB URI
 		// Expected format: mongodb://host:port/database
 		uri := cfg.Storage.MongoURI
@@ -85,10 +85,10 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 			}
 		}
 		return NewMongoDBStorage(uri, dbName)
-	case config.StorageTypeJSON:
+	case "json":
 		return NewJSONStorage(cfg.Storage.JSONFilePath)
 	default:
 		// Default to JSON storage for backward compatibility
-		return NewJSONStorage(config.DefaultJSONFile)
+		return NewJSONStorage("data.json")
 	}
 }

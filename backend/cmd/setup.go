@@ -205,11 +205,8 @@ func createAdminUserCLI(ctx context.Context, configStoreInstance configstore.Con
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Convert to config.Config for storage initialization
-	cfg := convertConfigData(configData)
-
-	// Initialize storage
-	store, err := storage.NewStorage(cfg)
+	// Initialize storage directly with ConfigData
+	store, err := storage.NewStorage(configData)
 	if err != nil {
 		return fmt.Errorf("failed to initialize storage: %w", err)
 	}

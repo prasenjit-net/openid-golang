@@ -43,6 +43,9 @@ type ConfigData struct {
 
 	// Storage Backend Configuration
 	Storage StorageBackendConfig `json:"storage" bson:"storage"`
+
+	// Dynamic Client Registration Configuration
+	Registration RegistrationConfig `json:"registration" bson:"registration"`
 }
 
 // ServerConfig holds server-related configuration
@@ -72,6 +75,15 @@ type StorageBackendConfig struct {
 	MongoDatabase string `json:"mongo_database,omitempty" bson:"mongo_database,omitempty"`
 }
 
+// RegistrationConfig holds dynamic client registration configuration
+type RegistrationConfig struct {
+	Enabled              bool   `json:"enabled" bson:"enabled"`
+	Endpoint             string `json:"endpoint" bson:"endpoint"` // Custom endpoint path (default: /register)
+	ServiceDocumentation string `json:"service_documentation,omitempty" bson:"service_documentation,omitempty"`
+	PolicyURI            string `json:"policy_uri,omitempty" bson:"policy_uri,omitempty"`
+	TosURI               string `json:"tos_uri,omitempty" bson:"tos_uri,omitempty"`
+}
+
 // DefaultConfig returns a default configuration
 func DefaultConfig() *ConfigData {
 	return &ConfigData{
@@ -89,6 +101,10 @@ func DefaultConfig() *ConfigData {
 		Storage: StorageBackendConfig{
 			Type:         "json",
 			JSONFilePath: "data/openid.json",
+		},
+		Registration: RegistrationConfig{
+			Enabled:  false,
+			Endpoint: "/register",
 		},
 	}
 }

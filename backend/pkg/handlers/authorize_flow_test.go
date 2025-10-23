@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/prasenjit-net/openid-golang/pkg/config"
+	"github.com/prasenjit-net/openid-golang/pkg/configstore"
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/session"
@@ -35,7 +35,7 @@ func TestCompleteAuthorizationFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create session manager
-	cfg := &config.Config{
+	cfg := &configstore.ConfigData{
 		Issuer: "https://localhost:8080",
 	}
 	sessionCfg := session.DefaultConfig(store)
