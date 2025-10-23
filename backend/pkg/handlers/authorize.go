@@ -50,6 +50,14 @@ func (h *Handlers) validateAuthorizationRequest(c echo.Context, clientID, redire
 		return nil, authorizationError(c, redirectURI, responseType, ErrorInvalidScope, "scope must contain 'openid'", state)
 	}
 
+	// Nonce is REQUIRED for implicit flow (OIDC Core Section 3.2.2.1)
+	if responseType == ResponseTypeIDToken || responseType == ResponseTypeTokenIDToken {
+		nonce := c.QueryParam("nonce")
+		if nonce == "" {
+			return nil, authorizationError(c, redirectURI, responseType, ErrorInvalidRequest, "nonce parameter is required for implicit flow", state)
+		}
+	}
+
 	// Validate client
 	client, err := h.storage.GetClientByID(clientID)
 	if err != nil {
