@@ -261,6 +261,9 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	// Dynamic Client Registration (if enabled)
 	if cfg.Registration.Enabled {
 		e.POST(cfg.Registration.Endpoint, h.Register)
+		e.GET(cfg.Registration.Endpoint+"/:client_id", h.GetClientConfiguration)
+		e.PUT(cfg.Registration.Endpoint+"/:client_id", h.UpdateClientConfiguration)
+		e.DELETE(cfg.Registration.Endpoint+"/:client_id", h.DeleteClientConfiguration)
 	}
 
 	// Login and consent pages

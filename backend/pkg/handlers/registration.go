@@ -554,3 +554,220 @@ func (h *Handlers) buildRegistrationResponse(client *models.Client) models.Clien
 
 	return response
 }
+
+// GetClientConfiguration handles reading client configuration (GET /register/:client_id)
+// Implements RFC 7592 Section 2 (Client Read Request)
+// and OpenID Connect Dynamic Client Registration 1.0 Section 4 (Client Read Request)
+func (h *Handlers) GetClientConfiguration(c echo.Context) error {
+	// 1. Check if registration is enabled
+	if !h.config.Registration.Enabled {
+		return c.JSON(http.StatusForbidden, models.ClientRegistrationError{
+			Error:            "registration_not_supported",
+			ErrorDescription: "Dynamic client registration is not enabled on this server",
+		})
+	}
+
+	// 2. Extract client_id from URL parameter
+	clientID := c.Param("client_id")
+	if clientID == "" {
+		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
+			Error:            "invalid_request",
+			ErrorDescription: "client_id is required",
+		})
+	}
+
+	// 3. Extract and validate Registration Access Token from Authorization header
+	token := extractBearerToken(c)
+	if token == "" {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Registration access token required",
+		})
+	}
+
+	// 4. Get client from storage
+	client, err := h.storage.GetClientByID(clientID)
+	if err != nil || client == nil {
+		// Per spec: Never return 404, always return 401 for security reasons
+		// (don't leak information about which clients exist)
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid client or token",
+		})
+	}
+
+	// 5. Validate registration access token matches
+	if client.RegistrationAccessToken != token {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid registration access token",
+		})
+	}
+
+	// 6. Build response with all client metadata
+	response := h.buildRegistrationResponse(client)
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// extractBearerToken extracts the Bearer token from the Authorization header
+func extractBearerToken(c echo.Context) string {
+	auth := c.Request().Header.Get("Authorization")
+	if auth == "" {
+		return ""
+	}
+
+	parts := strings.SplitN(auth, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return ""
+	}
+
+	return parts[1]
+}
+
+// UpdateClientConfiguration handles updating client configuration (PUT /register/:client_id)
+// Implements RFC 7592 Section 3 (Client Update Request)
+func (h *Handlers) UpdateClientConfiguration(c echo.Context) error {
+	// 1. Check if registration is enabled
+	if !h.config.Registration.Enabled {
+		return c.JSON(http.StatusForbidden, models.ClientRegistrationError{
+			Error:            "registration_not_supported",
+			ErrorDescription: "Dynamic client registration is not enabled on this server",
+		})
+	}
+
+	// 2. Extract client_id from URL parameter
+	clientID := c.Param("client_id")
+	if clientID == "" {
+		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
+			Error:            "invalid_request",
+			ErrorDescription: "client_id is required",
+		})
+	}
+
+	// 3. Extract and validate Registration Access Token
+	token := extractBearerToken(c)
+	if token == "" {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Registration access token required",
+		})
+	}
+
+	// 4. Get existing client from storage
+	existingClient, err := h.storage.GetClientByID(clientID)
+	if err != nil || existingClient == nil {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid client or token",
+		})
+	}
+
+	// 5. Validate registration access token matches
+	if existingClient.RegistrationAccessToken != token {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid registration access token",
+		})
+	}
+
+	// 6. Parse update request
+	var req models.ClientRegistrationRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
+			Error:            "invalid_request",
+			ErrorDescription: "Invalid JSON in request body",
+		})
+	}
+
+	// 7. Validate the update request (same validations as registration)
+	if validationErr := h.validateRegistrationRequest(&req); validationErr != nil {
+		return c.JSON(http.StatusBadRequest, *validationErr)
+	}
+
+	// 8. Update client while preserving certain fields
+	updatedClient, err := h.createClientFromRequest(&req)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
+			Error:            models.ErrInvalidClientMetadata,
+			ErrorDescription: err.Error(),
+		})
+	}
+	
+	// Preserve immutable fields from existing client
+	updatedClient.ID = existingClient.ID
+	updatedClient.Secret = existingClient.Secret
+	updatedClient.RegistrationAccessToken = existingClient.RegistrationAccessToken
+	updatedClient.CreatedAt = existingClient.CreatedAt
+	updatedClient.UpdatedAt = time.Now()
+
+	// 9. Save updated client
+	if err := h.storage.UpdateClient(updatedClient); err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ClientRegistrationError{
+			Error:            "server_error",
+			ErrorDescription: "Failed to update client",
+		})
+	}
+
+	// 10. Build and return response
+	response := h.buildRegistrationResponse(updatedClient)
+	return c.JSON(http.StatusOK, response)
+}
+
+// DeleteClientConfiguration handles deleting a client (DELETE /register/:client_id)
+// Implements RFC 7592 Section 4 (Client Delete Request)
+func (h *Handlers) DeleteClientConfiguration(c echo.Context) error {
+	// 1. Check if registration is enabled
+	if !h.config.Registration.Enabled {
+		return c.JSON(http.StatusForbidden, models.ClientRegistrationError{
+			Error:            "registration_not_supported",
+			ErrorDescription: "Dynamic client registration is not enabled on this server",
+		})
+	}
+
+	// 2. Extract client_id from URL parameter
+	clientID := c.Param("client_id")
+	if clientID == "" {
+		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
+			Error:            "invalid_request",
+			ErrorDescription: "client_id is required",
+		})
+	}
+
+	// 3. Extract and validate Registration Access Token
+	token := extractBearerToken(c)
+	if token == "" {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Registration access token required",
+		})
+	}
+
+	// 4. Get client from storage
+	client, err := h.storage.GetClientByID(clientID)
+	if err != nil || client == nil {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid client or token",
+		})
+	}
+
+	// 5. Validate registration access token matches
+	if client.RegistrationAccessToken != token {
+		return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+			Error:            "invalid_token",
+			ErrorDescription: "Invalid registration access token",
+		})
+	}
+
+	// 6. Delete the client
+	if err := h.storage.DeleteClient(clientID); err != nil {
+		return c.JSON(http.StatusInternalServerError, models.ClientRegistrationError{
+			Error:            "server_error",
+			ErrorDescription: "Failed to delete client",
+		})
+	}
+
+	// 7. Return 204 No Content on successful deletion
+	return c.NoContent(http.StatusNoContent)
+}

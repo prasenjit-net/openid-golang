@@ -558,3 +558,573 @@ func TestRegister_FullMetadata(t *testing.T) {
 	assert.Equal(t, 3600, response.DefaultMaxAge)
 	assert.True(t, response.RequireAuthTime)
 }
+
+// ============================================================================
+// GET /register/:client_id Tests
+// ============================================================================
+
+func TestGetClientConfiguration_Success(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_get_config.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// First, register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Now, get the client configuration
+	req = httptest.NewRequest(http.MethodGet, "/register/"+regResponse.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+regResponse.RegistrationAccessToken)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.GetClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var getResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &getResponse)
+	require.NoError(t, err)
+
+	// Verify response matches original registration
+	assert.Equal(t, regResponse.ID, getResponse.ID)
+	assert.Equal(t, regResponse.RedirectURIs, getResponse.RedirectURIs)
+	assert.Equal(t, regResponse.RegistrationAccessToken, getResponse.RegistrationAccessToken)
+	assert.NotEmpty(t, getResponse.RegistrationClientURI)
+}
+
+func TestGetClientConfiguration_DisabledRegistration(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_get_disabled.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  false,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/register/some-client-id", nil)
+	req.Header.Set("Authorization", "Bearer some-token")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues("some-client-id")
+
+	err = handlers.GetClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, "registration_not_supported", errResp.Error)
+}
+
+func TestGetClientConfiguration_MissingToken(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_get_no_token.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/register/some-client-id", nil)
+	// No Authorization header
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues("some-client-id")
+
+	err = handlers.GetClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_token", errResp.Error)
+	assert.Contains(t, errResp.ErrorDescription, "required")
+}
+
+func TestGetClientConfiguration_InvalidToken(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_get_invalid_token.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// First, register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Try to get config with wrong token
+	req = httptest.NewRequest(http.MethodGet, "/register/"+regResponse.ID, nil)
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.GetClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_token", errResp.Error)
+}
+
+func TestGetClientConfiguration_NonExistentClient(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_get_nonexistent.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/register/nonexistent-client", nil)
+	req.Header.Set("Authorization", "Bearer some-token")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues("nonexistent-client")
+
+	err = handlers.GetClientConfiguration(c)
+	require.NoError(t, err)
+	// Per spec: Always return 401, never 404 (security requirement)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_token", errResp.Error)
+}
+
+// ============================================================================
+// PUT /register/:client_id Tests
+// ============================================================================
+
+func TestUpdateClientConfiguration_Success(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_update_config.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// First, register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"], "client_name": "Original Name"}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Now, update the client
+	updateBody := `{
+		"redirect_uris": ["https://app.example.com/callback", "https://app.example.com/callback2"],
+		"client_name": "Updated Name",
+		"logo_uri": "https://app.example.com/logo.png"
+	}`
+	req = httptest.NewRequest(http.MethodPut, "/register/"+regResponse.ID, strings.NewReader(updateBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+regResponse.RegistrationAccessToken)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.UpdateClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var updateResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &updateResponse)
+	require.NoError(t, err)
+
+	// Verify updates were applied
+	assert.Equal(t, regResponse.ID, updateResponse.ID) // ID should not change
+	assert.Equal(t, "Updated Name", updateResponse.ClientName)
+	assert.Equal(t, "https://app.example.com/logo.png", updateResponse.LogoURI)
+	assert.Equal(t, 2, len(updateResponse.RedirectURIs))
+	assert.Contains(t, updateResponse.RedirectURIs, "https://app.example.com/callback2")
+	
+	// Secret should be preserved
+	assert.Equal(t, regResponse.Secret, updateResponse.Secret)
+}
+
+func TestUpdateClientConfiguration_InvalidToken(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_update_invalid_token.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// Register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Try to update with wrong token
+	updateBody := `{"redirect_uris": ["https://app.example.com/callback"], "client_name": "Hacked"}`
+	req = httptest.NewRequest(http.MethodPut, "/register/"+regResponse.ID, strings.NewReader(updateBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.UpdateClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, "invalid_token", errResp.Error)
+}
+
+func TestUpdateClientConfiguration_ValidationError(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_update_validation.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// Register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Try to update with invalid redirect URI (http not allowed)
+	updateBody := `{"redirect_uris": ["http://example.com/callback"]}`
+	req = httptest.NewRequest(http.MethodPut, "/register/"+regResponse.ID, strings.NewReader(updateBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+regResponse.RegistrationAccessToken)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.UpdateClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var errResp models.ClientRegistrationError
+	err = json.Unmarshal(rec.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+	assert.Equal(t, models.ErrInvalidRedirectURI, errResp.Error)
+	assert.Contains(t, errResp.ErrorDescription, "HTTPS")
+}
+
+// ============================================================================
+// DELETE /register/:client_id Tests
+// ============================================================================
+
+func TestDeleteClientConfiguration_Success(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_delete_config.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// First, register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Now, delete the client
+	req = httptest.NewRequest(http.MethodDelete, "/register/"+regResponse.ID, nil)
+	req.Header.Set("Authorization", "Bearer "+regResponse.RegistrationAccessToken)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.DeleteClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+
+	// Verify client is actually deleted
+	deletedClient, err := store.GetClientByID(regResponse.ID)
+	assert.Nil(t, deletedClient)
+	assert.NoError(t, err) // JSON storage returns (nil, nil) for non-existent clients
+}
+
+func TestDeleteClientConfiguration_InvalidToken(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_delete_invalid_token.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	// Register a client
+	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+
+	err = handlers.Register(c)
+	require.NoError(t, err)
+
+	var regResponse models.ClientRegistrationResponse
+	err = json.Unmarshal(rec.Body.Bytes(), &regResponse)
+	require.NoError(t, err)
+
+	// Try to delete with wrong token
+	req = httptest.NewRequest(http.MethodDelete, "/register/"+regResponse.ID, nil)
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues(regResponse.ID)
+
+	err = handlers.DeleteClientConfiguration(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	// Verify client was NOT deleted
+	existingClient, err := store.GetClientByID(regResponse.ID)
+	assert.NotNil(t, existingClient)
+	assert.NoError(t, err)
+}
+
+func TestDeleteClientConfiguration_NonExistentClient(t *testing.T) {
+	tmpFile := t.TempDir() + "/test_delete_nonexistent.json"
+	store, err := storage.NewJSONStorage(tmpFile)
+	require.NoError(t, err)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	cfg := &configstore.ConfigData{
+		Issuer: "https://example.com",
+		Registration: configstore.RegistrationConfig{
+			Enabled:  true,
+			Endpoint: "/register",
+		},
+	}
+
+	handlers := &Handlers{
+		storage: store,
+		config:  cfg,
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/register/nonexistent-client", nil)
+	req.Header.Set("Authorization", "Bearer some-token")
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("client_id")
+	c.SetParamValues("nonexistent-client")
+
+	err = handlers.DeleteClientConfiguration(c)
+	require.NoError(t, err)
+	// Per spec: Always return 401, never 404
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
