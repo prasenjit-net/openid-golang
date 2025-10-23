@@ -19,10 +19,11 @@ const (
 
 // Config holds the application configuration
 type Config struct {
-	Server  ServerConfig  `toml:"server"`
-	Storage StorageConfig `toml:"storage"`
-	JWT     JWTConfig     `toml:"jwt"`
-	Issuer  string        `toml:"issuer"`
+	Server       ServerConfig       `toml:"server"`
+	Storage      StorageConfig      `toml:"storage"`
+	JWT          JWTConfig          `toml:"jwt"`
+	Registration RegistrationConfig `toml:"registration"`
+	Issuer       string             `toml:"issuer"`
 }
 
 // ServerConfig holds server-related configuration
@@ -43,6 +44,15 @@ type JWTConfig struct {
 	PrivateKeyPath string `toml:"private_key_path"`
 	PublicKeyPath  string `toml:"public_key_path"`
 	ExpiryMinutes  int    `toml:"expiry_minutes"`
+}
+
+// RegistrationConfig holds dynamic client registration configuration
+type RegistrationConfig struct {
+	Enabled              bool   `toml:"enabled"`
+	Endpoint             string `toml:"endpoint"` // Custom endpoint path (default: /register)
+	ServiceDocumentation string `toml:"service_documentation"`
+	PolicyURI            string `toml:"policy_uri"`
+	TosURI               string `toml:"tos_uri"`
 }
 
 // Load loads configuration from config.toml or environment variables
@@ -84,6 +94,9 @@ func LoadFromTOML(filePath string) (*Config, error) {
 	if cfg.JWT.ExpiryMinutes == 0 {
 		cfg.JWT.ExpiryMinutes = 60
 	}
+	if cfg.Registration.Endpoint == "" {
+		cfg.Registration.Endpoint = "/register"
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -108,6 +121,13 @@ func loadFromEnv() (*Config, error) {
 			PrivateKeyPath: getEnv("JWT_PRIVATE_KEY", "config/keys/private.key"),
 			PublicKeyPath:  getEnv("JWT_PUBLIC_KEY", "config/keys/public.key"),
 			ExpiryMinutes:  getEnvAsInt("JWT_EXPIRY_MINUTES", 60),
+		},
+		Registration: RegistrationConfig{
+			Enabled:              getEnv("REGISTRATION_ENABLED", "false") == "true",
+			Endpoint:             getEnv("REGISTRATION_ENDPOINT", "/register"),
+			ServiceDocumentation: getEnv("SERVICE_DOCUMENTATION", ""),
+			PolicyURI:            getEnv("OP_POLICY_URI", ""),
+			TosURI:               getEnv("OP_TOS_URI", ""),
 		},
 		Issuer: getEnv("ISSUER", "http://localhost:8080"),
 	}
