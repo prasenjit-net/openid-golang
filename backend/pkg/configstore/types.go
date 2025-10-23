@@ -77,11 +77,12 @@ type StorageBackendConfig struct {
 
 // RegistrationConfig holds dynamic client registration configuration
 type RegistrationConfig struct {
-	Enabled              bool   `json:"enabled" bson:"enabled"`
-	Endpoint             string `json:"endpoint" bson:"endpoint"` // Custom endpoint path (default: /register)
-	ServiceDocumentation string `json:"service_documentation,omitempty" bson:"service_documentation,omitempty"`
-	PolicyURI            string `json:"policy_uri,omitempty" bson:"policy_uri,omitempty"`
-	TosURI               string `json:"tos_uri,omitempty" bson:"tos_uri,omitempty"`
+	Enabled                   bool   `json:"enabled" bson:"enabled"`
+	Endpoint                  string `json:"endpoint" bson:"endpoint"` // Custom endpoint path (default: /register)
+	ServiceDocumentation      string `json:"service_documentation,omitempty" bson:"service_documentation,omitempty"`
+	PolicyURI                 string `json:"policy_uri,omitempty" bson:"policy_uri,omitempty"`
+	TosURI                    string `json:"tos_uri,omitempty" bson:"tos_uri,omitempty"`
+	RequireInitialAccessToken bool   `json:"require_initial_access_token" bson:"require_initial_access_token"` // Require token for registration
 }
 
 // DefaultConfig returns a default configuration

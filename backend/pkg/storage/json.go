@@ -25,14 +25,15 @@ type JSONUser struct {
 
 // JSONData holds all the data
 type JSONData struct {
-	Users              map[string]*JSONUser                 `json:"users"`
-	Clients            map[string]*models.Client            `json:"clients"`
-	AuthorizationCodes map[string]*models.AuthorizationCode `json:"authorization_codes"`
-	Tokens             map[string]*models.Token             `json:"tokens"`
-	Sessions           map[string]*models.Session           `json:"sessions"`
-	AuthSessions       map[string]*models.AuthSession       `json:"auth_sessions"`
-	UserSessions       map[string]*models.UserSession       `json:"user_sessions"`
-	Consents           map[string]*models.Consent           `json:"consents"` // Key: userID:clientID
+	Users               map[string]*JSONUser                  `json:"users"`
+	Clients             map[string]*models.Client             `json:"clients"`
+	AuthorizationCodes  map[string]*models.AuthorizationCode  `json:"authorization_codes"`
+	Tokens              map[string]*models.Token              `json:"tokens"`
+	Sessions            map[string]*models.Session            `json:"sessions"`
+	AuthSessions        map[string]*models.AuthSession        `json:"auth_sessions"`
+	UserSessions        map[string]*models.UserSession        `json:"user_sessions"`
+	Consents            map[string]*models.Consent            `json:"consents"`              // Key: userID:clientID
+	InitialAccessTokens map[string]*models.InitialAccessToken `json:"initial_access_tokens"` // Key: token
 }
 
 // NewJSONStorage creates a new JSON file storage
@@ -40,14 +41,15 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 	storage := &JSONStorage{
 		filePath: filePath,
 		data: &JSONData{
-			Users:              make(map[string]*JSONUser),
-			Clients:            make(map[string]*models.Client),
-			AuthorizationCodes: make(map[string]*models.AuthorizationCode),
-			Tokens:             make(map[string]*models.Token),
-			Sessions:           make(map[string]*models.Session),
-			AuthSessions:       make(map[string]*models.AuthSession),
-			UserSessions:       make(map[string]*models.UserSession),
-			Consents:           make(map[string]*models.Consent),
+			Users:               make(map[string]*JSONUser),
+			Clients:             make(map[string]*models.Client),
+			AuthorizationCodes:  make(map[string]*models.AuthorizationCode),
+			Tokens:              make(map[string]*models.Token),
+			Sessions:            make(map[string]*models.Session),
+			AuthSessions:        make(map[string]*models.AuthSession),
+			UserSessions:        make(map[string]*models.UserSession),
+			Consents:            make(map[string]*models.Consent),
+			InitialAccessTokens: make(map[string]*models.InitialAccessToken),
 		},
 	}
 
@@ -645,4 +647,54 @@ func (j *JSONStorage) DeleteConsentsForUser(userID string) error {
 		return j.save()
 	}
 	return nil
+}
+
+// ============================================================================
+// Initial Access Token Operations
+// ============================================================================
+
+func (j *JSONStorage) CreateInitialAccessToken(token *models.InitialAccessToken) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.data.InitialAccessTokens[token.Token] = token
+	return j.save()
+}
+
+func (j *JSONStorage) GetInitialAccessToken(token string) (*models.InitialAccessToken, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	t, exists := j.data.InitialAccessTokens[token]
+	if !exists {
+		return nil, nil
+	}
+	return t, nil
+}
+
+func (j *JSONStorage) UpdateInitialAccessToken(token *models.InitialAccessToken) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.data.InitialAccessTokens[token.Token] = token
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteInitialAccessToken(token string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	delete(j.data.InitialAccessTokens, token)
+	return j.save()
+}
+
+func (j *JSONStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessToken, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	tokens := make([]*models.InitialAccessToken, 0, len(j.data.InitialAccessTokens))
+	for _, token := range j.data.InitialAccessTokens {
+		tokens = append(tokens, token)
+	}
+	return tokens, nil
 }

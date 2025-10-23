@@ -66,6 +66,13 @@ type Storage interface {
 	DeleteConsent(userID, clientID string) error
 	DeleteConsentsForUser(userID string) error
 
+	// InitialAccessToken operations (for dynamic client registration)
+	CreateInitialAccessToken(token *models.InitialAccessToken) error
+	GetInitialAccessToken(token string) (*models.InitialAccessToken, error)
+	UpdateInitialAccessToken(token *models.InitialAccessToken) error
+	DeleteInitialAccessToken(token string) error
+	GetAllInitialAccessTokens() ([]*models.InitialAccessToken, error)
+
 	Close() error
 }
 

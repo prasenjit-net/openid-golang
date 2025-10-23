@@ -14,16 +14,17 @@ import (
 
 // MongoDBStorage implements Storage interface using MongoDB
 type MongoDBStorage struct {
-	client       *mongo.Client
-	db           *mongo.Database
-	users        *mongo.Collection
-	clients      *mongo.Collection
-	codes        *mongo.Collection
-	tokens       *mongo.Collection
-	sessions     *mongo.Collection
-	authSessions *mongo.Collection
-	userSessions *mongo.Collection
-	consents     *mongo.Collection
+	client              *mongo.Client
+	db                  *mongo.Database
+	users               *mongo.Collection
+	clients             *mongo.Collection
+	codes               *mongo.Collection
+	tokens              *mongo.Collection
+	sessions            *mongo.Collection
+	authSessions        *mongo.Collection
+	userSessions        *mongo.Collection
+	consents            *mongo.Collection
+	initialAccessTokens *mongo.Collection
 }
 
 // NewMongoDBStorage creates a new MongoDB storage
@@ -43,16 +44,17 @@ func NewMongoDBStorage(connectionString, database string) (*MongoDBStorage, erro
 
 	db := client.Database(database)
 	storage := &MongoDBStorage{
-		client:       client,
-		db:           db,
-		users:        db.Collection("users"),
-		clients:      db.Collection("clients"),
-		codes:        db.Collection("authorization_codes"),
-		tokens:       db.Collection("tokens"),
-		sessions:     db.Collection("sessions"),
-		authSessions: db.Collection("auth_sessions"),
-		userSessions: db.Collection("user_sessions"),
-		consents:     db.Collection("consents"),
+		client:              client,
+		db:                  db,
+		users:               db.Collection("users"),
+		clients:             db.Collection("clients"),
+		codes:               db.Collection("authorization_codes"),
+		tokens:              db.Collection("tokens"),
+		sessions:            db.Collection("sessions"),
+		authSessions:        db.Collection("auth_sessions"),
+		userSessions:        db.Collection("user_sessions"),
+		consents:            db.Collection("consents"),
+		initialAccessTokens: db.Collection("initial_access_tokens"),
 	}
 
 	// Create indexes
@@ -588,4 +590,64 @@ func (m *MongoDBStorage) DeleteConsentsForUser(userID string) error {
 
 	_, err := m.consents.DeleteMany(ctx, bson.M{"user_id": userID})
 	return err
+}
+
+// ============================================================================
+// Initial Access Token Operations
+// ============================================================================
+
+func (m *MongoDBStorage) CreateInitialAccessToken(token *models.InitialAccessToken) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.initialAccessTokens.InsertOne(ctx, token)
+	return err
+}
+
+func (m *MongoDBStorage) GetInitialAccessToken(token string) (*models.InitialAccessToken, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var t models.InitialAccessToken
+	err := m.initialAccessTokens.FindOne(ctx, bson.M{"_id": token}).Decode(&t)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (m *MongoDBStorage) UpdateInitialAccessToken(token *models.InitialAccessToken) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.initialAccessTokens.ReplaceOne(ctx, bson.M{"_id": token.Token}, token)
+	return err
+}
+
+func (m *MongoDBStorage) DeleteInitialAccessToken(token string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.initialAccessTokens.DeleteOne(ctx, bson.M{"_id": token})
+	return err
+}
+
+func (m *MongoDBStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessToken, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := m.initialAccessTokens.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var tokens []*models.InitialAccessToken
+	if err = cursor.All(ctx, &tokens); err != nil {
+		return nil, err
+	}
+	return tokens, nil
 }

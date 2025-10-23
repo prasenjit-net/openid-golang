@@ -88,7 +88,20 @@ func (m *MockStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token, e
 	return nil, nil
 }
 func (m *MockStorage) RevokeTokensByAuthCode(authCodeID string) error { return nil }
-func (m *MockStorage) Close() error                                   { return nil }
+func (m *MockStorage) CreateInitialAccessToken(token *models.InitialAccessToken) error {
+	return nil
+}
+func (m *MockStorage) GetInitialAccessToken(token string) (*models.InitialAccessToken, error) {
+	return nil, nil
+}
+func (m *MockStorage) UpdateInitialAccessToken(token *models.InitialAccessToken) error {
+	return nil
+}
+func (m *MockStorage) DeleteInitialAccessToken(token string) error { return nil }
+func (m *MockStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessToken, error) {
+	return nil, nil
+}
+func (m *MockStorage) Close() error { return nil }
 
 func TestUserInfo_Success(t *testing.T) {
 	// Setup

@@ -864,7 +864,7 @@ func TestUpdateClientConfiguration_Success(t *testing.T) {
 	assert.Equal(t, "https://app.example.com/logo.png", updateResponse.LogoURI)
 	assert.Equal(t, 2, len(updateResponse.RedirectURIs))
 	assert.Contains(t, updateResponse.RedirectURIs, "https://app.example.com/callback2")
-	
+
 	// Secret should be preserved
 	assert.Equal(t, regResponse.Secret, updateResponse.Secret)
 }

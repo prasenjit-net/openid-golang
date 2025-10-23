@@ -14,6 +14,15 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
+// Constants for client registration
+const (
+	applicationTypeWeb          = "web"
+	applicationTypeNative       = "native"
+	grantTypeAuthorizationCode  = "authorization_code"
+	grantTypeImplicit           = "implicit"
+	tokenEndpointAuthMethodNone = "none"
+)
+
 // Register handles dynamic client registration (POST /register)
 // Implements RFC 7591 (OAuth 2.0 Dynamic Client Registration Protocol)
 // and OpenID Connect Dynamic Client Registration 1.0
@@ -26,7 +35,53 @@ func (h *Handlers) Register(c echo.Context) error {
 		})
 	}
 
-	// 2. Parse registration request
+	// 2. Validate initial access token if required
+	if h.config.Registration.RequireInitialAccessToken {
+		token := extractBearerToken(c)
+		if token == "" {
+			return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+				Error:            "invalid_token",
+				ErrorDescription: "Initial access token required for registration",
+			})
+		}
+
+		// Validate and consume the initial access token
+		initialToken, err := h.storage.GetInitialAccessToken(token)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, models.ClientRegistrationError{
+				Error:            "server_error",
+				ErrorDescription: "Failed to validate initial access token",
+			})
+		}
+
+		if initialToken == nil || initialToken.Used {
+			return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+				Error:            "invalid_token",
+				ErrorDescription: "Invalid or already used initial access token",
+			})
+		}
+
+		// Check expiration
+		if time.Now().After(initialToken.ExpiresAt) {
+			return c.JSON(http.StatusUnauthorized, models.ClientRegistrationError{
+				Error:            "invalid_token",
+				ErrorDescription: "Initial access token has expired",
+			})
+		}
+
+		// Mark token as used (we'll update it after successful client creation)
+		defer func() {
+			now := time.Now()
+			initialToken.Used = true
+			initialToken.UsedAt = &now
+			// UsedBy will be set after client creation
+		}()
+
+		// Store the initial token for later update
+		c.Set("initial_access_token", initialToken)
+	}
+
+	// 3. Parse registration request
 	var req models.ClientRegistrationRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, models.ClientRegistrationError{
@@ -35,7 +90,7 @@ func (h *Handlers) Register(c echo.Context) error {
 		})
 	}
 
-	// 3. Validate the registration request
+	// 4. Validate the registration request
 	if err := h.validateRegistrationRequest(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, *err)
 	}
@@ -57,7 +112,16 @@ func (h *Handlers) Register(c echo.Context) error {
 		})
 	}
 
-	// 6. Build and return the registration response
+	// 6. Mark initial access token as used (if applicable)
+	if initialToken, ok := c.Get("initial_access_token").(*models.InitialAccessToken); ok {
+		initialToken.UsedBy = client.ID
+		if err := h.storage.UpdateInitialAccessToken(initialToken); err != nil {
+			// Log error but don't fail the registration
+			// The client was already created successfully
+		}
+	}
+
+	// 7. Build and return the registration response
 	response := h.buildRegistrationResponse(client)
 	return c.JSON(http.StatusCreated, response)
 }
@@ -83,7 +147,7 @@ func (h *Handlers) validateRegistrationRequest(req *models.ClientRegistrationReq
 	}
 
 	// Validate application_type if provided
-	if req.ApplicationType != "" && req.ApplicationType != "web" && req.ApplicationType != "native" {
+	if req.ApplicationType != "" && req.ApplicationType != applicationTypeWeb && req.ApplicationType != applicationTypeNative {
 		return &models.ClientRegistrationError{
 			Error:            models.ErrInvalidClientMetadata,
 			ErrorDescription: "application_type must be 'web' or 'native'",
@@ -159,7 +223,7 @@ func validateRedirectURI(uri string, applicationType string) string {
 	}
 
 	// For web applications (default), must be HTTPS unless localhost
-	if applicationType == "" || applicationType == "web" {
+	if applicationType == "" || applicationType == applicationTypeWeb {
 		if parsedURI.Scheme != "https" {
 			// Allow localhost for development
 			if !isLocalhost(parsedURI.Host) {
@@ -216,12 +280,12 @@ func (h *Handlers) validateGrantTypesAndResponseTypes(req *models.ClientRegistra
 
 	// Validate response_types values
 	validResponseTypes := map[string]bool{
-		"code":            true,
-		"token":           true,
-		"id_token":        true,
-		"code token":      true,
-		"code id_token":   true,
-		"id_token token":  true,
+		"code":                true,
+		"token":               true,
+		"id_token":            true,
+		"code token":          true,
+		"code id_token":       true,
+		"id_token token":      true,
 		"code id_token token": true,
 	}
 
@@ -245,7 +309,7 @@ func (h *Handlers) validateGrantTypesAndResponseTypes(req *models.ClientRegistra
 
 	hasAuthCodeGrant := false
 	for _, gt := range grantTypes {
-		if gt == "authorization_code" {
+		if gt == grantTypeAuthorizationCode {
 			hasAuthCodeGrant = true
 			break
 		}
@@ -292,11 +356,11 @@ func (h *Handlers) validateTokenEndpointAuthMethod(req *models.ClientRegistratio
 	}
 
 	validMethods := map[string]bool{
-		"none":                 true, // Public clients
-		"client_secret_post":   true, // Client secret in POST body
-		"client_secret_basic":  true, // Client secret in Basic auth header
-		"client_secret_jwt":    true, // JWT signed with client secret
-		"private_key_jwt":      true, // JWT signed with private key
+		"none":                true, // Public clients
+		"client_secret_post":  true, // Client secret in POST body
+		"client_secret_basic": true, // Client secret in Basic auth header
+		"client_secret_jwt":   true, // JWT signed with client secret
+		"private_key_jwt":     true, // JWT signed with private key
 	}
 
 	if !validMethods[req.TokenEndpointAuthMethod] {
@@ -307,11 +371,11 @@ func (h *Handlers) validateTokenEndpointAuthMethod(req *models.ClientRegistratio
 	}
 
 	// If using "none", client must be using implicit or have no client_secret
-	if req.TokenEndpointAuthMethod == "none" {
+	if req.TokenEndpointAuthMethod == tokenEndpointAuthMethodNone {
 		// Check if all grant types are implicit or don't require token endpoint
 		hasTokenEndpointGrant := false
 		for _, gt := range req.GrantTypes {
-			if gt == "authorization_code" || gt == "refresh_token" || gt == "client_credentials" || gt == "password" {
+			if gt == grantTypeAuthorizationCode || gt == "refresh_token" || gt == "client_credentials" || gt == "password" {
 				hasTokenEndpointGrant = true
 				break
 			}
@@ -518,7 +582,7 @@ func (h *Handlers) createClientFromRequest(req *models.ClientRegistrationRequest
 // isConfidentialClient determines if a client should be confidential (have a secret)
 func (h *Handlers) isConfidentialClient(req *models.ClientRegistrationRequest) bool {
 	// Public clients use implicit grant only or have token_endpoint_auth_method = "none"
-	if req.TokenEndpointAuthMethod == "none" {
+	if req.TokenEndpointAuthMethod == tokenEndpointAuthMethodNone {
 		return false
 	}
 
@@ -528,7 +592,7 @@ func (h *Handlers) isConfidentialClient(req *models.ClientRegistrationRequest) b
 	}
 
 	for _, gt := range req.GrantTypes {
-		if gt != "implicit" {
+		if gt != grantTypeImplicit {
 			return true // Any non-implicit grant needs a secret
 		}
 	}
@@ -693,7 +757,7 @@ func (h *Handlers) UpdateClientConfiguration(c echo.Context) error {
 			ErrorDescription: err.Error(),
 		})
 	}
-	
+
 	// Preserve immutable fields from existing client
 	updatedClient.ID = existingClient.ID
 	updatedClient.Secret = existingClient.Secret
