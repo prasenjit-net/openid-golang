@@ -643,7 +643,9 @@ func (m *MongoDBStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessTok
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		_ = cursor.Close(ctx)
+	}()
 
 	var tokens []*models.InitialAccessToken
 	if err = cursor.All(ctx, &tokens); err != nil {

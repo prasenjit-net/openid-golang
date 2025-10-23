@@ -16,6 +16,10 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
 )
 
+const (
+	testRedirectURIJSON = `{"redirect_uris": ["https://app.example.com/callback"]}`
+)
+
 func TestRegister_Success(t *testing.T) {
 	// Setup
 	tmpFile := t.TempDir() + "/test_register.json"
@@ -585,7 +589,7 @@ func TestGetClientConfiguration_Success(t *testing.T) {
 	}
 
 	// First, register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -724,7 +728,7 @@ func TestGetClientConfiguration_InvalidToken(t *testing.T) {
 	}
 
 	// First, register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -891,7 +895,7 @@ func TestUpdateClientConfiguration_InvalidToken(t *testing.T) {
 	}
 
 	// Register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -947,7 +951,7 @@ func TestUpdateClientConfiguration_ValidationError(t *testing.T) {
 	}
 
 	// Register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1008,7 +1012,7 @@ func TestDeleteClientConfiguration_Success(t *testing.T) {
 	}
 
 	// First, register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -1062,7 +1066,7 @@ func TestDeleteClientConfiguration_InvalidToken(t *testing.T) {
 	}
 
 	// Register a client
-	reqBody := `{"redirect_uris": ["https://app.example.com/callback"]}`
+	reqBody := testRedirectURIJSON
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()

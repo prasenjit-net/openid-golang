@@ -115,10 +115,8 @@ func (h *Handlers) Register(c echo.Context) error {
 	// 6. Mark initial access token as used (if applicable)
 	if initialToken, ok := c.Get("initial_access_token").(*models.InitialAccessToken); ok {
 		initialToken.UsedBy = client.ID
-		if err := h.storage.UpdateInitialAccessToken(initialToken); err != nil {
-			// Log error but don't fail the registration
-			// The client was already created successfully
-		}
+		_ = h.storage.UpdateInitialAccessToken(initialToken)
+		// Ignore error - client was already created successfully
 	}
 
 	// 7. Build and return the registration response
