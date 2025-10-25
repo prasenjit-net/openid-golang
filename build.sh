@@ -16,9 +16,9 @@ npm run build
 cd ..
 
 echo "==> Copying UI to embed location..."
-mkdir -p backend/pkg/ui
-rm -rf backend/pkg/ui/uidist
-cp -r frontend/dist backend/pkg/ui/uidist
+mkdir -p backend/pkg/ui/uidist
+rm -rf backend/pkg/ui/uidist/*
+cp -r frontend/dist/* backend/pkg/ui/uidist/
 
 echo "==> Building Go backend server..."
 cd backend
