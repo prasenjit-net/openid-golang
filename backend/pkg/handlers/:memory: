@@ -1,0 +1,57 @@
+{
+  "users": {},
+  "clients": {
+    "other-client": {
+      "client_id": "other-client",
+      "client_secret": "other-secret",
+      "client_secret_expires_at": 0,
+      "redirect_uris": [
+        "https://example.com/callback"
+      ],
+      "grant_types": [
+        "authorization_code"
+      ],
+      "response_types": [
+        "code"
+      ],
+      "name": "Other Client"
+    },
+    "test-client": {
+      "client_id": "test-client",
+      "client_secret": "test-secret",
+      "client_secret_expires_at": 0,
+      "redirect_uris": [
+        "https://example.com/callback"
+      ],
+      "grant_types": [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials"
+      ],
+      "response_types": [
+        "code"
+      ],
+      "name": "Test Client"
+    }
+  },
+  "authorization_codes": {},
+  "tokens": {
+    "test-token-id": {
+      "id": "test-token-id",
+      "access_token": "test-access-token",
+      "refresh_token": "test-refresh-token",
+      "token_type": "Bearer",
+      "client_id": "test-client",
+      "user_id": "test-user",
+      "scope": "openid profile",
+      "authorization_code_id": "test-auth-code",
+      "expires_at": "2025-10-25T02:07:06.568827-07:00",
+      "created_at": "2025-10-25T01:07:06.568827-07:00"
+    }
+  },
+  "sessions": {},
+  "auth_sessions": {},
+  "user_sessions": {},
+  "consents": {},
+  "initial_access_tokens": {}
+}

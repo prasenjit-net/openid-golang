@@ -255,6 +255,8 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	// OAuth/OpenID endpoints
 	e.GET("/authorize", h.Authorize)
 	e.POST("/token", h.Token)
+	e.POST("/revoke", h.Revoke)
+	e.POST("/introspect", h.Introspect)
 	e.GET("/userinfo", h.UserInfo)
 	e.POST("/userinfo", h.UserInfo)
 

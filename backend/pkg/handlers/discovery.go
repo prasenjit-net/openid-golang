@@ -17,8 +17,10 @@ type DiscoveryResponse struct {
 	JWKSUri               string `json:"jwks_uri"`
 
 	// RECOMMENDED - Additional endpoints
-	UserInfoEndpoint     string `json:"userinfo_endpoint,omitempty"`
-	RegistrationEndpoint string `json:"registration_endpoint,omitempty"`
+	UserInfoEndpoint      string `json:"userinfo_endpoint,omitempty"`
+	RegistrationEndpoint  string `json:"registration_endpoint,omitempty"`
+	RevocationEndpoint    string `json:"revocation_endpoint,omitempty"`    // RFC 7009
+	IntrospectionEndpoint string `json:"introspection_endpoint,omitempty"` // RFC 7662
 
 	// OPTIONAL - Documentation and policies
 	ServiceDocumentation string `json:"service_documentation,omitempty"`
@@ -31,12 +33,14 @@ type DiscoveryResponse struct {
 	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
 
 	// RECOMMENDED - Additional capabilities
-	ScopesSupported                   []string `json:"scopes_supported,omitempty"`
-	ResponseModesSupported            []string `json:"response_modes_supported,omitempty"`
-	GrantTypesSupported               []string `json:"grant_types_supported,omitempty"`
-	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported,omitempty"`
-	ClaimsSupported                   []string `json:"claims_supported,omitempty"`
-	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported,omitempty"`
+	ScopesSupported                           []string `json:"scopes_supported,omitempty"`
+	ResponseModesSupported                    []string `json:"response_modes_supported,omitempty"`
+	GrantTypesSupported                       []string `json:"grant_types_supported,omitempty"`
+	TokenEndpointAuthMethodsSupported         []string `json:"token_endpoint_auth_methods_supported,omitempty"`
+	RevocationEndpointAuthMethodsSupported    []string `json:"revocation_endpoint_auth_methods_supported,omitempty"`    // RFC 7009
+	IntrospectionEndpointAuthMethodsSupported []string `json:"introspection_endpoint_auth_methods_supported,omitempty"` // RFC 7662
+	ClaimsSupported                           []string `json:"claims_supported,omitempty"`
+	CodeChallengeMethodsSupported             []string `json:"code_challenge_methods_supported,omitempty"`
 
 	// OPTIONAL - Localization support
 	UILocalesSupported     []string `json:"ui_locales_supported,omitempty"`
@@ -61,7 +65,9 @@ func (h *Handlers) Discovery(c echo.Context) error {
 		JWKSUri:               baseURL + "/.well-known/jwks.json",
 
 		// RECOMMENDED - Additional endpoints
-		UserInfoEndpoint: baseURL + "/userinfo",
+		UserInfoEndpoint:      baseURL + "/userinfo",
+		RevocationEndpoint:    baseURL + "/revoke",
+		IntrospectionEndpoint: baseURL + "/introspect",
 
 		// REQUIRED - Supported features
 		ResponseTypesSupported: []string{
@@ -89,8 +95,18 @@ func (h *Handlers) Discovery(c echo.Context) error {
 		GrantTypesSupported: []string{
 			"authorization_code",
 			"refresh_token",
+			"client_credentials",
+			"password",
 		},
 		TokenEndpointAuthMethodsSupported: []string{
+			"client_secret_basic",
+			"client_secret_post",
+		},
+		RevocationEndpointAuthMethodsSupported: []string{
+			"client_secret_basic",
+			"client_secret_post",
+		},
+		IntrospectionEndpointAuthMethodsSupported: []string{
 			"client_secret_basic",
 			"client_secret_post",
 		},

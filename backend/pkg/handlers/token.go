@@ -12,6 +12,22 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
+const (
+	// GrantTypeAuthorizationCode is the authorization code grant type
+	GrantTypeAuthorizationCode = "authorization_code"
+	// GrantTypeRefreshToken is the refresh token grant type
+	GrantTypeRefreshToken = "refresh_token"
+	// GrantTypeClientCredentials is the client credentials grant type
+	GrantTypeClientCredentials = "client_credentials"
+	// GrantTypePassword is the resource owner password credentials grant type
+	GrantTypePassword = "password"
+
+	// TokenTypeHintAccessToken is the access token type hint
+	TokenTypeHintAccessToken = "access_token"
+	// TokenTypeHintRefreshToken is the refresh token type hint
+	TokenTypeHintRefreshToken = "refresh_token"
+)
+
 // TokenRequest represents a token request
 type TokenRequest struct {
 	GrantType    string
@@ -21,6 +37,9 @@ type TokenRequest struct {
 	ClientSecret string
 	CodeVerifier string
 	RefreshToken string
+	Scope        string // For client_credentials and password grants
+	Username     string // For password grant
+	Password     string // For password grant
 }
 
 // TokenResponse represents a token response
@@ -30,6 +49,7 @@ type TokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	IDToken      string `json:"id_token,omitempty"`
+	Scope        string `json:"scope,omitempty"` // For client_credentials grant
 }
 
 // Token handles the token endpoint (POST /token)
@@ -42,6 +62,9 @@ func (h *Handlers) Token(c echo.Context) error {
 		ClientSecret: c.FormValue("client_secret"),
 		CodeVerifier: c.FormValue("code_verifier"),
 		RefreshToken: c.FormValue("refresh_token"),
+		Scope:        c.FormValue("scope"),
+		Username:     c.FormValue("username"),
+		Password:     c.FormValue("password"),
 	}
 
 	// Try to get client credentials from Authorization header
@@ -60,10 +83,14 @@ func (h *Handlers) Token(c echo.Context) error {
 	}
 
 	switch req.GrantType {
-	case "authorization_code":
+	case GrantTypeAuthorizationCode:
 		return h.handleAuthorizationCodeGrant(c, req, client)
-	case "refresh_token":
+	case GrantTypeRefreshToken:
 		return h.handleRefreshTokenGrant(c, req, client)
+	case GrantTypeClientCredentials:
+		return h.handleClientCredentialsGrant(c, req, client)
+	case GrantTypePassword:
+		return h.handlePasswordGrant(c, req, client)
 	default:
 		return jsonError(c, http.StatusBadRequest, ErrorUnsupportedGrantType, "Grant type not supported")
 	}
@@ -267,4 +294,150 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 		return
 	}
 	return cs[:s], cs[s+1:], true
+}
+
+// handleClientCredentialsGrant implements OAuth 2.0 Client Credentials Grant (RFC 6749 §4.4)
+// This grant type is used for machine-to-machine (M2M) authentication where the client is the resource owner
+func (h *Handlers) handleClientCredentialsGrant(c echo.Context, req *TokenRequest, client *models.Client) error {
+	// 1. Validate client is authorized for this grant type
+	if !client.HasGrantType("client_credentials") {
+		return jsonError(c, http.StatusBadRequest, ErrorUnauthorizedClient,
+			"Client not authorized for client_credentials grant")
+	}
+
+	// 2. Determine scope (use requested scope or default to client's scope)
+	requestedScope := req.Scope
+	if requestedScope == "" {
+		requestedScope = client.Scope
+	}
+
+	// 3. Validate requested scope is subset of client's allowed scopes
+	if !h.validateScope(requestedScope, client.Scope) {
+		return jsonError(c, http.StatusBadRequest, ErrorInvalidScope,
+			"Requested scope exceeds client allowed scope")
+	}
+
+	// 4. Generate access token (NO user - client is the resource owner)
+	token := models.NewToken(client.ID, "", requestedScope, h.config.JWT.ExpiryMinutes)
+	if err := h.storage.CreateToken(token); err != nil {
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError,
+			"Failed to create token")
+	}
+
+	// 5. Return token response
+	// Note: No refresh token per RFC 6749 §4.4.3
+	// Note: No ID token (this is not an OpenID Connect flow)
+	response := TokenResponse{
+		AccessToken: token.AccessToken,
+		TokenType:   "Bearer",
+		ExpiresIn:   h.config.JWT.ExpiryMinutes * 60,
+		Scope:       token.Scope,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// validateScope checks if requested scope is a subset of allowed scope
+func (h *Handlers) validateScope(requested, allowed string) bool {
+	if requested == "" {
+		return true
+	}
+
+	requestedScopes := strings.Split(requested, " ")
+	allowedScopes := strings.Split(allowed, " ")
+
+	// Create map of allowed scopes for quick lookup
+	allowedMap := make(map[string]bool)
+	for _, scope := range allowedScopes {
+		if scope != "" {
+			allowedMap[scope] = true
+		}
+	}
+
+	// Check each requested scope is in allowed scopes
+	for _, scope := range requestedScopes {
+		if scope != "" && !allowedMap[scope] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// handlePasswordGrant implements RFC 6749 §4.3 Resource Owner Password Credentials Grant
+// WARNING: This grant type is deprecated in OAuth 2.1 and should only be used when
+// other more secure flows are not viable (e.g., legacy applications)
+func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client *models.Client) error {
+	// RFC 6749 §4.3.2: Validate that client is authorized for this grant type
+	hasPasswordGrant := false
+	for _, gt := range client.GrantTypes {
+		if gt == GrantTypePassword {
+			hasPasswordGrant = true
+			break
+		}
+	}
+	if !hasPasswordGrant {
+		return jsonError(c, http.StatusUnauthorized, ErrorUnauthorizedClient,
+			"Client not authorized for password grant")
+	}
+
+	// RFC 6749 §4.3.2: username and password are REQUIRED
+	if req.Username == "" || req.Password == "" {
+		return jsonError(c, http.StatusBadRequest, ErrorInvalidRequest,
+			"username and password parameters are required")
+	}
+
+	// Authenticate the user
+	user, err := h.storage.GetUserByUsername(req.Username)
+	if err != nil || user == nil {
+		return jsonError(c, http.StatusUnauthorized, ErrorInvalidGrant,
+			"Invalid username or password")
+	}
+
+	// Verify password
+	if !crypto.ValidatePassword(req.Password, user.PasswordHash) {
+		return jsonError(c, http.StatusUnauthorized, ErrorInvalidGrant,
+			"Invalid username or password")
+	}
+
+	// Determine scope
+	// If scope is requested, validate it against client's allowed scope
+	scope := req.Scope
+	if scope == "" {
+		// Default to client's scope if none specified
+		scope = client.Scope
+	} else {
+		// Validate requested scope is subset of client's allowed scope
+		if !h.validateScope(scope, client.Scope) {
+			return jsonError(c, http.StatusBadRequest, ErrorInvalidScope,
+				"Requested scope exceeds client's allowed scope")
+		}
+	}
+
+	// Generate tokens
+	token := models.NewToken(client.ID, user.ID, scope, h.config.JWT.ExpiryMinutes)
+
+	err = h.storage.CreateToken(token)
+	if err != nil {
+		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to save token")
+	}
+
+	// Generate ID token if openid scope is requested
+	var idToken string
+	if strings.Contains(scope, "openid") {
+		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, "")
+		if err != nil {
+			return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
+		}
+	}
+
+	// Return token response
+	return c.JSON(http.StatusOK, TokenResponse{
+		AccessToken:  token.AccessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    h.config.JWT.ExpiryMinutes * 60,
+		RefreshToken: token.RefreshToken,
+		IDToken:      idToken,
+		Scope:        scope,
+	})
 }
