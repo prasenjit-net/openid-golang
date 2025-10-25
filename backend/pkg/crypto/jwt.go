@@ -20,6 +20,7 @@ type JWTManager struct {
 	publicKey  *rsa.PublicKey
 	issuer     string
 	expiry     time.Duration
+	keyID      string // Key ID for JWT header
 }
 
 // NewJWTManager creates a new JWT manager
@@ -39,6 +40,7 @@ func NewJWTManager(privateKeyPath, publicKeyPath, issuer string, expiryMinutes i
 		publicKey:  publicKey,
 		issuer:     issuer,
 		expiry:     time.Duration(expiryMinutes) * time.Minute,
+		keyID:      "default", // Use "default" to match JWKS endpoint
 	}, nil
 }
 
@@ -59,6 +61,7 @@ func NewJWTManagerFromPEM(privateKeyPEM, publicKeyPEM, issuer string, expiryMinu
 		publicKey:  publicKey,
 		issuer:     issuer,
 		expiry:     time.Duration(expiryMinutes) * time.Minute,
+		keyID:      "default", // Use "default" to match JWKS endpoint
 	}, nil
 }
 
@@ -74,6 +77,7 @@ func NewJWTManagerForTesting(issuer string, expiryMinutes int) (*JWTManager, err
 		publicKey:  &privateKey.PublicKey,
 		issuer:     issuer,
 		expiry:     time.Duration(expiryMinutes) * time.Minute,
+		keyID:      "default", // Use "default" to match JWKS endpoint
 	}, nil
 }
 
@@ -113,6 +117,7 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = jm.keyID // Add key ID to header
 	return token.SignedString(jm.privateKey)
 }
 
@@ -152,6 +157,7 @@ func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, non
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = jm.keyID // Add key ID to header
 	return token.SignedString(jm.privateKey)
 }
 
