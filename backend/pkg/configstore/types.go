@@ -104,7 +104,7 @@ func DefaultConfig() *ConfigData {
 			JSONFilePath: "data/openid.json",
 		},
 		Registration: RegistrationConfig{
-			Enabled:  false,
+			Enabled:  true, // Enable dynamic client registration by default
 			Endpoint: "/register",
 		},
 	}
