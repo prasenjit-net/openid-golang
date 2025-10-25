@@ -478,7 +478,17 @@ func TestRegister_InvalidJWKS(t *testing.T) {
 	// Invalid: both jwks and jwks_uri
 	reqBody := `{
 		"redirect_uris": ["https://app.example.com/callback"],
-		"jwks": "{}",
+		"jwks": {
+			"keys": [
+				{
+					"kty": "RSA",
+					"use": "sig",
+					"kid": "test-key",
+					"n": "test-n",
+					"e": "AQAB"
+				}
+			]
+		},
 		"jwks_uri": "https://app.example.com/jwks"
 	}`
 

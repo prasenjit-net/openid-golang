@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
@@ -176,20 +175,34 @@ func (h *Handlers) validateRegistrationRequest(req *models.ClientRegistrationReq
 	}
 
 	// Validate JWKS - can't have both jwks and jwks_uri
-	if req.JWKS != "" && req.JWKSURI != "" {
+	if req.JWKS != nil && req.JWKSURI != "" {
 		return &models.ClientRegistrationError{
 			Error:            models.ErrInvalidClientMetadata,
 			ErrorDescription: "Cannot specify both jwks and jwks_uri",
 		}
 	}
 
-	// Validate JWKS is valid JSON if provided
-	if req.JWKS != "" {
-		var jwks map[string]interface{}
-		if err := json.Unmarshal([]byte(req.JWKS), &jwks); err != nil {
+	// Validate JWKS structure if provided
+	if req.JWKS != nil {
+		// Validate that it has a "keys" array
+		if keys, ok := req.JWKS["keys"]; ok {
+			if keysArray, ok := keys.([]interface{}); ok {
+				if len(keysArray) == 0 {
+					return &models.ClientRegistrationError{
+						Error:            models.ErrInvalidClientMetadata,
+						ErrorDescription: "jwks must contain at least one key",
+					}
+				}
+			} else {
+				return &models.ClientRegistrationError{
+					Error:            models.ErrInvalidClientMetadata,
+					ErrorDescription: "jwks.keys must be an array",
+				}
+			}
+		} else {
 			return &models.ClientRegistrationError{
 				Error:            models.ErrInvalidClientMetadata,
-				ErrorDescription: "jwks must be valid JSON",
+				ErrorDescription: "jwks must contain a 'keys' property",
 			}
 		}
 	}

@@ -76,9 +76,9 @@ type Client struct {
 	TosURILocalized    map[string]string `json:"-" bson:"tos_uri_localized,omitempty"`
 
 	// JWK/Signing fields
-	JWKSURI             string `json:"jwks_uri,omitempty" bson:"jwks_uri,omitempty"`
-	JWKS                string `json:"jwks,omitempty" bson:"jwks,omitempty"` // JWK Set as JSON string
-	SectorIdentifierURI string `json:"sector_identifier_uri,omitempty" bson:"sector_identifier_uri,omitempty"`
+	JWKSURI             string                 `json:"jwks_uri,omitempty" bson:"jwks_uri,omitempty"`
+	JWKS                map[string]interface{} `json:"jwks,omitempty" bson:"jwks,omitempty"` // JWK Set as JSON object
+	SectorIdentifierURI string                 `json:"sector_identifier_uri,omitempty" bson:"sector_identifier_uri,omitempty"`
 	SubjectType         string `json:"subject_type,omitempty" bson:"subject_type,omitempty"` // "public" or "pairwise"
 
 	// ID Token signing/encryption preferences
@@ -440,10 +440,10 @@ type ClientRegistrationRequest struct {
 	Scope                   string   `json:"scope,omitempty"`
 	Contacts                []string `json:"contacts,omitempty"`
 	TosURI                  string   `json:"tos_uri,omitempty"`
-	PolicyURI               string   `json:"policy_uri,omitempty"`
-	JWKSURI                 string   `json:"jwks_uri,omitempty"`
-	JWKS                    string   `json:"jwks,omitempty"` // JSON string
-	SoftwareID              string   `json:"software_id,omitempty"`
+	PolicyURI               string                 `json:"policy_uri,omitempty"`
+	JWKSURI                 string                 `json:"jwks_uri,omitempty"`
+	JWKS                    map[string]interface{} `json:"jwks,omitempty"` // JWK Set as JSON object
+	SoftwareID              string                 `json:"software_id,omitempty"`
 	SoftwareVersion         string   `json:"software_version,omitempty"`
 	SoftwareStatement       string   `json:"software_statement,omitempty"` // JWT
 
