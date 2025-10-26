@@ -198,7 +198,6 @@ func (jm *JWTManager) applyScopes(claims *IDTokenClaims, user *models.User, scop
 	}
 }
 
-
 // ValidateToken validates a JWT token and returns the claims
 func (jm *JWTManager) ValidateToken(tokenString string) (*IDTokenClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &IDTokenClaims{}, func(token *jwt.Token) (interface{}, error) {

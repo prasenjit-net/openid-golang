@@ -33,19 +33,19 @@ type Address struct {
 
 // User represents a user in the system
 type User struct {
-	ID           string    `json:"id"`
-	Username     string    `json:"username"`
-	Email        string    `json:"email"`
-	EmailVerified bool     `json:"email_verified,omitempty"` // Email verification status
-	PasswordHash string    `json:"-"`
-	Role         UserRole  `json:"role"`
-	Name         string    `json:"name"`
-	GivenName    string    `json:"given_name,omitempty"`
-	FamilyName   string    `json:"family_name,omitempty"`
-	Picture      string    `json:"picture,omitempty"`
-	Address      *Address  `json:"address,omitempty"` // Physical mailing address
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            string    `json:"id"`
+	Username      string    `json:"username"`
+	Email         string    `json:"email"`
+	EmailVerified bool      `json:"email_verified,omitempty"` // Email verification status
+	PasswordHash  string    `json:"-"`
+	Role          UserRole  `json:"role"`
+	Name          string    `json:"name"`
+	GivenName     string    `json:"given_name,omitempty"`
+	FamilyName    string    `json:"family_name,omitempty"`
+	Picture       string    `json:"picture,omitempty"`
+	Address       *Address  `json:"address,omitempty"` // Physical mailing address
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // IsAdmin returns true if the user has admin role
@@ -91,7 +91,7 @@ type Client struct {
 	JWKSURI             string                 `json:"jwks_uri,omitempty" bson:"jwks_uri,omitempty"`
 	JWKS                map[string]interface{} `json:"jwks,omitempty" bson:"jwks,omitempty"` // JWK Set as JSON object
 	SectorIdentifierURI string                 `json:"sector_identifier_uri,omitempty" bson:"sector_identifier_uri,omitempty"`
-	SubjectType         string `json:"subject_type,omitempty" bson:"subject_type,omitempty"` // "public" or "pairwise"
+	SubjectType         string                 `json:"subject_type,omitempty" bson:"subject_type,omitempty"` // "public" or "pairwise"
 
 	// ID Token signing/encryption preferences
 	IDTokenSignedResponseAlg    string `json:"id_token_signed_response_alg,omitempty" bson:"id_token_signed_response_alg,omitempty"`
@@ -443,21 +443,21 @@ type ClientRegistrationRequest struct {
 	RedirectURIs []string `json:"redirect_uris" validate:"required,min=1"`
 
 	// OPTIONAL OAuth 2.0 fields
-	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
-	GrantTypes              []string `json:"grant_types,omitempty"`
-	ResponseTypes           []string `json:"response_types,omitempty"`
-	ClientName              string   `json:"client_name,omitempty"`
-	ClientURI               string   `json:"client_uri,omitempty"`
-	LogoURI                 string   `json:"logo_uri,omitempty"`
-	Scope                   string   `json:"scope,omitempty"`
-	Contacts                []string `json:"contacts,omitempty"`
-	TosURI                  string   `json:"tos_uri,omitempty"`
+	TokenEndpointAuthMethod string                 `json:"token_endpoint_auth_method,omitempty"`
+	GrantTypes              []string               `json:"grant_types,omitempty"`
+	ResponseTypes           []string               `json:"response_types,omitempty"`
+	ClientName              string                 `json:"client_name,omitempty"`
+	ClientURI               string                 `json:"client_uri,omitempty"`
+	LogoURI                 string                 `json:"logo_uri,omitempty"`
+	Scope                   string                 `json:"scope,omitempty"`
+	Contacts                []string               `json:"contacts,omitempty"`
+	TosURI                  string                 `json:"tos_uri,omitempty"`
 	PolicyURI               string                 `json:"policy_uri,omitempty"`
 	JWKSURI                 string                 `json:"jwks_uri,omitempty"`
 	JWKS                    map[string]interface{} `json:"jwks,omitempty"` // JWK Set as JSON object
 	SoftwareID              string                 `json:"software_id,omitempty"`
-	SoftwareVersion         string   `json:"software_version,omitempty"`
-	SoftwareStatement       string   `json:"software_statement,omitempty"` // JWT
+	SoftwareVersion         string                 `json:"software_version,omitempty"`
+	SoftwareStatement       string                 `json:"software_statement,omitempty"` // JWT
 
 	// OPTIONAL OIDC-specific fields
 	ApplicationType              string   `json:"application_type,omitempty"`
