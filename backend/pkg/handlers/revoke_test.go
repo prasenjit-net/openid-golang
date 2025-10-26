@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,9 +21,17 @@ import (
 )
 
 func setupRevokeTest(t *testing.T) (*Handlers, storage.Storage, *models.Client, *models.Token) {
+	// Create temporary file for test storage
+	tmpFile := filepath.Join(t.TempDir(), "test-storage.json")
+	
 	// Create storage
-	store, err := storage.NewJSONStorage(":memory:")
+	store, err := storage.NewJSONStorage(tmpFile)
 	require.NoError(t, err)
+	
+	// Clean up after test
+	t.Cleanup(func() {
+		os.Remove(tmpFile)
+	})
 
 	// Create config
 	cfg := &configstore.ConfigData{
