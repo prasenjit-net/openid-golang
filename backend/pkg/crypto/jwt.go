@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -84,21 +85,24 @@ func NewJWTManagerForTesting(issuer string, expiryMinutes int) (*JWTManager, err
 // IDTokenClaims represents OpenID Connect ID Token claims
 type IDTokenClaims struct {
 	jwt.RegisteredClaims
-	Name       string   `json:"name,omitempty"`
-	GivenName  string   `json:"given_name,omitempty"`
-	FamilyName string   `json:"family_name,omitempty"`
-	Email      string   `json:"email,omitempty"`
-	Picture    string   `json:"picture,omitempty"`
-	Nonce      string   `json:"nonce,omitempty"`
-	AuthTime   *int64   `json:"auth_time,omitempty"`
-	ACR        string   `json:"acr,omitempty"`
-	AMR        []string `json:"amr,omitempty"`
-	AtHash     string   `json:"at_hash,omitempty"` // Access token hash for implicit/hybrid flows
-	CHash      string   `json:"c_hash,omitempty"`  // Authorization code hash for hybrid flows
+	Name          string          `json:"name,omitempty"`
+	GivenName     string          `json:"given_name,omitempty"`
+	FamilyName    string          `json:"family_name,omitempty"`
+	Email         string          `json:"email,omitempty"`
+	EmailVerified bool            `json:"email_verified,omitempty"`
+	Picture       string          `json:"picture,omitempty"`
+	Address       *models.Address `json:"address,omitempty"`
+	Nonce         string          `json:"nonce,omitempty"`
+	AuthTime      *int64          `json:"auth_time,omitempty"`
+	ACR           string          `json:"acr,omitempty"`
+	AMR           []string        `json:"amr,omitempty"`
+	AtHash        string          `json:"at_hash,omitempty"` // Access token hash for implicit/hybrid flows
+	CHash         string          `json:"c_hash,omitempty"`  // Authorization code hash for hybrid flows
 }
 
-// GenerateIDToken generates an OpenID Connect ID token
-func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string) (string, error) {
+// GenerateIDToken generates an OpenID Connect ID token with scope-based claims
+// Only includes claims for scopes requested (profile, email, address)
+func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce, scope string) (string, error) {
 	now := time.Now()
 	claims := IDTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -108,13 +112,11 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 			ExpiresAt: jwt.NewNumericDate(now.Add(jm.expiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
-		Name:       user.Name,
-		GivenName:  user.GivenName,
-		FamilyName: user.FamilyName,
-		Email:      user.Email,
-		Picture:    user.Picture,
-		Nonce:      nonce,
+		Nonce: nonce,
 	}
+
+	// Apply scope-based claim filtering
+	jm.applyScopes(&claims, user, scope)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = jm.keyID // Add key ID to header
@@ -123,7 +125,8 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce string)
 
 // GenerateIDTokenWithClaims generates an OpenID Connect ID token with additional OIDC claims
 // accessToken and authCode are optional - if provided, at_hash and c_hash will be included
-func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce string, authTime time.Time, acr string, amr []string, accessToken, authCode string) (string, error) {
+// Only includes claims for scopes requested (profile, email, address)
+func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce, scope string, authTime time.Time, acr string, amr []string, accessToken, authCode string) (string, error) {
 	now := time.Now()
 	authTimeUnix := authTime.Unix()
 
@@ -135,16 +138,14 @@ func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, non
 			ExpiresAt: jwt.NewNumericDate(now.Add(jm.expiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
-		Name:       user.Name,
-		GivenName:  user.GivenName,
-		FamilyName: user.FamilyName,
-		Email:      user.Email,
-		Picture:    user.Picture,
-		Nonce:      nonce,
-		AuthTime:   &authTimeUnix,
-		ACR:        acr,
-		AMR:        amr,
+		Nonce:    nonce,
+		AuthTime: &authTimeUnix,
+		ACR:      acr,
+		AMR:      amr,
 	}
+
+	// Apply scope-based claim filtering
+	jm.applyScopes(&claims, user, scope)
 
 	// Include at_hash if access token is provided (implicit/hybrid flows)
 	if accessToken != "" {
@@ -160,6 +161,43 @@ func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, non
 	token.Header["kid"] = jm.keyID // Add key ID to header
 	return token.SignedString(jm.privateKey)
 }
+
+// applyScopes filters claims based on requested scopes (OIDC Core 1.0 Section 5.4)
+func (jm *JWTManager) applyScopes(claims *IDTokenClaims, user *models.User, scopeString string) {
+	if scopeString == "" {
+		return
+	}
+
+	// Parse scopes into a map for quick lookup
+	scopeMap := make(map[string]bool)
+	scopes := strings.Split(scopeString, " ")
+	for _, scope := range scopes {
+		scopeMap[strings.TrimSpace(scope)] = true
+	}
+
+	// Profile scope: name, family_name, given_name, picture
+	// (OIDC Core 1.0 Section 5.4)
+	if scopeMap["profile"] {
+		claims.Name = user.Name
+		claims.GivenName = user.GivenName
+		claims.FamilyName = user.FamilyName
+		claims.Picture = user.Picture
+	}
+
+	// Email scope: email, email_verified
+	// (OIDC Core 1.0 Section 5.4)
+	if scopeMap["email"] {
+		claims.Email = user.Email
+		claims.EmailVerified = user.EmailVerified
+	}
+
+	// Address scope: address object
+	// (OIDC Core 1.0 Section 5.4)
+	if scopeMap["address"] && user.Address != nil {
+		claims.Address = user.Address
+	}
+}
+
 
 // ValidateToken validates a JWT token and returns the claims
 func (jm *JWTManager) ValidateToken(tokenString string) (*IDTokenClaims, error) {

@@ -351,6 +351,7 @@ func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.Aut
 			user,
 			authSession.ClientID,
 			authSession.Nonce,
+			authSession.Scope, // Pass scope for claim filtering
 			userSession.AuthTime,
 			userSession.ACR,
 			userSession.AMR,

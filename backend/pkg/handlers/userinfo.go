@@ -21,12 +21,12 @@ type UserInfoResponse struct {
 	Picture    string `json:"picture,omitempty"`
 	UpdatedAt  int64  `json:"updated_at,omitempty"` // Unix timestamp
 
-	// Email scope claims
+	// Email scope claims (OIDC Core 1.0 Section 5.4)
 	Email         string `json:"email,omitempty"`
 	EmailVerified bool   `json:"email_verified,omitempty"`
 
-	// TODO: Add address scope claims when User model is extended
-	// TODO: Add phone scope claims when User model is extended
+	// Address scope claims (OIDC Core 1.0 Section 5.4)
+	Address *models.Address `json:"address,omitempty"`
 }
 
 // UserInfo handles the UserInfo endpoint (GET/POST /userinfo)
@@ -114,19 +114,19 @@ func (h *Handlers) buildUserInfoResponse(user *models.User, scopeString string) 
 	}
 
 	// Email scope: email, email_verified
+	// (OIDC Core 1.0 Section 5.4)
 	if scopeMap["email"] {
 		if user.Email != "" {
 			response.Email = user.Email
-			// TODO: Implement proper email verification system
-			// For now, mark as verified since we don't have a verification system
-			response.EmailVerified = true
+			response.EmailVerified = user.EmailVerified
 		}
 	}
 
-	// TODO: Address scope - requires extending User model with address fields
-	// if scopeMap["address"] {
-	//     response.Address = user.Address
-	// }
+	// Address scope: address object
+	// (OIDC Core 1.0 Section 5.4)
+	if scopeMap["address"] && user.Address != nil {
+		response.Address = user.Address
+	}
 
 	// TODO: Phone scope - requires extending User model with phone fields
 	// if scopeMap["phone"] {

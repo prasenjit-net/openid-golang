@@ -21,17 +21,29 @@ const (
 	RoleAdmin UserRole = "admin"
 )
 
+// Address represents a user's physical mailing address (OIDC Core 1.0 Section 5.1.1)
+type Address struct {
+	Formatted     string `json:"formatted,omitempty"`      // Full mailing address, formatted for display
+	StreetAddress string `json:"street_address,omitempty"` // Full street address (may include house number, street name, P.O. Box)
+	Locality      string `json:"locality,omitempty"`       // City or locality
+	Region        string `json:"region,omitempty"`         // State, province, prefecture, or region
+	PostalCode    string `json:"postal_code,omitempty"`    // Zip code or postal code
+	Country       string `json:"country,omitempty"`        // Country name
+}
+
 // User represents a user in the system
 type User struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
+	EmailVerified bool     `json:"email_verified,omitempty"` // Email verification status
 	PasswordHash string    `json:"-"`
 	Role         UserRole  `json:"role"`
 	Name         string    `json:"name"`
 	GivenName    string    `json:"given_name,omitempty"`
 	FamilyName   string    `json:"family_name,omitempty"`
 	Picture      string    `json:"picture,omitempty"`
+	Address      *Address  `json:"address,omitempty"` // Physical mailing address
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

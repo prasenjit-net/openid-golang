@@ -169,6 +169,7 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 			user,
 			client.ID,
 			authCode.Nonce,
+			authCode.Scope, // Pass scope for claim filtering
 			userSession.AuthTime,
 			userSession.ACR,
 			userSession.AMR,
@@ -177,7 +178,7 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 		)
 	} else {
 		// Fallback to basic ID token without session-specific claims
-		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, authCode.Nonce)
+		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, authCode.Nonce, authCode.Scope)
 	}
 
 	return idToken, err
@@ -257,8 +258,8 @@ func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, cl
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to create token")
 	}
 
-	// Generate new ID token
-	idToken, tokenErr := h.jwtManager.GenerateIDToken(user, client.ID, "")
+	// Generate new ID token with scope filtering
+	idToken, tokenErr := h.jwtManager.GenerateIDToken(user, client.ID, "", oldToken.Scope)
 	if tokenErr != nil {
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
 	}
@@ -425,7 +426,7 @@ func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client
 	// Generate ID token if openid scope is requested
 	var idToken string
 	if strings.Contains(scope, "openid") {
-		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, "")
+		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, "", scope)
 		if err != nil {
 			return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
 		}

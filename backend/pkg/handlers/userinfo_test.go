@@ -119,14 +119,15 @@ func TestUserInfo_Success(t *testing.T) {
 
 	// Create test user
 	user := &models.User{
-		ID:         "user123",
-		Username:   "testuser",
-		Email:      "test@example.com",
-		Name:       "Test User",
-		GivenName:  "Test",
-		FamilyName: "User",
-		Picture:    "https://example.com/pic.jpg",
-		UpdatedAt:  time.Now(),
+		ID:            "user123",
+		Username:      "testuser",
+		Email:         "test@example.com",
+		EmailVerified: true, // Email is verified
+		Name:          "Test User",
+		GivenName:     "Test",
+		FamilyName:    "User",
+		Picture:       "https://example.com/pic.jpg",
+		UpdatedAt:     time.Now(),
 	}
 
 	// Create test token with openid and profile scopes

@@ -45,8 +45,8 @@
       "user_id": "test-user",
       "scope": "openid profile",
       "authorization_code_id": "test-auth-code",
-      "expires_at": "2025-10-25T02:07:06.568827-07:00",
-      "created_at": "2025-10-25T01:07:06.568827-07:00"
+      "expires_at": "2025-10-26T12:47:07.433283-07:00",
+      "created_at": "2025-10-26T11:47:07.433283-07:00"
     }
   },
   "sessions": {},
