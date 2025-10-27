@@ -39,13 +39,31 @@ type User struct {
 	EmailVerified bool      `json:"email_verified,omitempty"` // Email verification status
 	PasswordHash  string    `json:"-"`
 	Role          UserRole  `json:"role"`
-	Name          string    `json:"name"`
-	GivenName     string    `json:"given_name,omitempty"`
-	FamilyName    string    `json:"family_name,omitempty"`
-	Picture       string    `json:"picture,omitempty"`
-	Address       *Address  `json:"address,omitempty"` // Physical mailing address
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	
+	// Standard OIDC Profile Claims (from OIDC Core 1.0 Section 5.1)
+	Name              string    `json:"name,omitempty"`               // Full name
+	GivenName         string    `json:"given_name,omitempty"`         // First name
+	FamilyName        string    `json:"family_name,omitempty"`        // Last name
+	MiddleName        string    `json:"middle_name,omitempty"`        // Middle name
+	Nickname          string    `json:"nickname,omitempty"`           // Casual name
+	PreferredUsername string    `json:"preferred_username,omitempty"` // Shorthand name
+	Profile           string    `json:"profile,omitempty"`            // Profile page URL
+	Picture           string    `json:"picture,omitempty"`            // Profile picture URL
+	Website           string    `json:"website,omitempty"`            // Web page or blog URL
+	Gender            string    `json:"gender,omitempty"`             // Gender
+	Birthdate         string    `json:"birthdate,omitempty"`          // Birthday (YYYY-MM-DD format)
+	Zoneinfo          string    `json:"zoneinfo,omitempty"`           // Time zone (e.g., "America/Los_Angeles")
+	Locale            string    `json:"locale,omitempty"`             // Locale (e.g., "en-US")
+	
+	// Phone Claims (from OIDC Core 1.0 Section 5.1.2)
+	PhoneNumber         string `json:"phone_number,omitempty"`          // Phone number
+	PhoneNumberVerified bool   `json:"phone_number_verified,omitempty"` // Phone verification status
+	
+	// Address Claim (from OIDC Core 1.0 Section 5.1.1)
+	Address *Address `json:"address,omitempty"` // Physical mailing address
+	
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // IsAdmin returns true if the user has admin role
