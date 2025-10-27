@@ -295,3 +295,64 @@ export function useSetup() {
     },
   })
 }
+
+// Profile
+export function useProfile() {
+  return useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const token = localStorage.getItem('admin_token')
+      const res = await fetch(`${API_BASE}/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      if (!res.ok) throw new Error('Failed to fetch profile')
+      return res.json()
+    },
+  })
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: { email?: string; name?: string }) => {
+      const token = localStorage.getItem('admin_token')
+      const res = await fetch(`${API_BASE}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to update profile')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    },
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const token = localStorage.getItem('admin_token')
+      const res = await fetch(`${API_BASE}/profile/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to change password')
+      }
+      return res.json()
+    },
+  })
+}
+

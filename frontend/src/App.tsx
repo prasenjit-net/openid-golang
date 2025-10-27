@@ -13,6 +13,7 @@ import ClientCreate from './pages/clients/ClientCreate';
 import KeyManagement from './pages/KeyManagement';
 import SettingsDetail from './pages/settings/SettingsDetail';
 import SettingsEdit from './pages/settings/SettingsEdit';
+import Profile from './pages/Profile';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
@@ -123,6 +124,7 @@ function AppContent() {
                 <Route path="keys" element={<KeyManagement />} />
                 <Route path="settings" element={<SettingsDetail />} />
                 <Route path="settings/edit" element={<SettingsEdit />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </>

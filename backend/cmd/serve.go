@@ -323,6 +323,11 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	api.GET("/keys", adminAPIHandler.GetKeys)
 	api.POST("/settings/rotate-keys", adminAPIHandler.RotateKeys)
 
+	// Profile endpoints
+	api.GET("/profile", adminAPIHandler.GetProfile)
+	api.PUT("/profile", adminAPIHandler.UpdateProfile)
+	api.POST("/profile/change-password", adminAPIHandler.ChangePassword)
+
 	// Serve Admin UI at root with HTML5 routing (must be last)
 	// Note: /setup is NOT served here - it's only available in setup mode
 	adminFS := ui.GetAdminFS()

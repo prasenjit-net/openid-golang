@@ -16,6 +16,10 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
 )
 
+const (
+	bearerPrefix = "Bearer"
+)
+
 // AdminHandler handles admin API endpoints
 type AdminHandler struct {
 	store  storage.Storage
@@ -909,4 +913,226 @@ func (h *AdminHandler) Login(c echo.Context) error {
 		"token": "dummy-session-token",
 	}
 	return c.JSON(http.StatusOK, response)
+}
+
+// GetProfile returns the current user's profile
+func (h *AdminHandler) GetProfile(c echo.Context) error {
+	// Extract user ID from JWT token in Authorization header
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	// Get user by username from claims
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Return user profile without sensitive data
+	profile := map[string]interface{}{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"name":     user.Name,
+		"role":     user.Role,
+	}
+
+	return c.JSON(http.StatusOK, profile)
+}
+
+// UpdateProfileRequest represents a profile update request
+type UpdateProfileRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// UpdateProfile updates the current user's profile
+func (h *AdminHandler) UpdateProfile(c echo.Context) error {
+	// Extract user ID from JWT token
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Parse request
+	var req UpdateProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Update fields
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+
+	// Save updates
+	if err := h.store.UpdateUser(user); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update profile"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"name":     user.Name,
+		"role":     user.Role,
+	})
+}
+
+// ChangePasswordRequest represents a password change request
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ChangePassword changes the current user's password
+func (h *AdminHandler) ChangePassword(c echo.Context) error {
+	// Extract user ID from JWT token
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Parse request
+	var req ChangePasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	// Validate passwords
+	if req.CurrentPassword == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Current password is required"})
+	}
+	if req.NewPassword == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "New password is required"})
+	}
+	if len(req.NewPassword) < 6 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "New password must be at least 6 characters"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Current password is incorrect"})
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
+	}
+
+	// Update password
+	user.PasswordHash = string(hashedPassword)
+	if err := h.store.UpdateUser(user); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Password changed successfully"})
 }

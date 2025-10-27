@@ -34,7 +34,7 @@ const ClientDetail = () => {
   const [secretModalVisible, setSecretModalVisible] = useState(false);
   const [newSecret, setNewSecret] = useState<string>('');
   
-  const { data: client, isLoading: loading, error: queryError } = useClient(id || '');
+  const { data: client, isLoading: loading } = useClient(id || '');
   const deleteClientMutation = useDeleteClient();
   const regenerateSecretMutation = useRegenerateClientSecret();
 
@@ -175,7 +175,7 @@ const ClientDetail = () => {
         <Title level={4} style={{ marginTop: 0 }}>Redirect URIs</Title>
         <List
           dataSource={client.redirect_uris || []}
-          renderItem={(uri) => (
+          renderItem={(uri: string) => (
             <List.Item>
               <Tag color="blue">{uri}</Tag>
             </List.Item>
@@ -189,14 +189,14 @@ const ClientDetail = () => {
         <Descriptions bordered column={1}>
           <Descriptions.Item label="Grant Types">
             <Space wrap>
-              {client.grant_types?.map((type, i) => (
+              {client.grant_types?.map((type: string, i: number) => (
                 <Tag key={i} color="green">{type}</Tag>
               )) || '-'}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Response Types">
             <Space wrap>
-              {client.response_types?.map((type, i) => (
+              {client.response_types?.map((type: string, i: number) => (
                 <Tag key={i} color="purple">{type}</Tag>
               )) || '-'}
             </Space>

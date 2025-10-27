@@ -25,7 +25,7 @@ const UserEdit = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   
-  const { data: user, isLoading: loading, error: queryError } = useUser(id || '');
+  const { data: user, isLoading: loading } = useUser(id || '');
   const updateUserMutation = useUpdateUser();
 
   useEffect(() => {

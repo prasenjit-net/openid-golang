@@ -15,21 +15,9 @@ import { useSettings } from '../../hooks/useApi';
 
 const { Title } = Typography;
 
-interface Settings {
-  issuer: string;
-  server_host: string;
-  server_port: number;
-  storage_type: string;
-  json_file_path: string;
-  mongo_uri: string;
-  jwt_expiry_minutes: number;
-  jwt_private_key: string;
-  jwt_public_key: string;
-}
-
 const SettingsDetail = () => {
   const navigate = useNavigate();
-  const { data: settings, isLoading: loading, error } = useSettings();
+  const { data: settings, isLoading: loading } = useSettings();
 
   if (loading) {
     return (
