@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -18,78 +17,20 @@ import {
   DeleteOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { useUser, useDeleteUser } from '../../hooks/useApi';
 
 const { Title } = Typography;
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  email_verified?: boolean;
-  name: string;
-  given_name?: string;
-  family_name?: string;
-  middle_name?: string;
-  nickname?: string;
-  preferred_username?: string;
-  profile?: string;
-  picture?: string;
-  website?: string;
-  gender?: string;
-  birthdate?: string;
-  zoneinfo?: string;
-  locale?: string;
-  phone_number?: string;
-  phone_number_verified?: boolean;
-  address?: {
-    formatted?: string;
-    street_address?: string;
-    locality?: string;
-    region?: string;
-    postal_code?: string;
-    country?: string;
-  };
-  role?: string;
-  created_at: string;
-  updated_at?: string;
-}
 
 const UserDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchUser();
-  }, [id]);
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/admin/users/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('User not found');
-        }
-        throw new Error('Failed to fetch user');
-      }
-      const data = await response.json();
-      setUser(data);
-    } catch (err: any) {
-      setError(err.message);
-      message.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const { data: user, isLoading: loading, error: queryError } = useUser(id || '');
+  const deleteUserMutation = useDeleteUser();
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete user');
+      await deleteUserMutation.mutateAsync(id!);
       message.success('User deleted successfully');
       navigate('/users');
     } catch (error) {
@@ -106,7 +47,7 @@ const UserDetail = () => {
     );
   }
 
-  if (error || !user) {
+  if (queryError || !user) {
     return (
       <>
         <Button
@@ -118,7 +59,7 @@ const UserDetail = () => {
         </Button>
         <Alert
           message="Error"
-          description={error || 'User not found'}
+          description={queryError?.message || 'User not found'}
           type="error"
           showIcon
         />

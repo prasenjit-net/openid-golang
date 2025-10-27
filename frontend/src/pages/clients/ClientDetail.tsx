@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -24,68 +24,23 @@ import {
   CopyOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
+import { useClient, useDeleteClient, useRegenerateClientSecret } from '../../hooks/useApi';
 
 const { Title, Paragraph } = Typography;
-
-interface Client {
-  id: string;
-  client_id: string;
-  client_secret?: string;
-  name: string;
-  redirect_uris: string[];
-  grant_types?: string[];
-  response_types?: string[];
-  scope?: string;
-  application_type?: string;
-  contacts?: string[];
-  client_name?: string;
-  logo_uri?: string;
-  client_uri?: string;
-  policy_uri?: string;
-  tos_uri?: string;
-  jwks_uri?: string;
-  token_endpoint_auth_method?: string;
-  created_at: string;
-}
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [client, setClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [secretModalVisible, setSecretModalVisible] = useState(false);
   const [newSecret, setNewSecret] = useState<string>('');
-
-  useEffect(() => {
-    fetchClient();
-  }, [id]);
-
-  const fetchClient = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/admin/clients/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Client not found');
-        }
-        throw new Error('Failed to fetch client');
-      }
-      const data = await response.json();
-      setClient(data);
-    } catch (err: any) {
-      setError(err.message);
-      message.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  const { data: client, isLoading: loading, error: queryError } = useClient(id || '');
+  const deleteClientMutation = useDeleteClient();
+  const regenerateSecretMutation = useRegenerateClientSecret();
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/admin/clients/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete client');
+      await deleteClientMutation.mutateAsync(id!);
       message.success('Client deleted successfully');
       navigate('/clients');
     } catch (error) {
@@ -96,16 +51,10 @@ const ClientDetail = () => {
 
   const handleRegenerateSecret = async () => {
     try {
-      const response = await fetch(`/api/admin/clients/${id}/regenerate-secret`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to regenerate secret');
-      const data = await response.json();
+      const data = await regenerateSecretMutation.mutateAsync(id!);
       setNewSecret(data.client_secret);
       setSecretModalVisible(true);
       message.success('Client secret regenerated successfully');
-      // Refresh client data
-      fetchClient();
     } catch (error) {
       message.error('Failed to regenerate secret');
       console.error('Failed to regenerate secret:', error);
@@ -125,7 +74,7 @@ const ClientDetail = () => {
     );
   }
 
-  if (error || !client) {
+  if (!client) {
     return (
       <>
         <Button
@@ -137,7 +86,7 @@ const ClientDetail = () => {
         </Button>
         <Alert
           message="Error"
-          description={error || 'Client not found'}
+          description={'Client not found'}
           type="error"
           showIcon
         />

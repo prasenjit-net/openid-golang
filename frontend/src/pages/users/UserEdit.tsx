@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -15,95 +15,33 @@ import {
   Col,
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { useUser, useUpdateUser } from '../../hooks/useApi';
 
 const { Title } = Typography;
 const { TextArea } = Input;
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  email_verified?: boolean;
-  name: string;
-  given_name?: string;
-  family_name?: string;
-  middle_name?: string;
-  nickname?: string;
-  preferred_username?: string;
-  profile?: string;
-  picture?: string;
-  website?: string;
-  gender?: string;
-  birthdate?: string;
-  zoneinfo?: string;
-  locale?: string;
-  phone_number?: string;
-  phone_number_verified?: boolean;
-  address?: {
-    formatted?: string;
-    street_address?: string;
-    locality?: string;
-    region?: string;
-    postal_code?: string;
-    country?: string;
-  };
-  role?: string;
-}
 
 const UserEdit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { data: user, isLoading: loading, error: queryError } = useUser(id || '');
+  const updateUserMutation = useUpdateUser();
 
   useEffect(() => {
-    fetchUser();
-  }, [id]);
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/admin/users/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('User not found');
-        }
-        throw new Error('Failed to fetch user');
-      }
-      const data = await response.json();
-      setUser(data);
-      form.setFieldsValue(data);
-    } catch (err: any) {
-      setError(err.message);
-      message.error(err.message);
-    } finally {
-      setLoading(false);
+    if (user) {
+      form.setFieldsValue(user);
     }
-  };
+  }, [user, form]);
 
   const handleSubmit = async (values: any) => {
     try {
-      setSubmitting(true);
-      const response = await fetch(`/api/admin/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...values,
-          id,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to update user');
+      await updateUserMutation.mutateAsync({ id: id!, ...values });
       message.success('User updated successfully');
       navigate(`/users/${id}`);
     } catch (error) {
       message.error('Failed to update user');
       console.error('Failed to update user:', error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -115,7 +53,7 @@ const UserEdit = () => {
     );
   }
 
-  if (error || !user) {
+  if (!user) {
     return (
       <>
         <Button
@@ -127,7 +65,7 @@ const UserEdit = () => {
         </Button>
         <Alert
           message="Error"
-          description={error || 'User not found'}
+          description={'User not found'}
           type="error"
           showIcon
         />
@@ -338,7 +276,7 @@ const UserEdit = () => {
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              loading={submitting}
+              loading={updateUserMutation.isPending}
             >
               Save Changes
             </Button>

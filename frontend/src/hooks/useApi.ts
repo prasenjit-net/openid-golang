@@ -202,3 +202,96 @@ export function useSetupStatus() {
     },
   })
 }
+
+// Individual User
+export function useUser(id: string) {
+  return useQuery({
+    queryKey: ['user', id],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/users/${id}`)
+      if (!res.ok) throw new Error('Failed to fetch user')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...user }: { id: string; username?: string; email?: string; password?: string; role?: string }) => {
+      const res = await fetch(`${API_BASE}/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user),
+      })
+      if (!res.ok) throw new Error('Failed to update user')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.users })
+    },
+  })
+}
+
+// Individual Client
+export function useClient(id: string) {
+  return useQuery({
+    queryKey: ['client', id],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/clients/${id}`)
+      if (!res.ok) throw new Error('Failed to fetch client')
+      return res.json()
+    },
+    enabled: !!id,
+  })
+}
+
+export function useUpdateClient() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...client }: { id: string; name?: string; redirect_uris?: string[] }) => {
+      const res = await fetch(`${API_BASE}/clients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(client),
+      })
+      if (!res.ok) throw new Error('Failed to update client')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+    },
+  })
+}
+
+export function useRegenerateClientSecret() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API_BASE}/clients/${id}/regenerate-secret`, {
+        method: 'POST',
+      })
+      if (!res.ok) throw new Error('Failed to regenerate client secret')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+    },
+  })
+}
+
+// Setup
+export function useSetup() {
+  return useMutation({
+    mutationFn: async (data: { username: string; email: string; password: string }) => {
+      const res = await fetch(`${API_BASE}/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to complete setup')
+      return res.json()
+    },
+  })
+}
