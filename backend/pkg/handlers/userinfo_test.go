@@ -112,11 +112,11 @@ func (m *MockStorage) GetAllSigningKeys() ([]*models.SigningKey, error) { return
 func (m *MockStorage) GetActiveSigningKey() (*models.SigningKey, error) {
 	return nil, nil
 }
-func (m *MockStorage) UpdateSigningKey(key *models.SigningKey) error  { return nil }
-func (m *MockStorage) DeleteSigningKey(id string) error               { return nil }
-func (m *MockStorage) GetActiveTokensCount() int                      { return 0 }
-func (m *MockStorage) GetRecentUserSessionsCount() int                { return 0 }
-func (m *MockStorage) Close() error                                   { return nil }
+func (m *MockStorage) UpdateSigningKey(key *models.SigningKey) error { return nil }
+func (m *MockStorage) DeleteSigningKey(id string) error              { return nil }
+func (m *MockStorage) GetActiveTokensCount() int                     { return 0 }
+func (m *MockStorage) GetRecentUserSessionsCount() int               { return 0 }
+func (m *MockStorage) Close() error                                  { return nil }
 
 func TestUserInfo_Success(t *testing.T) {
 	// Setup
