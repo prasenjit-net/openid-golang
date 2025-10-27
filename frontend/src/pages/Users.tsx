@@ -244,15 +244,14 @@ const Users = () => {
             <Input />
           </Form.Item>
 
-          {!editingUser && (
-            <Form.Item
-              label="Password"
-              name="password"
-              rules={[{ required: true, message: 'Please enter password' }]}
-            >
-              <Input.Password />
-            </Form.Item>
-          )}
+          <Form.Item
+            label="Password"
+            name="password"
+            rules={[{ required: !editingUser, message: 'Please enter password' }]}
+            help={editingUser ? "Leave blank to keep current password" : undefined}
+          >
+            <Input.Password placeholder={editingUser ? "Leave blank to keep current" : "Enter password"} />
+          </Form.Item>
 
           <Form.Item label="Role" name="role">
             <Select>
