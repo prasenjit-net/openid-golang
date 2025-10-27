@@ -27,6 +27,7 @@
       "client_secret": "admin-ui",
       "name": "Admin UI",
       "redirect_uris": [
+        "http://localhost:3000/admin/callback",
         "https://id.prasenjit.net/admin/callback",
         "https://www.certification.openid.net/test/a/test/callback"
       ],

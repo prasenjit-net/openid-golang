@@ -16,6 +16,30 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/authorize': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/token': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/.well-known': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/jwks': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/userinfo': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/setup': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }
