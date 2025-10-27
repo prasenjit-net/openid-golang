@@ -179,9 +179,9 @@ const Users = () => {
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>User Management</Title>
+    <>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2} style={{ margin: 0 }}>User Management</Title>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -195,7 +195,7 @@ const Users = () => {
         </Button>
       </div>
 
-      <Card>
+      <Card bordered={false}>
         <Table
           columns={columns}
           dataSource={users}
@@ -271,7 +271,7 @@ const Users = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </>
   );
 };
 

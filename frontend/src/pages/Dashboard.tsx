@@ -37,8 +37,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div>
-      <Title level={2} style={{ marginBottom: '24px' }}>
+    <>
+      <Title level={2} style={{ marginBottom: 24, marginTop: 0 }}>
         Dashboard
       </Title>
 
@@ -95,7 +95,7 @@ const Dashboard = () => {
           </Card>
         </Col>
       </Row>
-    </div>
+    </>
   );
 };
 

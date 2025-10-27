@@ -196,9 +196,9 @@ const Clients = () => {
   ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>OAuth Client Management</Title>
+    <>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2} style={{ margin: 0 }}>OAuth Client Management</Title>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -212,7 +212,7 @@ const Clients = () => {
         </Button>
       </div>
 
-      <Card>
+      <Card bordered={false}>
         <Table
           columns={columns}
           dataSource={clients}
@@ -264,7 +264,7 @@ const Clients = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </>
   );
 };
 

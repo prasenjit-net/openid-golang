@@ -4,10 +4,10 @@ const { Title } = Typography;
 
 const Settings = () => {
   return (
-    <div>
-      <Title level={2}>Configuration</Title>
+    <>
+      <Title level={2} style={{ marginBottom: 24, marginTop: 0 }}>Configuration</Title>
       
-      <Card style={{ marginTop: 16 }}>
+      <Card bordered={false}>
         <Alert
           message="Configuration Management"
           description="Configuration management features will be available in the next version. Currently, settings are managed through the backend configuration files."
@@ -34,7 +34,7 @@ const Settings = () => {
           <Descriptions.Item label="Key Rotation">Manual via backend API</Descriptions.Item>
         </Descriptions>
       </Card>
-    </div>
+    </>
   );
 };
 

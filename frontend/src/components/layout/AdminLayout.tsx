@@ -31,7 +31,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const { logout } = useAuth();
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer },
   } = theme.useToken();
 
   // Get user info from localStorage
@@ -154,11 +154,8 @@ export default function AdminLayout() {
         </Header>
         <Content
           style={{
-            margin: '24px 16px',
-            padding: 24,
+            margin: '24px',
             minHeight: 280,
-            background: colorBgContainer,
-            borderRadius: borderRadiusLG,
           }}
         >
           <Outlet />
