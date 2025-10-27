@@ -15,7 +15,7 @@ export interface Client {
   policy_uri?: string;
   tos_uri?: string;
   jwks_uri?: string;
-  jwks?: Record<string, any>;
+  jwks?: Record<string, unknown>;
   token_endpoint_auth_method?: string;
   client_id_issued_at?: number;
   created_at: string;
@@ -43,7 +43,7 @@ export interface ClientCreateRequest {
   policy_uri?: string;
   tos_uri?: string;
   jwks_uri?: string;
-  jwks?: Record<string, any>;
+  jwks?: Record<string, unknown>;
   token_endpoint_auth_method?: string;
 }
 
@@ -59,7 +59,7 @@ export interface ClientUpdateRequest {
   policy_uri?: string;
   tos_uri?: string;
   jwks_uri?: string;
-  jwks?: Record<string, any>;
+  jwks?: Record<string, unknown>;
 }
 
 export interface ClientSecretResponse {

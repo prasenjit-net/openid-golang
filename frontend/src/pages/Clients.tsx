@@ -42,7 +42,7 @@ const Clients = () => {
   const updateClientMutation = useUpdateClient();
   const deleteClientMutation = useDeleteClient();
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { name: string; redirect_uris: string }) => {
     try {
       const payload = {
         ...values,

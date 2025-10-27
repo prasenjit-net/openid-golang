@@ -38,7 +38,7 @@ const Users = () => {
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { username: string; email: string; password: string; name: string; role: string }) => {
     try {
       if (editingUser) {
         await updateUserMutation.mutateAsync({ id: editingUser.id, ...values });

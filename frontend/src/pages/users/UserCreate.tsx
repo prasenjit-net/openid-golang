@@ -22,7 +22,7 @@ const UserCreate = () => {
   const [form] = Form.useForm();
   const createUserMutation = useCreateUser();
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { username: string; email: string; password: string; name: string; role: string }) => {
     try {
       const data = await createUserMutation.mutateAsync(values);
       message.success('User created successfully');

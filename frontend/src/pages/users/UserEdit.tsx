@@ -34,7 +34,7 @@ const UserEdit = () => {
     }
   }, [user, form]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { username: string; email: string; name: string; role: string }) => {
     try {
       await updateUserMutation.mutateAsync({ id: id!, ...values });
       message.success('User updated successfully');

@@ -40,7 +40,15 @@ const SettingsEdit = () => {
     }
   }, [settings, form]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: {
+    issuer: string;
+    server_host: string;
+    server_port: number;
+    storage_type: string;
+    json_file_path: string;
+    mongo_uri: string;
+    jwt_expiry_minutes: number;
+  }) => {
     try {
       const result = await updateSettingsMutation.mutateAsync(values);
       message.success('Settings updated successfully');

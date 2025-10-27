@@ -31,7 +31,7 @@ const ClientCreate = () => {
   const [createdClient, setCreatedClient] = useState<ClientResponse | null>(null);
   const [secretModalVisible, setSecretModalVisible] = useState(false);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { name: string; redirect_uris_text: string }) => {
     try {
       // Convert redirect URIs from text to array
       const redirect_uris = values.redirect_uris_text

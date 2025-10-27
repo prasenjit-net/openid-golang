@@ -34,7 +34,7 @@ const ClientEdit = () => {
     }
   }, [client, form]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: { name: string; redirect_uris_text: string }) => {
     if (!id) return;
     
     try {
