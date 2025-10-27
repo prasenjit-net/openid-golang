@@ -14,6 +14,7 @@ import KeyManagement from './pages/KeyManagement';
 import SettingsDetail from './pages/settings/SettingsDetail';
 import SettingsEdit from './pages/settings/SettingsEdit';
 import Profile from './pages/Profile';
+import Logout from './pages/Logout';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
@@ -95,6 +96,8 @@ function AppContent() {
         <Routes>
           {/* OAuth callback route - always accessible */}
           <Route path="/admin/callback" element={<OAuthCallback />} />
+          {/* Logout route - always accessible */}
+          <Route path="/logout" element={<Logout />} />
           
           {!isSetupComplete ? (
             <>

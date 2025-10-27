@@ -21,7 +21,6 @@ import {
   MenuUnfoldOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
-import { useAuth } from '../../context/AuthContext';
 
 const { Header, Sider, Content } = AntLayout;
 const { Text } = Typography;
@@ -30,7 +29,6 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
   const {
     token: { colorBgContainer },
   } = theme.useToken();
@@ -87,7 +85,7 @@ export default function AdminLayout() {
       icon: <LogoutOutlined />,
       label: 'Logout',
       danger: true,
-      onClick: logout,
+      onClick: () => navigate('/logout'),
     },
   ];
 
