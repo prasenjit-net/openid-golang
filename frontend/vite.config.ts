@@ -25,6 +25,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/consent': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/token': {
         target: 'http://localhost:8080',
         changeOrigin: true,
