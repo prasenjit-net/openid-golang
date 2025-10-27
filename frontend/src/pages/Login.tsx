@@ -1,13 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
-  Container,
-} from '@mui/material';
-import { Lock as LockIcon } from '@mui/icons-material';
+import { Card, Spin } from 'antd';
+import { LockOutlined } from '@ant-design/icons';
 
 const Login = () => {
   const generateRandomString = (length: number): string => {
@@ -45,56 +38,59 @@ const Login = () => {
   }, [initiateOAuthFlow]);
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
-        backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}
     >
-      <Container maxWidth="sm">
-        <Card elevation={8} sx={{ borderRadius: 2 }}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 80,
-                height: 80,
-                borderRadius: '50%',
-                bgcolor: 'primary.main',
-                color: 'white',
-                mx: 'auto',
-                mb: 3,
-              }}
-            >
-              <LockIcon sx={{ fontSize: 48 }} />
-            </Box>
-            <Typography variant="h4" gutterBottom fontWeight="bold">
-              Admin Portal
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-              OpenID Connect Server Administration
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <CircularProgress size={40} />
-              <Typography variant="body2" color="text.secondary">
-                Redirecting to authentication...
-              </Typography>
-            </Box>
-            <Box sx={{ mt: 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary">
-                Secure authentication powered by OpenID Connect
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
-    </Box>
+      <Card
+        style={{
+          width: 400,
+          textAlign: 'center',
+          borderRadius: 8,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            backgroundColor: '#1890ff',
+            color: 'white',
+            margin: '0 auto 24px',
+          }}
+        >
+          <LockOutlined style={{ fontSize: 48 }} />
+        </div>
+        <h2 style={{ marginBottom: 8 }}>Admin Portal</h2>
+        <p style={{ color: '#8c8c8c', marginBottom: 32 }}>
+          OpenID Connect Server Administration
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <Spin size="large" />
+          <p style={{ color: '#8c8c8c' }}>Redirecting to authentication...</p>
+        </div>
+        <div
+          style={{
+            marginTop: 32,
+            paddingTop: 24,
+            borderTop: '1px solid #f0f0f0',
+          }}
+        >
+          <p style={{ fontSize: 12, color: '#8c8c8c' }}>
+            Secure authentication powered by OpenID Connect
+          </p>
+        </div>
+      </Card>
+    </div>
   );
 };
 

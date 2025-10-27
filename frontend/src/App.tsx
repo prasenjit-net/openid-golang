@@ -38,6 +38,9 @@ function AppContent() {
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
       <BrowserRouter>
         <Routes>
+          {/* OAuth callback route - always accessible */}
+          <Route path="/admin/callback" element={<OAuthCallback />} />
+          
           {!isSetupComplete ? (
             <>
               <Route path="/setup" element={<Setup />} />
@@ -46,7 +49,6 @@ function AppContent() {
           ) : !isAuthenticated ? (
             <>
               <Route path="/login" element={<Login />} />
-              <Route path="/admin/callback" element={<OAuthCallback />} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </>
           ) : (

@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Spin, Alert, Card } from 'antd';
+import { LoadingOutlined, WarningOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import './Login.css';
 
 const OAuthCallback = () => {
   const navigate = useNavigate();
@@ -50,8 +51,8 @@ const OAuthCallback = () => {
       sessionStorage.removeItem('oauth_state');
       sessionStorage.removeItem('oauth_nonce');
 
-      // Force a full page reload to ensure auth state is picked up
-      window.location.href = '/dashboard';
+      // Navigate to dashboard using React Router
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('OAuth callback error:', err);
       setError('Failed to process authentication');
@@ -65,27 +66,46 @@ const OAuthCallback = () => {
 
   if (error) {
     return (
-      <div className="login">
-        <div className="login-container">
-          <div className="login-header">
-            <h1>⚠️ Authentication Error</h1>
-          </div>
-          <div className="error-message">{error}</div>
-          <p>Redirecting to login...</p>
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          backgroundColor: '#f0f2f5',
+        }}
+      >
+        <Card style={{ width: 400, textAlign: 'center' }}>
+          <WarningOutlined style={{ fontSize: 48, color: '#ff4d4f', marginBottom: 16 }} />
+          <Alert
+            message="Authentication Error"
+            description={error}
+            type="error"
+            showIcon={false}
+            style={{ marginBottom: 16 }}
+          />
+          <p style={{ color: '#8c8c8c' }}>Redirecting to login...</p>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="login">
-      <div className="login-container">
-        <div className="login-header">
-          <h1>🔐 Authenticating...</h1>
-        </div>
-        <div className="spinner"></div>
-        <p>Processing your login...</p>
-      </div>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#f0f2f5',
+      }}
+    >
+      <Card style={{ width: 400, textAlign: 'center', padding: '24px' }}>
+        <LoadingOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 16 }} />
+        <h2 style={{ marginBottom: 8 }}>Authenticating...</h2>
+        <p style={{ color: '#8c8c8c', marginBottom: 24 }}>Processing your login...</p>
+        <Spin size="large" />
+      </Card>
     </div>
   );
 };
