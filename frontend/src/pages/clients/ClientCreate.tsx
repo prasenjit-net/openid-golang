@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, CopyOutlined, KeyOutlined } from '@ant-design/icons';
+import { useCreateClient } from '../../hooks/useApi';
 
 const { Title, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -26,14 +27,12 @@ interface ClientResponse {
 const ClientCreate = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [submitting, setSubmitting] = useState(false);
+  const createClientMutation = useCreateClient();
   const [createdClient, setCreatedClient] = useState<ClientResponse | null>(null);
   const [secretModalVisible, setSecretModalVisible] = useState(false);
 
   const handleSubmit = async (values: any) => {
     try {
-      setSubmitting(true);
-      
       // Convert redirect URIs from text to array
       const redirect_uris = values.redirect_uris_text
         .split('\n')
@@ -43,28 +42,15 @@ const ClientCreate = () => {
       const payload = {
         name: values.name,
         redirect_uris,
-        grant_types: values.grant_types,
-        response_types: values.response_types,
-        scope: values.scope,
-        application_type: values.application_type,
       };
 
-      const response = await fetch('/api/admin/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) throw new Error('Failed to create client');
-      const data = await response.json();
+      const data = await createClientMutation.mutateAsync(payload);
       setCreatedClient(data);
       setSecretModalVisible(true);
       message.success('Client created successfully');
     } catch (error) {
       message.error('Failed to create client');
       console.error('Failed to create client:', error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -179,7 +165,7 @@ const ClientCreate = () => {
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              loading={submitting}
+              loading={createClientMutation.isPending}
             >
               Create Client
             </Button>

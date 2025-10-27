@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -13,6 +12,7 @@ import {
   Col,
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { useCreateUser } from '../../hooks/useApi';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -20,25 +20,16 @@ const { TextArea } = Input;
 const UserCreate = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [submitting, setSubmitting] = useState(false);
+  const createUserMutation = useCreateUser();
 
   const handleSubmit = async (values: any) => {
     try {
-      setSubmitting(true);
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      if (!response.ok) throw new Error('Failed to create user');
-      const data = await response.json();
+      const data = await createUserMutation.mutateAsync(values);
       message.success('User created successfully');
       navigate(`/users/${data.id}`);
     } catch (error) {
       message.error('Failed to create user');
       console.error('Failed to create user:', error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -245,7 +236,7 @@ const UserCreate = () => {
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              loading={submitting}
+              loading={createUserMutation.isPending}
             >
               Create User
             </Button>
