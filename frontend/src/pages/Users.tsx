@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Table,
   Button,
@@ -15,6 +15,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../hooks/useApi';
 
 const { Title } = Typography;
 
@@ -28,57 +29,27 @@ interface User {
 }
 
 const Users = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/users');
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
-      setUsers(data || []);
-    } catch (error) {
-      message.error('Failed to fetch users');
-      console.error('Failed to fetch users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: users = [], isLoading: loading } = useUsers();
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
 
   const handleSubmit = async (values: any) => {
     try {
       if (editingUser) {
-        const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...values,
-            id: editingUser.id,
-          }),
-        });
-        if (!response.ok) throw new Error('Failed to update user');
+        await updateUserMutation.mutateAsync({ id: editingUser.id, ...values });
         message.success('User updated successfully');
       } else {
-        const response = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
-        });
-        if (!response.ok) throw new Error('Failed to create user');
+        await createUserMutation.mutateAsync(values);
         message.success('User created successfully');
       }
       setModalOpen(false);
       setEditingUser(null);
       form.resetFields();
-      fetchUsers();
     } catch (error) {
       message.error(editingUser ? 'Failed to update user' : 'Failed to create user');
       console.error('Failed to save user:', error);
@@ -98,10 +69,8 @@ const Users = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete user');
+      await deleteUserMutation.mutateAsync(id);
       message.success('User deleted successfully');
-      fetchUsers();
     } catch (error) {
       message.error('Failed to delete user');
       console.error('Failed to delete user:', error);

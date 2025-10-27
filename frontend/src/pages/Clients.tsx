@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Table,
   Button,
@@ -15,6 +15,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, LockOutlined, CopyOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from '../hooks/useApi';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -32,30 +33,14 @@ interface Client {
 }
 
 const Clients = () => {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
-  const fetchClients = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/clients');
-      if (!response.ok) throw new Error('Failed to fetch clients');
-      const data = await response.json();
-      setClients(data || []);
-    } catch (error) {
-      message.error('Failed to fetch OAuth clients');
-      console.error('Failed to fetch clients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: clients = [], isLoading: loading } = useClients();
+  const createClientMutation = useCreateClient();
+  const updateClientMutation = useUpdateClient();
+  const deleteClientMutation = useDeleteClient();
 
   const handleSubmit = async (values: any) => {
     try {
@@ -65,26 +50,15 @@ const Clients = () => {
       };
 
       if (editingClient) {
-        const response = await fetch(`/api/admin/clients/${editingClient.client_id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) throw new Error('Failed to update client');
+        await updateClientMutation.mutateAsync({ id: editingClient.client_id, ...payload });
         message.success('Client updated successfully');
       } else {
-        const response = await fetch('/api/admin/clients', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!response.ok) throw new Error('Failed to create client');
+        await createClientMutation.mutateAsync(payload);
         message.success('Client created successfully');
       }
       setModalOpen(false);
       setEditingClient(null);
       form.resetFields();
-      fetchClients();
     } catch (error) {
       message.error(editingClient ? 'Failed to update client' : 'Failed to create client');
       console.error('Failed to save client:', error);
@@ -102,10 +76,8 @@ const Clients = () => {
 
   const handleDelete = async (clientId: string) => {
     try {
-      const response = await fetch(`/api/admin/clients/${clientId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete client');
+      await deleteClientMutation.mutateAsync(clientId);
       message.success('Client deleted successfully');
-      fetchClients();
     } catch (error) {
       message.error('Failed to delete client');
       console.error('Failed to delete client:', error);

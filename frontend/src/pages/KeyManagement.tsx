@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Card,
   Table,
@@ -19,6 +19,7 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { useKeys, useRotateKeys } from '../hooks/useApi';
 
 const { Title, Text } = Typography;
 
@@ -33,39 +34,13 @@ interface SigningKey {
 }
 
 const KeyManagement = () => {
-  const [keys, setKeys] = useState<SigningKey[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [rotating, setRotating] = useState(false);
+  const { data: keys = [], isLoading: loading } = useKeys();
+  const rotateKeysMutation = useRotateKeys();
   const [rotateModalVisible, setRotateModalVisible] = useState(false);
-
-  const fetchKeys = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/keys');
-      if (!response.ok) throw new Error('Failed to fetch keys');
-      const data = await response.json();
-      setKeys(data);
-    } catch (error) {
-      message.error('Failed to load signing keys');
-      console.error('Failed to fetch keys:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchKeys();
-  }, []);
 
   const handleRotateKeys = async () => {
     try {
-      setRotating(true);
-      const response = await fetch('/api/admin/settings/rotate-keys', {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to rotate keys');
-      
-      const result = await response.json();
+      const result = await rotateKeysMutation.mutateAsync();
       message.success('RSA keys rotated successfully');
       Modal.info({
         title: 'Key Rotation Complete',
@@ -78,14 +53,9 @@ const KeyManagement = () => {
         ),
       });
       setRotateModalVisible(false);
-      
-      // Refresh keys list
-      await fetchKeys();
     } catch (error) {
       message.error('Failed to rotate keys');
       console.error('Failed to rotate keys:', error);
-    } finally {
-      setRotating(false);
     }
   };
 
@@ -212,7 +182,7 @@ const KeyManagement = () => {
             type="primary"
             danger
             icon={<ReloadOutlined />}
-            loading={rotating}
+            loading={rotateKeysMutation.isPending}
             onClick={handleRotateKeys}
           >
             Rotate Keys
