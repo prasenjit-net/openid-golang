@@ -4,6 +4,8 @@ import {
   LockOutlined,
   KeyOutlined,
   LoginOutlined,
+  SafetyOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useStats } from '../hooks/useApi';
 
@@ -78,8 +80,32 @@ const Dashboard = () => {
             <Statistic
               title="Recent Logins"
               value={stats?.logins || 0}
+              suffix="(24h)"
               prefix={<LoginOutlined />}
               valueStyle={{ color: '#722ed1' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: '16px' }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} hoverable>
+            <Statistic
+              title="Total Signing Keys"
+              value={stats?.total_keys || 0}
+              prefix={<SafetyOutlined />}
+              valueStyle={{ color: '#13c2c2' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card bordered={false} hoverable>
+            <Statistic
+              title="Active Keys"
+              value={stats?.active_keys || 0}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
             />
           </Card>
         </Col>
@@ -89,8 +115,12 @@ const Dashboard = () => {
         <Col span={24}>
           <Card title="System Overview" bordered={false}>
             <Paragraph type="secondary">
-              Your OpenID Connect server is running smoothly. Use the navigation menu to manage users,
-              OAuth clients, and server settings.
+              Your OpenID Connect server is running with real-time statistics. 
+              The dashboard displays live counts from your database including users, OAuth clients, 
+              active tokens, and recent login activity from the last 24 hours.
+            </Paragraph>
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              Use the navigation menu to manage users, OAuth clients, signing keys, and server settings.
             </Paragraph>
           </Card>
         </Col>

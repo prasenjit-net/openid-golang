@@ -732,3 +732,28 @@ func (m *MongoDBStorage) DeleteSigningKey(id string) error {
 	return err
 }
 
+// GetActiveTokensCount returns the count of non-expired tokens
+func (m *MongoDBStorage) GetActiveTokensCount() int {
+	ctx := context.Background()
+	count, err := m.tokens.CountDocuments(ctx, bson.M{
+		"expires_at": bson.M{"$gt": time.Now()},
+	})
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+
+// GetRecentUserSessionsCount returns the count of user sessions created in the last 24 hours
+func (m *MongoDBStorage) GetRecentUserSessionsCount() int {
+	ctx := context.Background()
+	cutoff := time.Now().Add(-24 * time.Hour)
+	count, err := m.userSessions.CountDocuments(ctx, bson.M{
+		"created_at": bson.M{"$gt": cutoff},
+	})
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+

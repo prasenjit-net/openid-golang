@@ -82,6 +82,10 @@ type Storage interface {
 	UpdateSigningKey(key *models.SigningKey) error
 	DeleteSigningKey(id string) error
 
+	// Statistics operations
+	GetActiveTokensCount() int
+	GetRecentUserSessionsCount() int
+
 	Close() error
 }
 

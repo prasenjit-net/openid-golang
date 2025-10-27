@@ -777,3 +777,32 @@ func (j *JSONStorage) DeleteSigningKey(id string) error {
 	return j.save()
 }
 
+// GetActiveTokensCount returns the count of non-expired tokens
+func (j *JSONStorage) GetActiveTokensCount() int {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	count := 0
+	now := time.Now()
+	for _, token := range j.data.Tokens {
+		if token.ExpiresAt.After(now) {
+			count++
+		}
+	}
+	return count
+}
+
+// GetRecentUserSessionsCount returns the count of user sessions created in the last 24 hours
+func (j *JSONStorage) GetRecentUserSessionsCount() int {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	count := 0
+	cutoff := time.Now().Add(-24 * time.Hour)
+	for _, session := range j.data.UserSessions {
+		if session.CreatedAt.After(cutoff) {
+			count++
+		}
+	}
+	return count
+}

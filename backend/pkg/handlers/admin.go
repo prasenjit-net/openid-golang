@@ -43,11 +43,32 @@ func (h *AdminHandler) GetStats(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
+	// Count active tokens (non-expired)
+	activeTokens := h.store.GetActiveTokensCount()
+
+	// Count recent user sessions (last 24 hours)
+	recentLogins := h.store.GetRecentUserSessionsCount()
+
+	// Get signing keys statistics
+	allKeys, err := h.store.GetAllSigningKeys()
+	totalKeys := 0
+	activeKeys := 0
+	if err == nil {
+		totalKeys = len(allKeys)
+		for _, key := range allKeys {
+			if key.IsActive && !key.IsExpired() {
+				activeKeys++
+			}
+		}
+	}
+
 	stats := map[string]interface{}{
-		"users":   len(users),
-		"clients": len(clients),
-		"tokens":  0, // TODO: Count active tokens
-		"logins":  0, // TODO: Count recent logins
+		"users":       len(users),
+		"clients":     len(clients),
+		"tokens":      activeTokens,
+		"logins":      recentLogins,
+		"total_keys":  totalKeys,
+		"active_keys": activeKeys,
 	}
 
 	return c.JSON(http.StatusOK, stats)
