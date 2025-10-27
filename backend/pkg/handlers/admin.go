@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,11 +52,36 @@ func (h *AdminHandler) GetStats(c echo.Context) error {
 	return c.JSON(http.StatusOK, stats)
 }
 
-// ListUsers returns all users
+// ListUsers returns all users with optional filtering
 func (h *AdminHandler) ListUsers(c echo.Context) error {
 	users, err := h.store.GetAllUsers()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users"})
+	}
+
+	// Get filter parameters from query string
+	usernameFilter := c.QueryParam("username")
+	emailFilter := c.QueryParam("email")
+	nameFilter := c.QueryParam("name")
+	roleFilter := c.QueryParam("role")
+
+	// Filter users based on query parameters
+	var filteredUsers []*models.User
+	for _, user := range users {
+		// Apply filters (case-insensitive partial match)
+		if usernameFilter != "" && !containsIgnoreCase(user.Username, usernameFilter) {
+			continue
+		}
+		if emailFilter != "" && !containsIgnoreCase(user.Email, emailFilter) {
+			continue
+		}
+		if nameFilter != "" && !containsIgnoreCase(user.Name, nameFilter) {
+			continue
+		}
+		if roleFilter != "" && string(user.Role) != roleFilter {
+			continue
+		}
+		filteredUsers = append(filteredUsers, user)
 	}
 
 	// Don't send password hashes to client
@@ -68,8 +94,8 @@ func (h *AdminHandler) ListUsers(c echo.Context) error {
 		CreatedAt time.Time `json:"created_at"`
 	}
 
-	safeUsers := make([]SafeUser, len(users))
-	for i, user := range users {
+	safeUsers := make([]SafeUser, len(filteredUsers))
+	for i, user := range filteredUsers {
 		safeUsers[i] = SafeUser{
 			ID:        user.ID,
 			Username:  user.Username,
@@ -81,6 +107,11 @@ func (h *AdminHandler) ListUsers(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, safeUsers)
+}
+
+// containsIgnoreCase checks if s contains substr (case-insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // GetUser returns a single user by ID
