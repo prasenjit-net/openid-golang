@@ -6,10 +6,56 @@ import Users from './pages/Users';
 import Clients from './pages/Clients';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
-import Login from './pages/Login';
+import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { QueryProvider } from './providers/QueryProvider';
+import { useEffect } from 'react';
+
+// Component to initiate OAuth flow for unauthenticated users
+function OAuthRedirect() {
+  useEffect(() => {
+    const generateRandomString = (length: number): string => {
+      const array = new Uint8Array(length);
+      window.crypto.getRandomValues(array);
+      return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    };
+
+    // Generate state and nonce for security
+    const state = generateRandomString(16);
+    const nonce = generateRandomString(16);
+
+    // Save state and nonce in session storage for verification
+    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_nonce', nonce);
+
+    // Build authorization URL
+    const authParams = new URLSearchParams({
+      client_id: 'admin-ui',
+      redirect_uri: `${window.location.origin}/admin/callback`,
+      response_type: 'id_token',
+      scope: 'openid profile email',
+      state: state,
+      nonce: nonce,
+    });
+
+    // Redirect to authorization endpoint
+    window.location.href = `/authorize?${authParams.toString()}`;
+  }, []);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+      }}
+    >
+      <p>Redirecting to login...</p>
+    </div>
+  );
+}
 
 function AppContent() {
   const { isAuthenticated, isSetupComplete, loading } = useAuth();
@@ -48,8 +94,10 @@ function AppContent() {
             </>
           ) : !isAuthenticated ? (
             <>
-              <Route path="/login" element={<Login />} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              {/* Optional signin page - mainly redirects to OAuth */}
+              <Route path="/signin" element={<SignIn />} />
+              {/* Redirect unauthenticated users to OAuth authorize endpoint */}
+              <Route path="*" element={<OAuthRedirect />} />
             </>
           ) : (
             <>

@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { Card, Spin } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 
-const Login = () => {
+const SignIn = () => {
   const generateRandomString = (length: number): string => {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
@@ -94,4 +94,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default SignIn;
