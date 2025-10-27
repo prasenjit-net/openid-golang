@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -6,13 +5,13 @@ import {
   Button,
   Space,
   Typography,
-  message,
   Spin,
   Alert,
 } from 'antd';
 import {
   EditOutlined,
 } from '@ant-design/icons';
+import { useSettings } from '../../hooks/useApi';
 
 const { Title } = Typography;
 
@@ -30,27 +29,7 @@ interface Settings {
 
 const SettingsDetail = () => {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/settings');
-      if (!response.ok) throw new Error('Failed to fetch settings');
-      const data = await response.json();
-      setSettings(data);
-    } catch (error) {
-      message.error('Failed to load settings');
-      console.error('Failed to fetch settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  const { data: settings, isLoading: loading, error } = useSettings();
 
   if (loading) {
     return (

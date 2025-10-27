@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -13,63 +13,31 @@ import {
   Select,
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { useClient, useUpdateClient } from '../../hooks/useApi';
 
 const { Title } = Typography;
 const { TextArea } = Input;
-
-interface Client {
-  id: string;
-  client_id: string;
-  name: string;
-  redirect_uris: string[];
-  grant_types?: string[];
-  response_types?: string[];
-  scope?: string;
-  application_type?: string;
-}
 
 const ClientEdit = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [client, setClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: client, isLoading: loading, error } = useClient(id || '');
+  const updateClientMutation = useUpdateClient();
 
   useEffect(() => {
-    fetchClient();
-  }, [id]);
-
-  const fetchClient = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch(`/api/admin/clients/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Client not found');
-        }
-        throw new Error('Failed to fetch client');
-      }
-      const data = await response.json();
-      setClient(data);
+    if (client) {
       form.setFieldsValue({
-        ...data,
-        redirect_uris_text: data.redirect_uris?.join('\n') || '',
+        ...client,
+        redirect_uris_text: client.redirect_uris?.join('\n') || '',
       });
-    } catch (err: any) {
-      setError(err.message);
-      message.error(err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [client, form]);
 
   const handleSubmit = async (values: any) => {
+    if (!id) return;
+    
     try {
-      setSubmitting(true);
-      
       // Convert redirect URIs from text to array
       const redirect_uris = values.redirect_uris_text
         .split('\n')
@@ -80,26 +48,14 @@ const ClientEdit = () => {
         id,
         name: values.name,
         redirect_uris,
-        grant_types: values.grant_types,
-        response_types: values.response_types,
-        scope: values.scope,
-        application_type: values.application_type,
       };
 
-      const response = await fetch(`/api/admin/clients/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) throw new Error('Failed to update client');
+      await updateClientMutation.mutateAsync(payload);
       message.success('Client updated successfully');
       navigate(`/clients/${id}`);
     } catch (error) {
       message.error('Failed to update client');
       console.error('Failed to update client:', error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -123,7 +79,7 @@ const ClientEdit = () => {
         </Button>
         <Alert
           message="Error"
-          description={error || 'Client not found'}
+          description={error?.message || 'Client not found'}
           type="error"
           showIcon
         />
@@ -237,7 +193,7 @@ const ClientEdit = () => {
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              loading={submitting}
+              loading={updateClientMutation.isPending}
             >
               Save Changes
             </Button>

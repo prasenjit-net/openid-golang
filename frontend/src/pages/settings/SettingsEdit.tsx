@@ -14,59 +14,35 @@ import {
   Alert,
 } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { useSettings, useUpdateSettings } from '../../hooks/useApi';
 
 const { Title } = Typography;
 
 const SettingsEdit = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { data: settings, isLoading: loading } = useSettings();
+  const updateSettingsMutation = useUpdateSettings();
   const [storageType, setStorageType] = useState<string>('json');
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/admin/settings');
-        if (!response.ok) throw new Error('Failed to fetch settings');
-        const data = await response.json();
-        
-        form.setFieldsValue({
-          issuer: data.issuer,
-          server_host: data.server_host,
-          server_port: data.server_port,
-          storage_type: data.storage_type,
-          json_file_path: data.json_file_path,
-          mongo_uri: data.mongo_uri,
-          jwt_expiry_minutes: data.jwt_expiry_minutes,
-        });
-        
-        setStorageType(data.storage_type);
-      } catch (error) {
-        message.error('Failed to load settings');
-        console.error('Failed to fetch settings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSettings();
-  }, [form]);
+    if (settings) {
+      form.setFieldsValue({
+        issuer: settings.issuer,
+        server_host: settings.server_host,
+        server_port: settings.server_port,
+        storage_type: settings.storage_type,
+        json_file_path: settings.json_file_path,
+        mongo_uri: settings.mongo_uri,
+        jwt_expiry_minutes: settings.jwt_expiry_minutes,
+      });
+      setStorageType(settings.storage_type);
+    }
+  }, [settings, form]);
 
   const handleSubmit = async (values: any) => {
     try {
-      setSubmitting(true);
-      
-      const response = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      
-      if (!response.ok) throw new Error('Failed to update settings');
-      
-      const result = await response.json();
+      const result = await updateSettingsMutation.mutateAsync(values);
       message.success('Settings updated successfully');
       
       // Show warning if changes are not persisted
@@ -78,8 +54,6 @@ const SettingsEdit = () => {
     } catch (error) {
       message.error('Failed to update settings');
       console.error('Failed to update settings:', error);
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -216,7 +190,7 @@ const SettingsEdit = () => {
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              loading={submitting}
+              loading={updateSettingsMutation.isPending}
             >
               Save Settings
             </Button>
