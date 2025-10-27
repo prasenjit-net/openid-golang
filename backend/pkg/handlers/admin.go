@@ -83,6 +83,51 @@ func (h *AdminHandler) ListUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, safeUsers)
 }
 
+// GetUser returns a single user by ID
+func (h *AdminHandler) GetUser(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User ID is required"})
+	}
+
+	user, err := h.store.GetUserByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Don't send password hash to client, but include all profile fields
+	response := map[string]interface{}{
+		"id":                    user.ID,
+		"username":              user.Username,
+		"email":                 user.Email,
+		"email_verified":        user.EmailVerified,
+		"name":                  user.Name,
+		"given_name":            user.GivenName,
+		"family_name":           user.FamilyName,
+		"middle_name":           user.MiddleName,
+		"nickname":              user.Nickname,
+		"preferred_username":    user.PreferredUsername,
+		"profile":               user.Profile,
+		"picture":               user.Picture,
+		"website":               user.Website,
+		"gender":                user.Gender,
+		"birthdate":             user.Birthdate,
+		"zoneinfo":              user.Zoneinfo,
+		"locale":                user.Locale,
+		"phone_number":          user.PhoneNumber,
+		"phone_number_verified": user.PhoneNumberVerified,
+		"address":               user.Address,
+		"role":                  user.Role,
+		"created_at":            user.CreatedAt,
+		"updated_at":            user.UpdatedAt,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
 // CreateUser creates a new user
 func (h *AdminHandler) CreateUser(c echo.Context) error {
 	var req struct {
@@ -145,11 +190,7 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 // UpdateUser updates an existing user
 func (h *AdminHandler) UpdateUser(c echo.Context) error {
 	var req struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Name     string `json:"name"`
-		Role     string `json:"role"`
+		models.User
 		Password string `json:"password,omitempty"`
 	}
 
@@ -166,13 +207,35 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
-	// Update fields
+	// Update basic fields
 	existingUser.Username = req.Username
 	existingUser.Email = req.Email
+	existingUser.EmailVerified = req.EmailVerified
 	existingUser.Name = req.Name
 	if req.Role != "" {
-		existingUser.Role = models.UserRole(req.Role)
+		existingUser.Role = req.Role
 	}
+
+	// Update profile fields
+	existingUser.GivenName = req.GivenName
+	existingUser.FamilyName = req.FamilyName
+	existingUser.MiddleName = req.MiddleName
+	existingUser.Nickname = req.Nickname
+	existingUser.PreferredUsername = req.PreferredUsername
+	existingUser.Profile = req.Profile
+	existingUser.Picture = req.Picture
+	existingUser.Website = req.Website
+	existingUser.Gender = req.Gender
+	existingUser.Birthdate = req.Birthdate
+	existingUser.Zoneinfo = req.Zoneinfo
+	existingUser.Locale = req.Locale
+
+	// Update contact fields
+	existingUser.PhoneNumber = req.PhoneNumber
+	existingUser.PhoneNumberVerified = req.PhoneNumberVerified
+
+	// Update address
+	existingUser.Address = req.Address
 
 	// Update password if provided
 	if req.Password != "" {
@@ -183,19 +246,37 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		existingUser.PasswordHash = string(hashedPassword)
 	}
 
+	existingUser.UpdatedAt = time.Now()
+
 	if err := h.store.UpdateUser(existingUser); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user: " + err.Error()})
 	}
 
 	// Return user without password hash
 	response := map[string]interface{}{
-		"id":         existingUser.ID,
-		"username":   existingUser.Username,
-		"email":      existingUser.Email,
-		"name":       existingUser.Name,
-		"role":       existingUser.Role,
-		"created_at": existingUser.CreatedAt,
-		"updated_at": existingUser.UpdatedAt,
+		"id":                    existingUser.ID,
+		"username":              existingUser.Username,
+		"email":                 existingUser.Email,
+		"email_verified":        existingUser.EmailVerified,
+		"name":                  existingUser.Name,
+		"given_name":            existingUser.GivenName,
+		"family_name":           existingUser.FamilyName,
+		"middle_name":           existingUser.MiddleName,
+		"nickname":              existingUser.Nickname,
+		"preferred_username":    existingUser.PreferredUsername,
+		"profile":               existingUser.Profile,
+		"picture":               existingUser.Picture,
+		"website":               existingUser.Website,
+		"gender":                existingUser.Gender,
+		"birthdate":             existingUser.Birthdate,
+		"zoneinfo":              existingUser.Zoneinfo,
+		"locale":                existingUser.Locale,
+		"phone_number":          existingUser.PhoneNumber,
+		"phone_number_verified": existingUser.PhoneNumberVerified,
+		"address":               existingUser.Address,
+		"role":                  existingUser.Role,
+		"created_at":            existingUser.CreatedAt,
+		"updated_at":            existingUser.UpdatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)

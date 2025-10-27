@@ -2,7 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import AdminLayout from './components/layout/AdminLayout';
 import Dashboard from './pages/Dashboard';
-import Users from './pages/Users';
+import UserSearch from './pages/users/UserSearch';
+import UserDetail from './pages/users/UserDetail';
+import UserEdit from './pages/users/UserEdit';
+import UserCreate from './pages/users/UserCreate';
 import Clients from './pages/Clients';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
@@ -104,7 +107,10 @@ function AppContent() {
               <Route path="/" element={<AdminLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="users" element={<Users />} />
+                <Route path="users" element={<UserSearch />} />
+                <Route path="users/new" element={<UserCreate />} />
+                <Route path="users/:id" element={<UserDetail />} />
+                <Route path="users/:id/edit" element={<UserEdit />} />
                 <Route path="clients" element={<Clients />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

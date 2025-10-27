@@ -284,6 +284,7 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	// Stats and management (should be authenticated in production)
 	api.GET("/stats", adminAPIHandler.GetStats)
 	api.GET("/users", adminAPIHandler.ListUsers)
+	api.GET("/users/:id", adminAPIHandler.GetUser)
 	api.POST("/users", adminAPIHandler.CreateUser)
 	api.PUT("/users/:id", adminAPIHandler.UpdateUser)
 	api.DELETE("/users/:id", adminAPIHandler.DeleteUser)
