@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -712,23 +713,113 @@ func (h *AdminHandler) UpdateSettings(c echo.Context) error {
 
 // GetKeys returns signing keys
 func (h *AdminHandler) GetKeys(c echo.Context) error {
-	keys := []map[string]interface{}{
-		{
-			"kid":        "key-1",
-			"alg":        "RS256",
-			"use":        "sig",
-			"created_at": time.Now().Format(time.RFC3339),
-			"is_active":  true,
-		},
+	keys, err := h.store.GetAllSigningKeys()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get signing keys"})
 	}
 
-	return c.JSON(http.StatusOK, keys)
+	// Convert to response format (don't expose private keys in list)
+	type KeyResponse struct {
+		ID        string    `json:"id"`
+		KID       string    `json:"kid"`
+		Algorithm string    `json:"algorithm"`
+		IsActive  bool      `json:"is_active"`
+		CreatedAt time.Time `json:"created_at"`
+		ExpiresAt time.Time `json:"expires_at,omitempty"`
+		Status    string    `json:"status"` // "active", "expired", "inactive"
+	}
+
+	response := make([]KeyResponse, len(keys))
+	for i, key := range keys {
+		status := "inactive"
+		if key.IsActive {
+			status = "active"
+		} else if key.IsExpired() {
+			status = "expired"
+		}
+
+		response[i] = KeyResponse{
+			ID:        key.ID,
+			KID:       key.KID,
+			Algorithm: key.Algorithm,
+			IsActive:  key.IsActive,
+			CreatedAt: key.CreatedAt,
+			ExpiresAt: key.ExpiresAt,
+			Status:    status,
+		}
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // RotateKeys rotates signing keys
 func (h *AdminHandler) RotateKeys(c echo.Context) error {
-	// TODO: Generate new keys and mark old keys as inactive
-	return c.JSON(http.StatusOK, map[string]string{"message": "Keys rotated successfully"})
+	// Generate new RSA key pair
+	privateKey, publicKey, err := crypto.GenerateRSAKeyPair()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate new keys: " + err.Error()})
+	}
+
+	// Convert keys to PEM format
+	privateKeyPEM, err := crypto.EncodePrivateKeyToPEM(privateKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode private key: " + err.Error()})
+	}
+
+	publicKeyPEM, err := crypto.EncodePublicKeyToPEM(publicKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode public key: " + err.Error()})
+	}
+
+	// Get all existing keys and mark them as inactive with expiration
+	existingKeys, err := h.store.GetAllSigningKeys()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get existing keys: " + err.Error()})
+	}
+
+	// Set expiration for old keys (30 days from now to allow token validation)
+	expirationTime := time.Now().Add(30 * 24 * time.Hour)
+	for _, key := range existingKeys {
+		if key.IsActive {
+			key.IsActive = false
+			key.ExpiresAt = expirationTime
+			if err := h.store.UpdateSigningKey(key); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update old key: " + err.Error()})
+			}
+		}
+	}
+
+	// Create new active key
+	newKey := &models.SigningKey{
+		ID:         uuid.New().String(),
+		KID:        fmt.Sprintf("key-%d", time.Now().Unix()),
+		Algorithm:  "RS256",
+		PrivateKey: privateKeyPEM,
+		PublicKey:  publicKeyPEM,
+		IsActive:   true,
+		CreatedAt:  time.Now(),
+		ExpiresAt:  time.Time{}, // No expiration for active key
+	}
+
+	if err := h.store.CreateSigningKey(newKey); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create new key: " + err.Error()})
+	}
+
+	// Update config with new active key (for backward compatibility)
+	h.config.JWT.PrivateKey = privateKeyPEM
+	h.config.JWT.PublicKey = publicKeyPEM
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":    "RSA keys rotated successfully",
+		"info":       "Old keys marked as inactive and will expire in 30 days",
+		"new_key_id": newKey.KID,
+		"active_key": map[string]interface{}{
+			"id":         newKey.ID,
+			"kid":        newKey.KID,
+			"algorithm":  newKey.Algorithm,
+			"created_at": newKey.CreatedAt,
+		},
+	})
 }
 
 // GetSetupStatus returns whether initial setup is complete

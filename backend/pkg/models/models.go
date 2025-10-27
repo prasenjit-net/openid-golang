@@ -192,6 +192,32 @@ type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// SigningKey represents an RSA key pair used for signing JWTs
+// Supports key rotation by maintaining multiple keys with different states
+type SigningKey struct {
+	ID         string    `json:"id" bson:"_id"`                           // Unique identifier for the key
+	KID        string    `json:"kid" bson:"kid"`                          // Key ID used in JWT header
+	Algorithm  string    `json:"algorithm" bson:"algorithm"`              // Signing algorithm (e.g., RS256)
+	PrivateKey string    `json:"private_key" bson:"private_key"`          // PEM-encoded private key
+	PublicKey  string    `json:"public_key" bson:"public_key"`            // PEM-encoded public key
+	IsActive   bool      `json:"is_active" bson:"is_active"`              // Whether this key is used for signing
+	CreatedAt  time.Time `json:"created_at" bson:"created_at"`            // When the key was created
+	ExpiresAt  time.Time `json:"expires_at,omitempty" bson:"expires_at"` // When the key expires (for rotation)
+}
+
+// IsExpired checks if the key has expired
+func (k *SigningKey) IsExpired() bool {
+	if k.ExpiresAt.IsZero() {
+		return false
+	}
+	return time.Now().After(k.ExpiresAt)
+}
+
+// IsValid checks if the key can be used for verification (active or not expired)
+func (k *SigningKey) IsValid() bool {
+	return k.IsActive || !k.IsExpired()
+}
+
 // AuthSession represents an OpenID Connect authorization session
 // Stores authorization request parameters during the authentication flow
 type AuthSession struct {

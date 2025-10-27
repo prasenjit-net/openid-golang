@@ -4,8 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 
@@ -109,4 +111,42 @@ func CalculateTokenHash(token string) string {
 
 	// Base64url encode without padding
 	return base64.RawURLEncoding.EncodeToString(leftHalf)
+}
+
+// GenerateRSAKeyPair generates a new RSA key pair for signing
+func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
+	}
+	return privateKey, &privateKey.PublicKey, nil
+}
+
+// EncodePrivateKeyToPEM encodes an RSA private key to PEM format
+func EncodePrivateKeyToPEM(privateKey *rsa.PrivateKey) (string, error) {
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	})
+	if privateKeyPEM == nil {
+		return "", fmt.Errorf("failed to encode private key to PEM")
+	}
+	return string(privateKeyPEM), nil
+}
+
+// EncodePublicKeyToPEM encodes an RSA public key to PEM format
+func EncodePublicKeyToPEM(publicKey *rsa.PublicKey) (string, error) {
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+	if publicKeyPEM == nil {
+		return "", fmt.Errorf("failed to encode public key to PEM")
+	}
+	return string(publicKeyPEM), nil
 }

@@ -19,6 +19,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 
@@ -56,6 +57,12 @@ export default function AdminLayout() {
       icon: <LockOutlined />,
       label: 'Client Management',
       onClick: () => navigate('/clients'),
+    },
+    {
+      key: '/keys',
+      icon: <KeyOutlined />,
+      label: 'Signing Keys',
+      onClick: () => navigate('/keys'),
     },
     {
       key: '/settings',

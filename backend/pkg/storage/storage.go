@@ -73,6 +73,15 @@ type Storage interface {
 	DeleteInitialAccessToken(token string) error
 	GetAllInitialAccessTokens() ([]*models.InitialAccessToken, error)
 
+	// SigningKey operations (for key rotation)
+	CreateSigningKey(key *models.SigningKey) error
+	GetSigningKey(id string) (*models.SigningKey, error)
+	GetSigningKeyByKID(kid string) (*models.SigningKey, error)
+	GetAllSigningKeys() ([]*models.SigningKey, error)
+	GetActiveSigningKey() (*models.SigningKey, error)
+	UpdateSigningKey(key *models.SigningKey) error
+	DeleteSigningKey(id string) error
+
 	Close() error
 }
 

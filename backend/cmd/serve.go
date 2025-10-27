@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/spf13/cobra"
@@ -185,6 +186,29 @@ func runNormalMode(configData *configstore.ConfigData) {
 		}
 	}
 
+	// Ensure at least one signing key exists
+	existingKeys, err := store.GetAllSigningKeys()
+	if err != nil {
+		log.Printf("Warning: Failed to check existing signing keys: %v", err)
+	} else if len(existingKeys) == 0 {
+		// No keys exist, create initial signing key from config
+		initialKey := &models.SigningKey{
+			ID:         uuid.New().String(),
+			KID:        "initial-key",
+			Algorithm:  "RS256",
+			PrivateKey: configData.JWT.PrivateKey,
+			PublicKey:  configData.JWT.PublicKey,
+			IsActive:   true,
+			CreatedAt:  time.Now(),
+			ExpiresAt:  time.Time{}, // No expiration for initial key
+		}
+		if createErr := store.CreateSigningKey(initialKey); createErr != nil {
+			log.Printf("Warning: Failed to create initial signing key: %v", createErr)
+		} else {
+			log.Println("Created initial signing key")
+		}
+	}
+
 	// Initialize JWT manager from PEM strings stored in config
 	jwtManager, err := crypto.NewJWTManagerFromPEM(
 		configData.JWT.PrivateKey,
@@ -296,6 +320,8 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	api.DELETE("/clients/:id", adminAPIHandler.DeleteClient)
 	api.GET("/settings", adminAPIHandler.GetSettings)
 	api.PUT("/settings", adminAPIHandler.UpdateSettings)
+	api.GET("/keys", adminAPIHandler.GetKeys)
+	api.POST("/settings/rotate-keys", adminAPIHandler.RotateKeys)
 
 	// Serve Admin UI at root with HTML5 routing (must be last)
 	// Note: /setup is NOT served here - it's only available in setup mode

@@ -10,7 +10,9 @@ import ClientSearch from './pages/clients/ClientSearch';
 import ClientDetail from './pages/clients/ClientDetail';
 import ClientEdit from './pages/clients/ClientEdit';
 import ClientCreate from './pages/clients/ClientCreate';
-import Settings from './pages/Settings';
+import KeyManagement from './pages/KeyManagement';
+import SettingsDetail from './pages/settings/SettingsDetail';
+import SettingsEdit from './pages/settings/SettingsEdit';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
@@ -118,7 +120,9 @@ function AppContent() {
                 <Route path="clients/new" element={<ClientCreate />} />
                 <Route path="clients/:id" element={<ClientDetail />} />
                 <Route path="clients/:id/edit" element={<ClientEdit />} />
-                <Route path="settings" element={<Settings />} />
+                <Route path="keys" element={<KeyManagement />} />
+                <Route path="settings" element={<SettingsDetail />} />
+                <Route path="settings/edit" element={<SettingsEdit />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </>
