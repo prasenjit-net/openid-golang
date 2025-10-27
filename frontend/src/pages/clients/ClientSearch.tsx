@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   Form,
@@ -42,19 +43,16 @@ interface SearchParams {
 const ClientSearch = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
 
-  const handleSearch = async (values: SearchParams) => {
-    try {
-      setLoading(true);
-      setSearched(true);
-
-      // Build query string
+  const { data: clients = [], isLoading: loading } = useQuery({
+    queryKey: ['clients', 'search', searchParams],
+    queryFn: async () => {
+      if (!searchParams) return [];
+      
       const params = new URLSearchParams();
-      if (values.client_id) params.append('client_id', values.client_id);
-      if (values.name) params.append('name', values.name);
+      if (searchParams.client_id) params.append('client_id', searchParams.client_id);
+      if (searchParams.name) params.append('name', searchParams.name);
 
       const queryString = params.toString();
       const url = queryString ? `/api/admin/clients?${queryString}` : '/api/admin/clients';
@@ -62,19 +60,18 @@ const ClientSearch = () => {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to search clients');
       const data = await response.json();
-      setClients(data || []);
-    } catch (error) {
-      message.error('Failed to search clients');
-      console.error('Failed to search clients:', error);
-    } finally {
-      setLoading(false);
-    }
+      return data || [];
+    },
+    enabled: !!searchParams,
+  });
+
+  const handleSearch = (values: SearchParams) => {
+    setSearchParams(values);
   };
 
   const handleClear = () => {
     form.resetFields();
-    setClients([]);
-    setSearched(false);
+    setSearchParams(null);
   };
 
   const copyToClipboard = (text: string) => {
@@ -205,7 +202,7 @@ const ClientSearch = () => {
         </Form>
       </Card>
 
-      {searched && (
+      {searchParams && (
         <Card bordered={false}>
           {clients.length === 0 ? (
             <Empty description="No clients found" />

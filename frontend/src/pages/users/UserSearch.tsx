@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   Form,
@@ -43,21 +44,18 @@ interface SearchParams {
 const UserSearch = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
 
-  const handleSearch = async (values: SearchParams) => {
-    try {
-      setLoading(true);
-      setSearched(true);
-
-      // Build query string
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: ['users', 'search', searchParams],
+    queryFn: async () => {
+      if (!searchParams) return [];
+      
       const params = new URLSearchParams();
-      if (values.username) params.append('username', values.username);
-      if (values.email) params.append('email', values.email);
-      if (values.name) params.append('name', values.name);
-      if (values.role) params.append('role', values.role);
+      if (searchParams.username) params.append('username', searchParams.username);
+      if (searchParams.email) params.append('email', searchParams.email);
+      if (searchParams.name) params.append('name', searchParams.name);
+      if (searchParams.role) params.append('role', searchParams.role);
 
       const queryString = params.toString();
       const url = queryString ? `/api/admin/users?${queryString}` : '/api/admin/users';
@@ -65,19 +63,18 @@ const UserSearch = () => {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed to search users');
       const data = await response.json();
-      setUsers(data || []);
-    } catch (error) {
-      message.error('Failed to search users');
-      console.error('Failed to search users:', error);
-    } finally {
-      setLoading(false);
-    }
+      return data || [];
+    },
+    enabled: !!searchParams,
+  });
+
+  const handleSearch = (values: SearchParams) => {
+    setSearchParams(values);
   };
 
   const handleClear = () => {
     form.resetFields();
-    setUsers([]);
-    setSearched(false);
+    setSearchParams(null);
   };
 
   const columns: ColumnsType<User> = [
@@ -194,7 +191,7 @@ const UserSearch = () => {
         </Form>
       </Card>
 
-      {searched && (
+      {searchParams && (
         <Card bordered={false}>
           {users.length === 0 ? (
             <Empty description="No users found" />
