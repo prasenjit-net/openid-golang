@@ -335,25 +335,64 @@ func (h *AdminHandler) ListClients(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
-	// Convert to response format
-	type ClientResponse struct {
-		ID           string    `json:"id"`
-		ClientID     string    `json:"client_id"`
-		ClientSecret string    `json:"client_secret,omitempty"`
-		Name         string    `json:"name"`
-		RedirectURIs []string  `json:"redirect_uris"`
-		CreatedAt    time.Time `json:"created_at"`
+	// Get query parameters for filtering
+	filterClientID := c.QueryParam("client_id")
+	filterName := c.QueryParam("name")
+
+	// Apply filters if provided
+	var filteredClients []*models.Client
+	for _, client := range clients {
+		// Skip if doesn't match filters
+		if filterClientID != "" && !containsIgnoreCase(client.ID, filterClientID) {
+			continue
+		}
+		if filterName != "" && !containsIgnoreCase(client.Name, filterName) {
+			continue
+		}
+		filteredClients = append(filteredClients, client)
 	}
 
-	response := make([]ClientResponse, len(clients))
-	for i, client := range clients {
+	// Convert to response format
+	type ClientResponse struct {
+		ID                      string    `json:"id"`
+		ClientID                string    `json:"client_id"`
+		ClientSecret            string    `json:"client_secret,omitempty"`
+		Name                    string    `json:"name"`
+		RedirectURIs            []string  `json:"redirect_uris"`
+		GrantTypes              []string  `json:"grant_types"`
+		ResponseTypes           []string  `json:"response_types"`
+		Scope                   string    `json:"scope"`
+		ApplicationType         string    `json:"application_type"`
+		Contacts                []string  `json:"contacts,omitempty"`
+		ClientURI               string    `json:"client_uri,omitempty"`
+		LogoURI                 string    `json:"logo_uri,omitempty"`
+		PolicyURI               string    `json:"policy_uri,omitempty"`
+		TosURI                  string    `json:"tos_uri,omitempty"`
+		JwksURI                 string    `json:"jwks_uri,omitempty"`
+		TokenEndpointAuthMethod string    `json:"token_endpoint_auth_method"`
+		CreatedAt               time.Time `json:"created_at"`
+	}
+
+	response := make([]ClientResponse, len(filteredClients))
+	for i, client := range filteredClients {
 		response[i] = ClientResponse{
-			ID:           client.ID,
-			ClientID:     client.ID, // In our model, ID is the client_id
-			ClientSecret: "",        // Don't expose secret in list view
-			Name:         client.Name,
-			RedirectURIs: client.RedirectURIs,
-			CreatedAt:    client.CreatedAt,
+			ID:                      client.ID,
+			ClientID:                client.ID, // In our model, ID is the client_id
+			ClientSecret:            "",        // Don't expose secret in list view
+			Name:                    client.Name,
+			RedirectURIs:            client.RedirectURIs,
+			GrantTypes:              client.GrantTypes,
+			ResponseTypes:           client.ResponseTypes,
+			Scope:                   client.Scope,
+			ApplicationType:         client.ApplicationType,
+		Contacts:                client.Contacts,
+		ClientURI:               client.ClientURI,
+		LogoURI:                 client.LogoURI,
+		PolicyURI:               client.PolicyURI,
+		TosURI:                  client.TosURI,
+		JwksURI:                 client.JWKSURI,
+		TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
+			CreatedAt:               client.CreatedAt,
 		}
 	}
 
@@ -363,8 +402,12 @@ func (h *AdminHandler) ListClients(c echo.Context) error {
 // CreateClient creates a new OAuth client
 func (h *AdminHandler) CreateClient(c echo.Context) error {
 	var req struct {
-		Name         string   `json:"name"`
-		RedirectURIs []string `json:"redirect_uris"`
+		Name            string   `json:"name"`
+		RedirectURIs    []string `json:"redirect_uris"`
+		GrantTypes      []string `json:"grant_types"`
+		ResponseTypes   []string `json:"response_types"`
+		Scope           string   `json:"scope"`
+		ApplicationType string   `json:"application_type"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -379,6 +422,24 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "redirect_uris is required"})
 	}
 
+	// Set defaults for optional fields
+	grantTypes := req.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{"authorization_code", "implicit"}
+	}
+	responseTypes := req.ResponseTypes
+	if len(responseTypes) == 0 {
+		responseTypes = []string{"code", "token", "id_token", "id_token token"}
+	}
+	scope := req.Scope
+	if scope == "" {
+		scope = "openid profile email"
+	}
+	applicationType := req.ApplicationType
+	if applicationType == "" {
+		applicationType = "web"
+	}
+
 	// Generate client credentials
 	clientID := uuid.New().String()
 	clientSecret, err := crypto.GenerateRandomString(32)
@@ -387,14 +448,15 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 	}
 
 	client := &models.Client{
-		ID:            clientID,
-		Secret:        clientSecret,
-		Name:          req.Name,
-		RedirectURIs:  req.RedirectURIs,
-		GrantTypes:    []string{"authorization_code", "implicit"},
-		ResponseTypes: []string{"code", "token", "id_token", "id_token token"},
-		Scope:         "openid profile email",
-		CreatedAt:     time.Now(),
+		ID:              clientID,
+		Secret:          clientSecret,
+		Name:            req.Name,
+		RedirectURIs:    req.RedirectURIs,
+		GrantTypes:      grantTypes,
+		ResponseTypes:   responseTypes,
+		Scope:           scope,
+		ApplicationType: applicationType,
+		CreatedAt:       time.Now(),
 	}
 
 	if err := h.store.CreateClient(client); err != nil {
@@ -408,6 +470,10 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 		"client_secret": client.Secret,
 		"name":          client.Name,
 		"redirect_uris": client.RedirectURIs,
+		"grant_types":   client.GrantTypes,
+		"response_types": client.ResponseTypes,
+		"scope":         client.Scope,
+		"application_type": client.ApplicationType,
 		"created_at":    client.CreatedAt,
 	}
 
@@ -416,10 +482,18 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 
 // UpdateClient updates an existing OAuth client
 func (h *AdminHandler) UpdateClient(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
 	var req struct {
-		ID           string   `json:"id"`
-		Name         string   `json:"name"`
-		RedirectURIs []string `json:"redirect_uris"`
+		Name            string   `json:"name"`
+		RedirectURIs    []string `json:"redirect_uris"`
+		GrantTypes      []string `json:"grant_types"`
+		ResponseTypes   []string `json:"response_types"`
+		Scope           string   `json:"scope"`
+		ApplicationType string   `json:"application_type"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -427,7 +501,7 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 	}
 
 	// Get existing client
-	existingClient, err := h.store.GetClientByID(req.ID)
+	existingClient, err := h.store.GetClientByID(id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
 	}
@@ -436,8 +510,24 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 	}
 
 	// Update fields
-	existingClient.Name = req.Name
-	existingClient.RedirectURIs = req.RedirectURIs
+	if req.Name != "" {
+		existingClient.Name = req.Name
+	}
+	if len(req.RedirectURIs) > 0 {
+		existingClient.RedirectURIs = req.RedirectURIs
+	}
+	if len(req.GrantTypes) > 0 {
+		existingClient.GrantTypes = req.GrantTypes
+	}
+	if len(req.ResponseTypes) > 0 {
+		existingClient.ResponseTypes = req.ResponseTypes
+	}
+	if req.Scope != "" {
+		existingClient.Scope = req.Scope
+	}
+	if req.ApplicationType != "" {
+		existingClient.ApplicationType = req.ApplicationType
+	}
 
 	if err := h.store.UpdateClient(existingClient); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
@@ -445,11 +535,15 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 
 	// Return updated client without secret
 	response := map[string]interface{}{
-		"id":            existingClient.ID,
-		"client_id":     existingClient.ID,
-		"name":          existingClient.Name,
-		"redirect_uris": existingClient.RedirectURIs,
-		"created_at":    existingClient.CreatedAt,
+		"id":               existingClient.ID,
+		"client_id":        existingClient.ID,
+		"name":             existingClient.Name,
+		"redirect_uris":    existingClient.RedirectURIs,
+		"grant_types":      existingClient.GrantTypes,
+		"response_types":   existingClient.ResponseTypes,
+		"scope":            existingClient.Scope,
+		"application_type": existingClient.ApplicationType,
+		"created_at":       existingClient.CreatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -468,6 +562,82 @@ func (h *AdminHandler) DeleteClient(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+// GetClient returns a single OAuth client by ID
+func (h *AdminHandler) GetClient(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
+	client, err := h.store.GetClientByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
+	}
+	if client == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	// Return client with all fields except secret
+	response := map[string]interface{}{
+		"id":                        client.ID,
+		"client_id":                 client.ID,
+		"name":                      client.Name,
+		"redirect_uris":             client.RedirectURIs,
+		"grant_types":               client.GrantTypes,
+		"response_types":            client.ResponseTypes,
+		"scope":                     client.Scope,
+		"application_type":          client.ApplicationType,
+		"contacts":                  client.Contacts,
+		"client_uri":                client.ClientURI,
+		"logo_uri":                  client.LogoURI,
+		"policy_uri":                client.PolicyURI,
+		"tos_uri":                   client.TosURI,
+		"jwks_uri":                  client.JWKSURI,
+		"token_endpoint_auth_method": client.TokenEndpointAuthMethod,
+		"created_at":                client.CreatedAt,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// RegenerateClientSecret generates a new secret for an OAuth client
+func (h *AdminHandler) RegenerateClientSecret(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
+	// Get existing client
+	client, err := h.store.GetClientByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
+	}
+	if client == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	// Generate new secret
+	newSecret, err := crypto.GenerateRandomString(32)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate client secret"})
+	}
+
+	// Update client with new secret
+	client.Secret = newSecret
+	if err := h.store.UpdateClient(client); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
+	}
+
+	// Return new secret (only shown once)
+	response := map[string]interface{}{
+		"client_id":     client.ID,
+		"client_secret": newSecret,
+		"message":       "Client secret regenerated successfully",
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // GetSettings returns server settings

@@ -3,11 +3,14 @@
     "f4ba593b-44d6-46a4-af73-c7c7a9f16698": {
       "id": "f4ba593b-44d6-46a4-af73-c7c7a9f16698",
       "username": "admin",
-      "email": "admin@local",
+      "email": "admin@local.net",
       "role": "admin",
       "name": "Administrator",
+      "given_name": "Admin",
+      "middle_name": "User",
+      "address": {},
       "created_at": "2025-10-27T10:08:16.401599-07:00",
-      "updated_at": "2025-10-27T10:08:16.401599-07:00",
+      "updated_at": "2025-10-27T11:23:29.271313-07:00",
       "password_hash": "$2a$10$27NdsRs0h2g7nXJrjNS9fOwcKTUcsOG4glRaM0Vw5HTLT7thBiUyu"
     }
   },
@@ -5493,6 +5496,18 @@
       "consent_given": false,
       "expires_at": "2025-10-27T10:41:29.065034-07:00",
       "created_at": "2025-10-27T10:31:29.065034-07:00"
+    },
+    "pLc7MdN1S-VuTYosnaOUabP4AjP5jxeWOV-VzisB9KA": {
+      "id": "pLc7MdN1S-VuTYosnaOUabP4AjP5jxeWOV-VzisB9KA",
+      "client_id": "admin-ui",
+      "redirect_uri": "http://localhost:3000/admin/callback",
+      "response_type": "id_token",
+      "scope": "openid profile email",
+      "state": "989573f4e3362491dc6394272df14b5d",
+      "nonce": "e091c0f9d086ddbbf5597a420d950522",
+      "consent_given": false,
+      "expires_at": "2025-10-27T11:31:47.506509-07:00",
+      "created_at": "2025-10-27T11:21:47.506509-07:00"
     },
     "pQSiwoNS9DOAOe_QU8NvxfVQIzndh3KiL-rHRXVxG_w": {
       "id": "pQSiwoNS9DOAOe_QU8NvxfVQIzndh3KiL-rHRXVxG_w",

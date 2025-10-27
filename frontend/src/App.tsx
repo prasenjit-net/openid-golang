@@ -6,7 +6,10 @@ import UserSearch from './pages/users/UserSearch';
 import UserDetail from './pages/users/UserDetail';
 import UserEdit from './pages/users/UserEdit';
 import UserCreate from './pages/users/UserCreate';
-import Clients from './pages/Clients';
+import ClientSearch from './pages/clients/ClientSearch';
+import ClientDetail from './pages/clients/ClientDetail';
+import ClientEdit from './pages/clients/ClientEdit';
+import ClientCreate from './pages/clients/ClientCreate';
 import Settings from './pages/Settings';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
@@ -111,7 +114,10 @@ function AppContent() {
                 <Route path="users/new" element={<UserCreate />} />
                 <Route path="users/:id" element={<UserDetail />} />
                 <Route path="users/:id/edit" element={<UserEdit />} />
-                <Route path="clients" element={<Clients />} />
+                <Route path="clients" element={<ClientSearch />} />
+                <Route path="clients/new" element={<ClientCreate />} />
+                <Route path="clients/:id" element={<ClientDetail />} />
+                <Route path="clients/:id/edit" element={<ClientEdit />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
