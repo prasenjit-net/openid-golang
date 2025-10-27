@@ -756,4 +756,3 @@ func (m *MongoDBStorage) GetRecentUserSessionsCount() int {
 	}
 	return int(count)
 }
-

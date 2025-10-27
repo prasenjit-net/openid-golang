@@ -407,13 +407,13 @@ func (h *AdminHandler) ListClients(c echo.Context) error {
 			ResponseTypes:           client.ResponseTypes,
 			Scope:                   client.Scope,
 			ApplicationType:         client.ApplicationType,
-		Contacts:                client.Contacts,
-		ClientURI:               client.ClientURI,
-		LogoURI:                 client.LogoURI,
-		PolicyURI:               client.PolicyURI,
-		TosURI:                  client.TosURI,
-		JwksURI:                 client.JWKSURI,
-		TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
+			Contacts:                client.Contacts,
+			ClientURI:               client.ClientURI,
+			LogoURI:                 client.LogoURI,
+			PolicyURI:               client.PolicyURI,
+			TosURI:                  client.TosURI,
+			JwksURI:                 client.JWKSURI,
+			TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
 			CreatedAt:               client.CreatedAt,
 		}
 	}
@@ -487,16 +487,16 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 
 	// Return client with secret (only shown once)
 	response := map[string]interface{}{
-		"id":            client.ID,
-		"client_id":     client.ID,
-		"client_secret": client.Secret,
-		"name":          client.Name,
-		"redirect_uris": client.RedirectURIs,
-		"grant_types":   client.GrantTypes,
-		"response_types": client.ResponseTypes,
-		"scope":         client.Scope,
+		"id":               client.ID,
+		"client_id":        client.ID,
+		"client_secret":    client.Secret,
+		"name":             client.Name,
+		"redirect_uris":    client.RedirectURIs,
+		"grant_types":      client.GrantTypes,
+		"response_types":   client.ResponseTypes,
+		"scope":            client.Scope,
 		"application_type": client.ApplicationType,
-		"created_at":    client.CreatedAt,
+		"created_at":       client.CreatedAt,
 	}
 
 	return c.JSON(http.StatusCreated, response)
@@ -603,22 +603,22 @@ func (h *AdminHandler) GetClient(c echo.Context) error {
 
 	// Return client with all fields except secret
 	response := map[string]interface{}{
-		"id":                        client.ID,
-		"client_id":                 client.ID,
-		"name":                      client.Name,
-		"redirect_uris":             client.RedirectURIs,
-		"grant_types":               client.GrantTypes,
-		"response_types":            client.ResponseTypes,
-		"scope":                     client.Scope,
-		"application_type":          client.ApplicationType,
-		"contacts":                  client.Contacts,
-		"client_uri":                client.ClientURI,
-		"logo_uri":                  client.LogoURI,
-		"policy_uri":                client.PolicyURI,
-		"tos_uri":                   client.TosURI,
-		"jwks_uri":                  client.JWKSURI,
+		"id":                         client.ID,
+		"client_id":                  client.ID,
+		"name":                       client.Name,
+		"redirect_uris":              client.RedirectURIs,
+		"grant_types":                client.GrantTypes,
+		"response_types":             client.ResponseTypes,
+		"scope":                      client.Scope,
+		"application_type":           client.ApplicationType,
+		"contacts":                   client.Contacts,
+		"client_uri":                 client.ClientURI,
+		"logo_uri":                   client.LogoURI,
+		"policy_uri":                 client.PolicyURI,
+		"tos_uri":                    client.TosURI,
+		"jwks_uri":                   client.JWKSURI,
 		"token_endpoint_auth_method": client.TokenEndpointAuthMethod,
-		"created_at":                client.CreatedAt,
+		"created_at":                 client.CreatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)
