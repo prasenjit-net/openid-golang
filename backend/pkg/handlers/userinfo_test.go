@@ -167,7 +167,8 @@ func TestUserInfo_Success(t *testing.T) {
 	assert.Equal(t, "Test", response.GivenName)
 	assert.Equal(t, "User", response.FamilyName)
 	assert.Equal(t, "test@example.com", response.Email)
-	assert.True(t, response.EmailVerified)
+	assert.NotNil(t, response.EmailVerified)
+	assert.True(t, *response.EmailVerified)
 	assert.Equal(t, "https://example.com/pic.jpg", response.Picture)
 	assert.NotZero(t, response.UpdatedAt)
 

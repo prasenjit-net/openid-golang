@@ -23,7 +23,7 @@ type UserInfoResponse struct {
 
 	// Email scope claims (OIDC Core 1.0 Section 5.4)
 	Email         string `json:"email,omitempty"`
-	EmailVerified bool   `json:"email_verified,omitempty"`
+	EmailVerified *bool  `json:"email_verified,omitempty"` // Pointer to include false values
 
 	// Address scope claims (OIDC Core 1.0 Section 5.4)
 	Address *models.Address `json:"address,omitempty"`
@@ -95,18 +95,10 @@ func (h *Handlers) buildUserInfoResponse(user *models.User, scopeString string) 
 	// Profile scope: name, family_name, given_name, picture, updated_at, etc.
 	// (OIDC Core 1.0 Section 5.4)
 	if scopeMap["profile"] {
-		if user.Name != "" {
-			response.Name = user.Name
-		}
-		if user.GivenName != "" {
-			response.GivenName = user.GivenName
-		}
-		if user.FamilyName != "" {
-			response.FamilyName = user.FamilyName
-		}
-		if user.Picture != "" {
-			response.Picture = user.Picture
-		}
+		response.Name = user.Name
+		response.GivenName = user.GivenName
+		response.FamilyName = user.FamilyName
+		response.Picture = user.Picture
 		// Include updated_at timestamp
 		if !user.UpdatedAt.IsZero() {
 			response.UpdatedAt = user.UpdatedAt.Unix()
@@ -116,10 +108,10 @@ func (h *Handlers) buildUserInfoResponse(user *models.User, scopeString string) 
 	// Email scope: email, email_verified
 	// (OIDC Core 1.0 Section 5.4)
 	if scopeMap["email"] {
-		if user.Email != "" {
-			response.Email = user.Email
-			response.EmailVerified = user.EmailVerified
-		}
+		response.Email = user.Email
+		// Always include email_verified when email scope is granted
+		emailVerified := user.EmailVerified
+		response.EmailVerified = &emailVerified
 	}
 
 	// Address scope: address object

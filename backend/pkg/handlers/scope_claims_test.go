@@ -353,7 +353,8 @@ func TestUserInfo_AddressScope(t *testing.T) {
 	assert.Equal(t, "user123", response.Sub)
 	assert.Equal(t, "Test User", response.Name)
 	assert.Equal(t, "test@example.com", response.Email)
-	assert.True(t, response.EmailVerified)
+	assert.NotNil(t, response.EmailVerified)
+	assert.True(t, *response.EmailVerified)
 	assert.NotNil(t, response.Address)
 	assert.Equal(t, "123 Main St, City, ST 12345, Country", response.Address.Formatted)
 	assert.Equal(t, "123 Main St", response.Address.StreetAddress)
@@ -504,7 +505,7 @@ func TestUserInfo_WithoutEmailScope(t *testing.T) {
 
 	// Should NOT have email claims
 	assert.Empty(t, response.Email)
-	assert.False(t, response.EmailVerified)
+	assert.Nil(t, response.EmailVerified)
 
 	mockStorage.AssertExpectations(t)
 }
