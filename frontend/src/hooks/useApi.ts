@@ -31,12 +31,22 @@ export const queryKeys = {
   setupStatus: ['setupStatus'] as const,
 }
 
+// Helper to get auth headers
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('admin_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Stats
 export function useStats() {
   return useQuery({
     queryKey: queryKeys.stats,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/stats`)
+      const res = await fetch(`${API_BASE}/stats`, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      })
       if (!res.ok) throw new Error('Failed to fetch stats')
       return res.json()
     },
@@ -48,7 +58,11 @@ export function useUsers() {
   return useQuery({
     queryKey: queryKeys.users,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/users`)
+      const res = await fetch(`${API_BASE}/users`, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      })
       if (!res.ok) throw new Error('Failed to fetch users')
       return res.json()
     },
@@ -61,7 +75,7 @@ export function useCreateUser() {
     mutationFn: async (user: { username: string; email: string; password: string; role: string }) => {
       const res = await fetch(`${API_BASE}/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(user),
       })
       if (!res.ok) throw new Error('Failed to create user')
@@ -79,6 +93,7 @@ export function useDeleteUser() {
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/users/${id}`, {
         method: 'DELETE',
+        headers: { ...getAuthHeaders() },
       })
       if (!res.ok) throw new Error('Failed to delete user')
     },
@@ -93,7 +108,9 @@ export function useClients() {
   return useQuery({
     queryKey: queryKeys.clients,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/clients`)
+      const res = await fetch(`${API_BASE}/clients`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch clients')
       return res.json()
     },
@@ -106,7 +123,7 @@ export function useCreateClient() {
     mutationFn: async (client: CreateClientRequest) => {
       const res = await fetch(`${API_BASE}/clients`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(client),
       })
       if (!res.ok) throw new Error('Failed to create client')
@@ -124,6 +141,7 @@ export function useDeleteClient() {
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/clients/${id}`, {
         method: 'DELETE',
+        headers: { ...getAuthHeaders() },
       })
       if (!res.ok) throw new Error('Failed to delete client')
     },
@@ -138,7 +156,9 @@ export function useSettings() {
   return useQuery({
     queryKey: queryKeys.settings,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/settings`)
+      const res = await fetch(`${API_BASE}/settings`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch settings')
       return res.json()
     },
@@ -151,7 +171,7 @@ export function useUpdateSettings() {
     mutationFn: async (settings: UpdateSettingsRequest) => {
       const res = await fetch(`${API_BASE}/settings`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(settings),
       })
       if (!res.ok) throw new Error('Failed to update settings')
@@ -168,7 +188,9 @@ export function useKeys() {
   return useQuery({
     queryKey: queryKeys.keys,
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/keys`)
+      const res = await fetch(`${API_BASE}/keys`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch keys')
       return res.json()
     },
@@ -179,8 +201,9 @@ export function useRotateKeys() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${API_BASE}/keys/rotate`, {
+      const res = await fetch(`${API_BASE}/settings/rotate-keys`, {
         method: 'POST',
+        headers: { ...getAuthHeaders() },
       })
       if (!res.ok) throw new Error('Failed to rotate keys')
       return res.json()

@@ -15,7 +15,7 @@ const Logout = () => {
   }, [logout]);
 
   const handleBackToLogin = () => {
-    navigate('/login', { replace: true });
+    navigate('/signin', { replace: true });
   };
 
   return (

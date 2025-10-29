@@ -46,7 +46,7 @@ const OAuthCallback = () => {
       // Store the token and user info
       localStorage.setItem('user_info', JSON.stringify(payload));
       login(idToken);  // This will update auth context
-      
+      console.log('OAuthCallback: idToken set as admin_token', idToken);
       // Clean up
       sessionStorage.removeItem('oauth_state');
       sessionStorage.removeItem('oauth_nonce');
