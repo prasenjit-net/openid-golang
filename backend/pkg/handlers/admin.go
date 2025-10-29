@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +14,10 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
+)
+
+const (
+	bearerPrefix = "Bearer"
 )
 
 // AdminHandler handles admin API endpoints
@@ -41,21 +47,67 @@ func (h *AdminHandler) GetStats(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
+	// Count active tokens (non-expired)
+	activeTokens := h.store.GetActiveTokensCount()
+
+	// Count recent user sessions (last 24 hours)
+	recentLogins := h.store.GetRecentUserSessionsCount()
+
+	// Get signing keys statistics
+	allKeys, err := h.store.GetAllSigningKeys()
+	totalKeys := 0
+	activeKeys := 0
+	if err == nil {
+		totalKeys = len(allKeys)
+		for _, key := range allKeys {
+			if key.IsActive && !key.IsExpired() {
+				activeKeys++
+			}
+		}
+	}
+
 	stats := map[string]interface{}{
-		"users":   len(users),
-		"clients": len(clients),
-		"tokens":  0, // TODO: Count active tokens
-		"logins":  0, // TODO: Count recent logins
+		"users":       len(users),
+		"clients":     len(clients),
+		"tokens":      activeTokens,
+		"logins":      recentLogins,
+		"total_keys":  totalKeys,
+		"active_keys": activeKeys,
 	}
 
 	return c.JSON(http.StatusOK, stats)
 }
 
-// ListUsers returns all users
+// ListUsers returns all users with optional filtering
 func (h *AdminHandler) ListUsers(c echo.Context) error {
 	users, err := h.store.GetAllUsers()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users"})
+	}
+
+	// Get filter parameters from query string
+	usernameFilter := c.QueryParam("username")
+	emailFilter := c.QueryParam("email")
+	nameFilter := c.QueryParam("name")
+	roleFilter := c.QueryParam("role")
+
+	// Filter users based on query parameters
+	var filteredUsers []*models.User
+	for _, user := range users {
+		// Apply filters (case-insensitive partial match)
+		if usernameFilter != "" && !containsIgnoreCase(user.Username, usernameFilter) {
+			continue
+		}
+		if emailFilter != "" && !containsIgnoreCase(user.Email, emailFilter) {
+			continue
+		}
+		if nameFilter != "" && !containsIgnoreCase(user.Name, nameFilter) {
+			continue
+		}
+		if roleFilter != "" && string(user.Role) != roleFilter {
+			continue
+		}
+		filteredUsers = append(filteredUsers, user)
 	}
 
 	// Don't send password hashes to client
@@ -68,8 +120,8 @@ func (h *AdminHandler) ListUsers(c echo.Context) error {
 		CreatedAt time.Time `json:"created_at"`
 	}
 
-	safeUsers := make([]SafeUser, len(users))
-	for i, user := range users {
+	safeUsers := make([]SafeUser, len(filteredUsers))
+	for i, user := range filteredUsers {
 		safeUsers[i] = SafeUser{
 			ID:        user.ID,
 			Username:  user.Username,
@@ -81,6 +133,56 @@ func (h *AdminHandler) ListUsers(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, safeUsers)
+}
+
+// containsIgnoreCase checks if s contains substr (case-insensitive)
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+// GetUser returns a single user by ID
+func (h *AdminHandler) GetUser(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User ID is required"})
+	}
+
+	user, err := h.store.GetUserByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Don't send password hash to client, but include all profile fields
+	response := map[string]interface{}{
+		"id":                    user.ID,
+		"username":              user.Username,
+		"email":                 user.Email,
+		"email_verified":        user.EmailVerified,
+		"name":                  user.Name,
+		"given_name":            user.GivenName,
+		"family_name":           user.FamilyName,
+		"middle_name":           user.MiddleName,
+		"nickname":              user.Nickname,
+		"preferred_username":    user.PreferredUsername,
+		"profile":               user.Profile,
+		"picture":               user.Picture,
+		"website":               user.Website,
+		"gender":                user.Gender,
+		"birthdate":             user.Birthdate,
+		"zoneinfo":              user.Zoneinfo,
+		"locale":                user.Locale,
+		"phone_number":          user.PhoneNumber,
+		"phone_number_verified": user.PhoneNumberVerified,
+		"address":               user.Address,
+		"role":                  user.Role,
+		"created_at":            user.CreatedAt,
+		"updated_at":            user.UpdatedAt,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // CreateUser creates a new user
@@ -145,11 +247,7 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 // UpdateUser updates an existing user
 func (h *AdminHandler) UpdateUser(c echo.Context) error {
 	var req struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Name     string `json:"name"`
-		Role     string `json:"role"`
+		models.User
 		Password string `json:"password,omitempty"`
 	}
 
@@ -166,13 +264,35 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
 	}
 
-	// Update fields
+	// Update basic fields
 	existingUser.Username = req.Username
 	existingUser.Email = req.Email
+	existingUser.EmailVerified = req.EmailVerified
 	existingUser.Name = req.Name
 	if req.Role != "" {
-		existingUser.Role = models.UserRole(req.Role)
+		existingUser.Role = req.Role
 	}
+
+	// Update profile fields
+	existingUser.GivenName = req.GivenName
+	existingUser.FamilyName = req.FamilyName
+	existingUser.MiddleName = req.MiddleName
+	existingUser.Nickname = req.Nickname
+	existingUser.PreferredUsername = req.PreferredUsername
+	existingUser.Profile = req.Profile
+	existingUser.Picture = req.Picture
+	existingUser.Website = req.Website
+	existingUser.Gender = req.Gender
+	existingUser.Birthdate = req.Birthdate
+	existingUser.Zoneinfo = req.Zoneinfo
+	existingUser.Locale = req.Locale
+
+	// Update contact fields
+	existingUser.PhoneNumber = req.PhoneNumber
+	existingUser.PhoneNumberVerified = req.PhoneNumberVerified
+
+	// Update address
+	existingUser.Address = req.Address
 
 	// Update password if provided
 	if req.Password != "" {
@@ -183,19 +303,37 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		existingUser.PasswordHash = string(hashedPassword)
 	}
 
+	existingUser.UpdatedAt = time.Now()
+
 	if err := h.store.UpdateUser(existingUser); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user: " + err.Error()})
 	}
 
 	// Return user without password hash
 	response := map[string]interface{}{
-		"id":         existingUser.ID,
-		"username":   existingUser.Username,
-		"email":      existingUser.Email,
-		"name":       existingUser.Name,
-		"role":       existingUser.Role,
-		"created_at": existingUser.CreatedAt,
-		"updated_at": existingUser.UpdatedAt,
+		"id":                    existingUser.ID,
+		"username":              existingUser.Username,
+		"email":                 existingUser.Email,
+		"email_verified":        existingUser.EmailVerified,
+		"name":                  existingUser.Name,
+		"given_name":            existingUser.GivenName,
+		"family_name":           existingUser.FamilyName,
+		"middle_name":           existingUser.MiddleName,
+		"nickname":              existingUser.Nickname,
+		"preferred_username":    existingUser.PreferredUsername,
+		"profile":               existingUser.Profile,
+		"picture":               existingUser.Picture,
+		"website":               existingUser.Website,
+		"gender":                existingUser.Gender,
+		"birthdate":             existingUser.Birthdate,
+		"zoneinfo":              existingUser.Zoneinfo,
+		"locale":                existingUser.Locale,
+		"phone_number":          existingUser.PhoneNumber,
+		"phone_number_verified": existingUser.PhoneNumberVerified,
+		"address":               existingUser.Address,
+		"role":                  existingUser.Role,
+		"created_at":            existingUser.CreatedAt,
+		"updated_at":            existingUser.UpdatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -223,25 +361,64 @@ func (h *AdminHandler) ListClients(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get clients"})
 	}
 
-	// Convert to response format
-	type ClientResponse struct {
-		ID           string    `json:"id"`
-		ClientID     string    `json:"client_id"`
-		ClientSecret string    `json:"client_secret,omitempty"`
-		Name         string    `json:"name"`
-		RedirectURIs []string  `json:"redirect_uris"`
-		CreatedAt    time.Time `json:"created_at"`
+	// Get query parameters for filtering
+	filterClientID := c.QueryParam("client_id")
+	filterName := c.QueryParam("name")
+
+	// Apply filters if provided
+	var filteredClients []*models.Client
+	for _, client := range clients {
+		// Skip if doesn't match filters
+		if filterClientID != "" && !containsIgnoreCase(client.ID, filterClientID) {
+			continue
+		}
+		if filterName != "" && !containsIgnoreCase(client.Name, filterName) {
+			continue
+		}
+		filteredClients = append(filteredClients, client)
 	}
 
-	response := make([]ClientResponse, len(clients))
-	for i, client := range clients {
+	// Convert to response format
+	type ClientResponse struct {
+		ID                      string    `json:"id"`
+		ClientID                string    `json:"client_id"`
+		ClientSecret            string    `json:"client_secret,omitempty"`
+		Name                    string    `json:"name"`
+		RedirectURIs            []string  `json:"redirect_uris"`
+		GrantTypes              []string  `json:"grant_types"`
+		ResponseTypes           []string  `json:"response_types"`
+		Scope                   string    `json:"scope"`
+		ApplicationType         string    `json:"application_type"`
+		Contacts                []string  `json:"contacts,omitempty"`
+		ClientURI               string    `json:"client_uri,omitempty"`
+		LogoURI                 string    `json:"logo_uri,omitempty"`
+		PolicyURI               string    `json:"policy_uri,omitempty"`
+		TosURI                  string    `json:"tos_uri,omitempty"`
+		JwksURI                 string    `json:"jwks_uri,omitempty"`
+		TokenEndpointAuthMethod string    `json:"token_endpoint_auth_method"`
+		CreatedAt               time.Time `json:"created_at"`
+	}
+
+	response := make([]ClientResponse, len(filteredClients))
+	for i, client := range filteredClients {
 		response[i] = ClientResponse{
-			ID:           client.ID,
-			ClientID:     client.ID, // In our model, ID is the client_id
-			ClientSecret: "",        // Don't expose secret in list view
-			Name:         client.Name,
-			RedirectURIs: client.RedirectURIs,
-			CreatedAt:    client.CreatedAt,
+			ID:                      client.ID,
+			ClientID:                client.ID, // In our model, ID is the client_id
+			ClientSecret:            "",        // Don't expose secret in list view
+			Name:                    client.Name,
+			RedirectURIs:            client.RedirectURIs,
+			GrantTypes:              client.GrantTypes,
+			ResponseTypes:           client.ResponseTypes,
+			Scope:                   client.Scope,
+			ApplicationType:         client.ApplicationType,
+			Contacts:                client.Contacts,
+			ClientURI:               client.ClientURI,
+			LogoURI:                 client.LogoURI,
+			PolicyURI:               client.PolicyURI,
+			TosURI:                  client.TosURI,
+			JwksURI:                 client.JWKSURI,
+			TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
+			CreatedAt:               client.CreatedAt,
 		}
 	}
 
@@ -251,8 +428,12 @@ func (h *AdminHandler) ListClients(c echo.Context) error {
 // CreateClient creates a new OAuth client
 func (h *AdminHandler) CreateClient(c echo.Context) error {
 	var req struct {
-		Name         string   `json:"name"`
-		RedirectURIs []string `json:"redirect_uris"`
+		Name            string   `json:"name"`
+		RedirectURIs    []string `json:"redirect_uris"`
+		GrantTypes      []string `json:"grant_types"`
+		ResponseTypes   []string `json:"response_types"`
+		Scope           string   `json:"scope"`
+		ApplicationType string   `json:"application_type"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -267,6 +448,24 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "redirect_uris is required"})
 	}
 
+	// Set defaults for optional fields
+	grantTypes := req.GrantTypes
+	if len(grantTypes) == 0 {
+		grantTypes = []string{"authorization_code", "implicit"}
+	}
+	responseTypes := req.ResponseTypes
+	if len(responseTypes) == 0 {
+		responseTypes = []string{"code", "token", "id_token", "id_token token"}
+	}
+	scope := req.Scope
+	if scope == "" {
+		scope = "openid profile email"
+	}
+	applicationType := req.ApplicationType
+	if applicationType == "" {
+		applicationType = "web"
+	}
+
 	// Generate client credentials
 	clientID := uuid.New().String()
 	clientSecret, err := crypto.GenerateRandomString(32)
@@ -275,14 +474,15 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 	}
 
 	client := &models.Client{
-		ID:            clientID,
-		Secret:        clientSecret,
-		Name:          req.Name,
-		RedirectURIs:  req.RedirectURIs,
-		GrantTypes:    []string{"authorization_code", "implicit"},
-		ResponseTypes: []string{"code", "token", "id_token", "id_token token"},
-		Scope:         "openid profile email",
-		CreatedAt:     time.Now(),
+		ID:              clientID,
+		Secret:          clientSecret,
+		Name:            req.Name,
+		RedirectURIs:    req.RedirectURIs,
+		GrantTypes:      grantTypes,
+		ResponseTypes:   responseTypes,
+		Scope:           scope,
+		ApplicationType: applicationType,
+		CreatedAt:       time.Now(),
 	}
 
 	if err := h.store.CreateClient(client); err != nil {
@@ -291,12 +491,16 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 
 	// Return client with secret (only shown once)
 	response := map[string]interface{}{
-		"id":            client.ID,
-		"client_id":     client.ID,
-		"client_secret": client.Secret,
-		"name":          client.Name,
-		"redirect_uris": client.RedirectURIs,
-		"created_at":    client.CreatedAt,
+		"id":               client.ID,
+		"client_id":        client.ID,
+		"client_secret":    client.Secret,
+		"name":             client.Name,
+		"redirect_uris":    client.RedirectURIs,
+		"grant_types":      client.GrantTypes,
+		"response_types":   client.ResponseTypes,
+		"scope":            client.Scope,
+		"application_type": client.ApplicationType,
+		"created_at":       client.CreatedAt,
 	}
 
 	return c.JSON(http.StatusCreated, response)
@@ -304,10 +508,18 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 
 // UpdateClient updates an existing OAuth client
 func (h *AdminHandler) UpdateClient(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
 	var req struct {
-		ID           string   `json:"id"`
-		Name         string   `json:"name"`
-		RedirectURIs []string `json:"redirect_uris"`
+		Name            string   `json:"name"`
+		RedirectURIs    []string `json:"redirect_uris"`
+		GrantTypes      []string `json:"grant_types"`
+		ResponseTypes   []string `json:"response_types"`
+		Scope           string   `json:"scope"`
+		ApplicationType string   `json:"application_type"`
 	}
 
 	if err := c.Bind(&req); err != nil {
@@ -315,7 +527,7 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 	}
 
 	// Get existing client
-	existingClient, err := h.store.GetClientByID(req.ID)
+	existingClient, err := h.store.GetClientByID(id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
 	}
@@ -324,8 +536,24 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 	}
 
 	// Update fields
-	existingClient.Name = req.Name
-	existingClient.RedirectURIs = req.RedirectURIs
+	if req.Name != "" {
+		existingClient.Name = req.Name
+	}
+	if len(req.RedirectURIs) > 0 {
+		existingClient.RedirectURIs = req.RedirectURIs
+	}
+	if len(req.GrantTypes) > 0 {
+		existingClient.GrantTypes = req.GrantTypes
+	}
+	if len(req.ResponseTypes) > 0 {
+		existingClient.ResponseTypes = req.ResponseTypes
+	}
+	if req.Scope != "" {
+		existingClient.Scope = req.Scope
+	}
+	if req.ApplicationType != "" {
+		existingClient.ApplicationType = req.ApplicationType
+	}
 
 	if err := h.store.UpdateClient(existingClient); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
@@ -333,11 +561,15 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 
 	// Return updated client without secret
 	response := map[string]interface{}{
-		"id":            existingClient.ID,
-		"client_id":     existingClient.ID,
-		"name":          existingClient.Name,
-		"redirect_uris": existingClient.RedirectURIs,
-		"created_at":    existingClient.CreatedAt,
+		"id":               existingClient.ID,
+		"client_id":        existingClient.ID,
+		"name":             existingClient.Name,
+		"redirect_uris":    existingClient.RedirectURIs,
+		"grant_types":      existingClient.GrantTypes,
+		"response_types":   existingClient.ResponseTypes,
+		"scope":            existingClient.Scope,
+		"application_type": existingClient.ApplicationType,
+		"created_at":       existingClient.CreatedAt,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -356,6 +588,82 @@ func (h *AdminHandler) DeleteClient(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+// GetClient returns a single OAuth client by ID
+func (h *AdminHandler) GetClient(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
+	client, err := h.store.GetClientByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
+	}
+	if client == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	// Return client with all fields except secret
+	response := map[string]interface{}{
+		"id":                         client.ID,
+		"client_id":                  client.ID,
+		"name":                       client.Name,
+		"redirect_uris":              client.RedirectURIs,
+		"grant_types":                client.GrantTypes,
+		"response_types":             client.ResponseTypes,
+		"scope":                      client.Scope,
+		"application_type":           client.ApplicationType,
+		"contacts":                   client.Contacts,
+		"client_uri":                 client.ClientURI,
+		"logo_uri":                   client.LogoURI,
+		"policy_uri":                 client.PolicyURI,
+		"tos_uri":                    client.TosURI,
+		"jwks_uri":                   client.JWKSURI,
+		"token_endpoint_auth_method": client.TokenEndpointAuthMethod,
+		"created_at":                 client.CreatedAt,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// RegenerateClientSecret generates a new secret for an OAuth client
+func (h *AdminHandler) RegenerateClientSecret(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Client ID is required"})
+	}
+
+	// Get existing client
+	client, err := h.store.GetClientByID(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get client"})
+	}
+	if client == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	// Generate new secret
+	newSecret, err := crypto.GenerateRandomString(32)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate client secret"})
+	}
+
+	// Update client with new secret
+	client.Secret = newSecret
+	if err := h.store.UpdateClient(client); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
+	}
+
+	// Return new secret (only shown once)
+	response := map[string]interface{}{
+		"client_id":     client.ID,
+		"client_secret": newSecret,
+		"message":       "Client secret regenerated successfully",
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // GetSettings returns server settings
@@ -430,23 +738,113 @@ func (h *AdminHandler) UpdateSettings(c echo.Context) error {
 
 // GetKeys returns signing keys
 func (h *AdminHandler) GetKeys(c echo.Context) error {
-	keys := []map[string]interface{}{
-		{
-			"kid":        "key-1",
-			"alg":        "RS256",
-			"use":        "sig",
-			"created_at": time.Now().Format(time.RFC3339),
-			"is_active":  true,
-		},
+	keys, err := h.store.GetAllSigningKeys()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get signing keys"})
 	}
 
-	return c.JSON(http.StatusOK, keys)
+	// Convert to response format (don't expose private keys in list)
+	type KeyResponse struct {
+		ID        string    `json:"id"`
+		KID       string    `json:"kid"`
+		Algorithm string    `json:"algorithm"`
+		IsActive  bool      `json:"is_active"`
+		CreatedAt time.Time `json:"created_at"`
+		ExpiresAt time.Time `json:"expires_at,omitempty"`
+		Status    string    `json:"status"` // "active", "expired", "inactive"
+	}
+
+	response := make([]KeyResponse, len(keys))
+	for i, key := range keys {
+		status := "inactive"
+		if key.IsActive {
+			status = "active"
+		} else if key.IsExpired() {
+			status = "expired"
+		}
+
+		response[i] = KeyResponse{
+			ID:        key.ID,
+			KID:       key.KID,
+			Algorithm: key.Algorithm,
+			IsActive:  key.IsActive,
+			CreatedAt: key.CreatedAt,
+			ExpiresAt: key.ExpiresAt,
+			Status:    status,
+		}
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // RotateKeys rotates signing keys
 func (h *AdminHandler) RotateKeys(c echo.Context) error {
-	// TODO: Generate new keys and mark old keys as inactive
-	return c.JSON(http.StatusOK, map[string]string{"message": "Keys rotated successfully"})
+	// Generate new RSA key pair
+	privateKey, publicKey, err := crypto.GenerateRSAKeyPair()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate new keys: " + err.Error()})
+	}
+
+	// Convert keys to PEM format
+	privateKeyPEM, err := crypto.EncodePrivateKeyToPEM(privateKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode private key: " + err.Error()})
+	}
+
+	publicKeyPEM, err := crypto.EncodePublicKeyToPEM(publicKey)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode public key: " + err.Error()})
+	}
+
+	// Get all existing keys and mark them as inactive with expiration
+	existingKeys, err := h.store.GetAllSigningKeys()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get existing keys: " + err.Error()})
+	}
+
+	// Set expiration for old keys (30 days from now to allow token validation)
+	expirationTime := time.Now().Add(30 * 24 * time.Hour)
+	for _, key := range existingKeys {
+		if key.IsActive {
+			key.IsActive = false
+			key.ExpiresAt = expirationTime
+			if err := h.store.UpdateSigningKey(key); err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update old key: " + err.Error()})
+			}
+		}
+	}
+
+	// Create new active key
+	newKey := &models.SigningKey{
+		ID:         uuid.New().String(),
+		KID:        fmt.Sprintf("key-%d", time.Now().Unix()),
+		Algorithm:  "RS256",
+		PrivateKey: privateKeyPEM,
+		PublicKey:  publicKeyPEM,
+		IsActive:   true,
+		CreatedAt:  time.Now(),
+		ExpiresAt:  time.Time{}, // No expiration for active key
+	}
+
+	if err := h.store.CreateSigningKey(newKey); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create new key: " + err.Error()})
+	}
+
+	// Update config with new active key (for backward compatibility)
+	h.config.JWT.PrivateKey = privateKeyPEM
+	h.config.JWT.PublicKey = publicKeyPEM
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":    "RSA keys rotated successfully",
+		"info":       "Old keys marked as inactive and will expire in 30 days",
+		"new_key_id": newKey.KID,
+		"active_key": map[string]interface{}{
+			"id":         newKey.ID,
+			"kid":        newKey.KID,
+			"algorithm":  newKey.Algorithm,
+			"created_at": newKey.CreatedAt,
+		},
+	})
 }
 
 // GetSetupStatus returns whether initial setup is complete
@@ -515,4 +913,226 @@ func (h *AdminHandler) Login(c echo.Context) error {
 		"token": "dummy-session-token",
 	}
 	return c.JSON(http.StatusOK, response)
+}
+
+// GetProfile returns the current user's profile
+func (h *AdminHandler) GetProfile(c echo.Context) error {
+	// Extract user ID from JWT token in Authorization header
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	// Get user by username from claims
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Return user profile without sensitive data
+	profile := map[string]interface{}{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"name":     user.Name,
+		"role":     user.Role,
+	}
+
+	return c.JSON(http.StatusOK, profile)
+}
+
+// UpdateProfileRequest represents a profile update request
+type UpdateProfileRequest struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// UpdateProfile updates the current user's profile
+func (h *AdminHandler) UpdateProfile(c echo.Context) error {
+	// Extract user ID from JWT token
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Parse request
+	var req UpdateProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Update fields
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Name != "" {
+		user.Name = req.Name
+	}
+
+	// Save updates
+	if err := h.store.UpdateUser(user); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update profile"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"name":     user.Name,
+		"role":     user.Role,
+	})
+}
+
+// ChangePasswordRequest represents a password change request
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ChangePassword changes the current user's password
+func (h *AdminHandler) ChangePassword(c echo.Context) error {
+	// Extract user ID from JWT token
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Authorization header required"})
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != bearerPrefix {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid authorization header format"})
+	}
+
+	tokenString := parts[1]
+
+	// Parse and validate JWT token
+	claims, err := crypto.ValidateAdminToken(tokenString)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
+	}
+
+	username, ok := claims["sub"].(string)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token claims"})
+	}
+
+	// Parse request
+	var req ChangePasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request body"})
+	}
+
+	// Validate passwords
+	if req.CurrentPassword == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Current password is required"})
+	}
+	if req.NewPassword == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "New password is required"})
+	}
+	if len(req.NewPassword) < 6 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "New password must be at least 6 characters"})
+	}
+
+	// Find user by username
+	users, err := h.store.GetAllUsers()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
+	}
+
+	var user *models.User
+	for _, u := range users {
+		if u.Username == username {
+			user = u
+			break
+		}
+	}
+
+	if user == nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "User not found"})
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Current password is incorrect"})
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to hash password"})
+	}
+
+	// Update password
+	user.PasswordHash = string(hashedPassword)
+	if err := h.store.UpdateUser(user); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Password changed successfully"})
 }

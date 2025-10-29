@@ -34,6 +34,7 @@ type JSONData struct {
 	UserSessions        map[string]*models.UserSession        `json:"user_sessions"`
 	Consents            map[string]*models.Consent            `json:"consents"`              // Key: userID:clientID
 	InitialAccessTokens map[string]*models.InitialAccessToken `json:"initial_access_tokens"` // Key: token
+	SigningKeys         map[string]*models.SigningKey         `json:"signing_keys"`          // Key: key ID
 }
 
 // NewJSONStorage creates a new JSON file storage
@@ -50,6 +51,7 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 			UserSessions:        make(map[string]*models.UserSession),
 			Consents:            make(map[string]*models.Consent),
 			InitialAccessTokens: make(map[string]*models.InitialAccessToken),
+			SigningKeys:         make(map[string]*models.SigningKey),
 		},
 	}
 
@@ -697,4 +699,110 @@ func (j *JSONStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessToken,
 		tokens = append(tokens, token)
 	}
 	return tokens, nil
+}
+
+// SigningKey operations
+
+func (j *JSONStorage) CreateSigningKey(key *models.SigningKey) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.data.SigningKeys[key.ID] = key
+	return j.save()
+}
+
+func (j *JSONStorage) GetSigningKey(id string) (*models.SigningKey, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	key, exists := j.data.SigningKeys[id]
+	if !exists {
+		return nil, nil
+	}
+	return key, nil
+}
+
+func (j *JSONStorage) GetSigningKeyByKID(kid string) (*models.SigningKey, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	for _, key := range j.data.SigningKeys {
+		if key.KID == kid {
+			return key, nil
+		}
+	}
+	return nil, nil
+}
+
+func (j *JSONStorage) GetAllSigningKeys() ([]*models.SigningKey, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	keys := make([]*models.SigningKey, 0, len(j.data.SigningKeys))
+	for _, key := range j.data.SigningKeys {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+func (j *JSONStorage) GetActiveSigningKey() (*models.SigningKey, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	for _, key := range j.data.SigningKeys {
+		if key.IsActive && !key.IsExpired() {
+			return key, nil
+		}
+	}
+	return nil, fmt.Errorf("no active signing key found")
+}
+
+func (j *JSONStorage) UpdateSigningKey(key *models.SigningKey) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.SigningKeys[key.ID]; !exists {
+		return fmt.Errorf("signing key not found")
+	}
+
+	j.data.SigningKeys[key.ID] = key
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteSigningKey(id string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	delete(j.data.SigningKeys, id)
+	return j.save()
+}
+
+// GetActiveTokensCount returns the count of non-expired tokens
+func (j *JSONStorage) GetActiveTokensCount() int {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	count := 0
+	now := time.Now()
+	for _, token := range j.data.Tokens {
+		if token.ExpiresAt.After(now) {
+			count++
+		}
+	}
+	return count
+}
+
+// GetRecentUserSessionsCount returns the count of user sessions created in the last 24 hours
+func (j *JSONStorage) GetRecentUserSessionsCount() int {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	count := 0
+	cutoff := time.Now().Add(-24 * time.Hour)
+	for _, session := range j.data.UserSessions {
+		if session.CreatedAt.After(cutoff) {
+			count++
+		}
+	}
+	return count
 }

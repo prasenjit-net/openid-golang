@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSetup } from '../hooks/useApi';
 import './Setup.css';
 
 const Setup = () => {
   const navigate = useNavigate();
+  const setupMutation = useSetup();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     issuer: window.location.origin,
@@ -28,10 +30,10 @@ const Setup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await fetch('/api/admin/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      await setupMutation.mutateAsync({
+        username: formData.adminUsername,
+        email: formData.adminEmail,
+        password: formData.adminPassword,
       });
       navigate('/admin/login');
     } catch (error) {

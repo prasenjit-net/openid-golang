@@ -1,29 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Paper,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  message,
+  Popconfirm,
   Typography,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-} from '@mui/icons-material';
+  Card,
+  Tag,
+} from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../hooks/useApi';
+
+const { Title } = Typography;
 
 interface User {
   id: string;
@@ -35,233 +29,217 @@ interface User {
 }
 
 const Users = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    name: '',
-    role: 'user',
-  });
+  const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const { data: users = [], isLoading: loading } = useUsers();
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/admin/users');
-      if (!response.ok) throw new Error('Failed to fetch users');
-      const data = await response.json();
-      setUsers(data);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to fetch users');
-      console.error('Failed to fetch users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (values: { username: string; email: string; password: string; name: string; role: string }) => {
     try {
       if (editingUser) {
-        // Update existing user
-        const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingUser.id,
-            ...formData,
-            password: formData.password || undefined, // Only send if provided
-          }),
-        });
-        if (!response.ok) throw new Error('Failed to update user');
+        await updateUserMutation.mutateAsync({ id: editingUser.id, ...values });
+        message.success('User updated successfully');
       } else {
-        // Create new user
-        const response = await fetch('/api/admin/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        });
-        if (!response.ok) throw new Error('Failed to create user');
+        await createUserMutation.mutateAsync(values);
+        message.success('User created successfully');
       }
-      setShowModal(false);
+      setModalOpen(false);
       setEditingUser(null);
-      setFormData({ username: '', email: '', password: '', name: '', role: 'user' });
-      fetchUsers();
+      form.resetFields();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save user');
+      message.error(editingUser ? 'Failed to update user' : 'Failed to create user');
       console.error('Failed to save user:', error);
     }
   };
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
-    setFormData({
+    form.setFieldsValue({
       username: user.username,
       email: user.email,
-      password: '', // Don't populate password
       name: user.name,
       role: user.role || 'user',
     });
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingUser(null);
-    setFormData({ username: '', email: '', password: '', name: '', role: 'user' });
+    setModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
-      const response = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete user');
-      fetchUsers();
+      await deleteUserMutation.mutateAsync(id);
+      message.success('User deleted successfully');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to delete user');
+      message.error('Failed to delete user');
       console.error('Failed to delete user:', error);
     }
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={60} />
-      </Box>
-    );
-  }
+  const handleCancel = () => {
+    setModalOpen(false);
+    setEditingUser(null);
+    form.resetFields();
+  };
+
+  const columns: ColumnsType<User> = [
+    {
+      title: 'Username',
+      dataIndex: 'username',
+      key: 'username',
+      render: (text) => (
+        <Space>
+          <UserOutlined />
+          <span>{text}</span>
+        </Space>
+      ),
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+    },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Role',
+      dataIndex: 'role',
+      key: 'role',
+      render: (role: string) => (
+        <Tag color={role === 'admin' ? 'red' : 'blue'}>{role?.toUpperCase() || 'USER'}</Tag>
+      ),
+    },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete user"
+            description="Are you sure you want to delete this user?"
+            onConfirm={() => handleDelete(record.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">
-          Users
-        </Typography>
+    <>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2} style={{ margin: 0 }}>User Management</Title>
         <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setShowModal(true)}
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditingUser(null);
+            form.resetFields();
+            setModalOpen(true);
+          }}
         >
           Add User
         </Button>
-      </Box>
+      </div>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+      <Card bordered={false}>
+        <Table
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
 
-      <TableContainer component={Paper} elevation={2}>
-        <Table>
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.50' }}>
-              <TableCell><strong>Username</strong></TableCell>
-              <TableCell><strong>Email</strong></TableCell>
-              <TableCell><strong>Name</strong></TableCell>
-              <TableCell><strong>Created</strong></TableCell>
-              <TableCell align="center"><strong>Actions</strong></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">No users found</Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map((user) => (
-                <TableRow key={user.id} hover>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      color="primary"
-                      size="small"
-                      onClick={() => handleEdit(user)}
-                      title="Edit user"
-                      sx={{ mr: 1 }}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      size="small"
-                      onClick={() => handleDelete(user.id)}
-                      title="Delete user"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Modal
+        title={editingUser ? 'Edit User' : 'Create User'}
+        open={modalOpen}
+        onCancel={handleCancel}
+        footer={null}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{ role: 'user' }}
+        >
+          <Form.Item
+            label="Username"
+            name="username"
+            rules={[{ required: true, message: 'Please enter username' }]}
+          >
+            <Input disabled={!!editingUser} />
+          </Form.Item>
 
-      <Dialog open={showModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-        <form onSubmit={handleSubmit}>
-          <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
-          <DialogContent>
-            <Box display="flex" flexDirection="column" gap={2} mt={1}>
-              <TextField
-                label="Username"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                required
-                fullWidth
-                autoFocus
-              />
-              <TextField
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required={!editingUser}
-                fullWidth
-                helperText={editingUser ? "Leave blank to keep current password" : ""}
-              />
-              <TextField
-                label="Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                fullWidth
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={handleCloseModal}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained">
-              {editingUser ? 'Update User' : 'Create User'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-    </Box>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[
+              { required: true, message: 'Please enter email' },
+              { type: 'email', message: 'Please enter a valid email' },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="Name"
+            name="name"
+            rules={[{ required: true, message: 'Please enter name' }]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="Password"
+            name="password"
+            rules={[{ required: !editingUser, message: 'Please enter password' }]}
+            help={editingUser ? "Leave blank to keep current password" : undefined}
+          >
+            <Input.Password placeholder={editingUser ? "Leave blank to keep current" : "Enter password"} />
+          </Form.Item>
+
+          <Form.Item label="Role" name="role">
+            <Select>
+              <Select.Option value="user">User</Select.Option>
+              <Select.Option value="admin">Admin</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button onClick={handleCancel}>Cancel</Button>
+              <Button type="primary" htmlType="submit">
+                {editingUser ? 'Update' : 'Create'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 };
 

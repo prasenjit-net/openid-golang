@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { queryClient } from '../lib/queryClient';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -66,6 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user_info');
     sessionStorage.clear();
     setIsAuthenticated(false);
+    queryClient.clear(); // Invalidate all React Query cache
   };
 
   useEffect(() => {

@@ -25,6 +25,7 @@ type MongoDBStorage struct {
 	userSessions        *mongo.Collection
 	consents            *mongo.Collection
 	initialAccessTokens *mongo.Collection
+	signingKeys         *mongo.Collection
 }
 
 // NewMongoDBStorage creates a new MongoDB storage
@@ -55,6 +56,7 @@ func NewMongoDBStorage(connectionString, database string) (*MongoDBStorage, erro
 		userSessions:        db.Collection("user_sessions"),
 		consents:            db.Collection("consents"),
 		initialAccessTokens: db.Collection("initial_access_tokens"),
+		signingKeys:         db.Collection("signing_keys"),
 	}
 
 	// Create indexes
@@ -652,4 +654,105 @@ func (m *MongoDBStorage) GetAllInitialAccessTokens() ([]*models.InitialAccessTok
 		return nil, err
 	}
 	return tokens, nil
+}
+
+// SigningKey operations
+
+func (m *MongoDBStorage) CreateSigningKey(key *models.SigningKey) error {
+	ctx := context.Background()
+	_, err := m.signingKeys.InsertOne(ctx, key)
+	return err
+}
+
+func (m *MongoDBStorage) GetSigningKey(id string) (*models.SigningKey, error) {
+	ctx := context.Background()
+	var key models.SigningKey
+	err := m.signingKeys.FindOne(ctx, bson.M{"_id": id}).Decode(&key)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &key, nil
+}
+
+func (m *MongoDBStorage) GetSigningKeyByKID(kid string) (*models.SigningKey, error) {
+	ctx := context.Background()
+	var key models.SigningKey
+	err := m.signingKeys.FindOne(ctx, bson.M{"kid": kid}).Decode(&key)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &key, nil
+}
+
+func (m *MongoDBStorage) GetAllSigningKeys() ([]*models.SigningKey, error) {
+	ctx := context.Background()
+	cursor, err := m.signingKeys.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = cursor.Close(ctx)
+	}()
+
+	var keys []*models.SigningKey
+	if err = cursor.All(ctx, &keys); err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
+func (m *MongoDBStorage) GetActiveSigningKey() (*models.SigningKey, error) {
+	ctx := context.Background()
+	var key models.SigningKey
+	err := m.signingKeys.FindOne(ctx, bson.M{"is_active": true}).Decode(&key)
+	if err == mongo.ErrNoDocuments {
+		return nil, fmt.Errorf("no active signing key found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &key, nil
+}
+
+func (m *MongoDBStorage) UpdateSigningKey(key *models.SigningKey) error {
+	ctx := context.Background()
+	_, err := m.signingKeys.ReplaceOne(ctx, bson.M{"_id": key.ID}, key)
+	return err
+}
+
+func (m *MongoDBStorage) DeleteSigningKey(id string) error {
+	ctx := context.Background()
+	_, err := m.signingKeys.DeleteOne(ctx, bson.M{"_id": id})
+	return err
+}
+
+// GetActiveTokensCount returns the count of non-expired tokens
+func (m *MongoDBStorage) GetActiveTokensCount() int {
+	ctx := context.Background()
+	count, err := m.tokens.CountDocuments(ctx, bson.M{
+		"expires_at": bson.M{"$gt": time.Now()},
+	})
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+
+// GetRecentUserSessionsCount returns the count of user sessions created in the last 24 hours
+func (m *MongoDBStorage) GetRecentUserSessionsCount() int {
+	ctx := context.Background()
+	cutoff := time.Now().Add(-24 * time.Hour)
+	count, err := m.userSessions.CountDocuments(ctx, bson.M{
+		"created_at": bson.M{"$gt": cutoff},
+	})
+	if err != nil {
+		return 0
+	}
+	return int(count)
 }

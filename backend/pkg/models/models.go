@@ -33,19 +33,37 @@ type Address struct {
 
 // User represents a user in the system
 type User struct {
-	ID            string    `json:"id"`
-	Username      string    `json:"username"`
-	Email         string    `json:"email"`
-	EmailVerified bool      `json:"email_verified,omitempty"` // Email verification status
-	PasswordHash  string    `json:"-"`
-	Role          UserRole  `json:"role"`
-	Name          string    `json:"name"`
-	GivenName     string    `json:"given_name,omitempty"`
-	FamilyName    string    `json:"family_name,omitempty"`
-	Picture       string    `json:"picture,omitempty"`
-	Address       *Address  `json:"address,omitempty"` // Physical mailing address
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string   `json:"id"`
+	Username      string   `json:"username"`
+	Email         string   `json:"email"`
+	EmailVerified bool     `json:"email_verified,omitempty"` // Email verification status
+	PasswordHash  string   `json:"-"`
+	Role          UserRole `json:"role"`
+
+	// Standard OIDC Profile Claims (from OIDC Core 1.0 Section 5.1)
+	Name              string `json:"name,omitempty"`               // Full name
+	GivenName         string `json:"given_name,omitempty"`         // First name
+	FamilyName        string `json:"family_name,omitempty"`        // Last name
+	MiddleName        string `json:"middle_name,omitempty"`        // Middle name
+	Nickname          string `json:"nickname,omitempty"`           // Casual name
+	PreferredUsername string `json:"preferred_username,omitempty"` // Shorthand name
+	Profile           string `json:"profile,omitempty"`            // Profile page URL
+	Picture           string `json:"picture,omitempty"`            // Profile picture URL
+	Website           string `json:"website,omitempty"`            // Web page or blog URL
+	Gender            string `json:"gender,omitempty"`             // Gender
+	Birthdate         string `json:"birthdate,omitempty"`          // Birthday (YYYY-MM-DD format)
+	Zoneinfo          string `json:"zoneinfo,omitempty"`           // Time zone (e.g., "America/Los_Angeles")
+	Locale            string `json:"locale,omitempty"`             // Locale (e.g., "en-US")
+
+	// Phone Claims (from OIDC Core 1.0 Section 5.1.2)
+	PhoneNumber         string `json:"phone_number,omitempty"`          // Phone number
+	PhoneNumberVerified bool   `json:"phone_number_verified,omitempty"` // Phone verification status
+
+	// Address Claim (from OIDC Core 1.0 Section 5.1.1)
+	Address *Address `json:"address,omitempty"` // Physical mailing address
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // IsAdmin returns true if the user has admin role
@@ -172,6 +190,32 @@ type Session struct {
 	UserID    string    `json:"user_id"`
 	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// SigningKey represents an RSA key pair used for signing JWTs
+// Supports key rotation by maintaining multiple keys with different states
+type SigningKey struct {
+	ID         string    `json:"id" bson:"_id"`                          // Unique identifier for the key
+	KID        string    `json:"kid" bson:"kid"`                         // Key ID used in JWT header
+	Algorithm  string    `json:"algorithm" bson:"algorithm"`             // Signing algorithm (e.g., RS256)
+	PrivateKey string    `json:"private_key" bson:"private_key"`         // PEM-encoded private key
+	PublicKey  string    `json:"public_key" bson:"public_key"`           // PEM-encoded public key
+	IsActive   bool      `json:"is_active" bson:"is_active"`             // Whether this key is used for signing
+	CreatedAt  time.Time `json:"created_at" bson:"created_at"`           // When the key was created
+	ExpiresAt  time.Time `json:"expires_at,omitempty" bson:"expires_at"` // When the key expires (for rotation)
+}
+
+// IsExpired checks if the key has expired
+func (k *SigningKey) IsExpired() bool {
+	if k.ExpiresAt.IsZero() {
+		return false
+	}
+	return time.Now().After(k.ExpiresAt)
+}
+
+// IsValid checks if the key can be used for verification (active or not expired)
+func (k *SigningKey) IsValid() bool {
+	return k.IsActive || !k.IsExpired()
 }
 
 // AuthSession represents an OpenID Connect authorization session
