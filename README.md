@@ -2,30 +2,26 @@
 
 [![CI](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml/badge.svg)](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](go.mod)
-[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](backend/go.mod)
+[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/blob/main/LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://prasenjit-net.github.io/openid-golang/)
 
-A lightweight OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
-
-> 💡 **Tip:** Run `./show-docs.sh` to see the complete documentation structure!
+A lightweight, production-ready OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
 
 ## 📚 Documentation
 
-All documentation is organized in the **`docs/`** folder:
+**📖 [Complete Documentation on GitHub Pages](https://prasenjit-net.github.io/openid-golang/)**
 
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Step-by-step setup tutorial ⭐ START HERE
-- **[Docker Documentation](docs/DOCKER.md)** - Run with Docker and Docker Compose 🐳
-- **[Quick Start](docs/QUICKSTART.md)** - Quick reference for experienced developers
-- **[API Documentation](docs/API.md)** - Complete API reference
-- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and diagrams
-- **[Storage Backends](docs/STORAGE.md)** - MongoDB and JSON storage options
-- **[Testing Guide](docs/TESTING.md)** - How to test the server
-- **[Implementation Details](docs/IMPLEMENTATION.md)** - Technical details
-- **[Project Summary](docs/PROJECT_SUMMARY.md)** - What's been built
-- **[Documentation Index](docs/INDEX.md)** - Complete documentation hub
-- **[Admin UI Documentation](frontend/README.md)** - React admin interface guide
-- **[CI/CD Documentation](docs/CI_CD.md)** - Continuous Integration and Deployment
-- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+### Quick Links
+
+- **[Getting Started Guide](https://prasenjit-net.github.io/openid-golang/GETTING_STARTED.html)** ⭐ - Step-by-step setup tutorial
+- **[Quick Start](https://prasenjit-net.github.io/openid-golang/QUICKSTART.html)** - Quick reference for experienced developers
+- **[Docker Guide](https://prasenjit-net.github.io/openid-golang/DOCKER.html)** 🐳 - Run with Docker
+- **[API Reference](https://prasenjit-net.github.io/openid-golang/API.html)** - Complete API documentation
+- **[Architecture](https://prasenjit-net.github.io/openid-golang/ARCHITECTURE.html)** - System design and architecture
+- **[Contributing](https://prasenjit-net.github.io/openid-golang/CONTRIBUTING.html)** - How to contribute
+
+> 💡 **Tip:** All documentation is organized in the [`docs/`](docs/) folder and published on GitHub Pages for easy browsing!
 
 ## 🚀 Quick Start
 
@@ -39,7 +35,7 @@ docker-compose up -d
 # http://localhost:8080
 ```
 
-See **[Docker Documentation](docs/DOCKER.md)** for detailed instructions.
+See **[Docker Documentation](https://prasenjit-net.github.io/openid-golang/DOCKER.html)** for detailed instructions.
 
 ### Option 2: Using the Setup Wizard (Recommended for Binary)
 

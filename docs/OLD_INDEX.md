@@ -7,8 +7,8 @@ title: Home
 
 [![CI](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml/badge.svg)](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang)
-[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/blob/main/LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](../go.mod)
+[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](../LICENSE)
 
 A lightweight, production-ready OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
 
@@ -57,7 +57,8 @@ A lightweight, production-ready OpenID Connect (OIDC) identity provider implemen
 ### Project Information
 - **[Project Summary](PROJECT_SUMMARY.md)** - What's been built
 - **[Implementation Details](IMPLEMENTATION.md)** - Technical details
-- **[📚 Complete Table of Contents](TOC.md)** - All documentation organized
+- **[Admin UI Enhancement](ADMIN_UI_ENHANCEMENT_PLAN.md)** - Future plans
+- **[Reorganization Notes](REORGANIZATION.md)** - Project restructuring
 
 ---
 
@@ -208,4 +209,10 @@ We welcome contributions! Please see the [Contributing Guide](CONTRIBUTING.md) f
 ---
 
 **Last Updated**: November 2025
+theme: jekyll-theme-cayman
+title: OpenID Connect Server
+description: A lightweight OpenID Connect (OIDC) identity provider implementation in Go
+show_downloads: true
+github:
+  is_project_page: true
 

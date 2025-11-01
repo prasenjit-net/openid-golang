@@ -1,3 +1,12 @@
+---
+layout: default
+title: Getting Started
+---
+
+[🏠 Home](index.md) | [📚 All Docs](index.md#-quick-navigation) | [⚡ Quick Start](QUICKSTART.md) | [🐳 Docker](DOCKER.md) | [📖 API](API.md)
+
+---
+
 # Getting Started - Step by Step
 
 ## Prerequisites ✓
