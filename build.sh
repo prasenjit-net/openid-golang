@@ -17,8 +17,15 @@ cd ..
 
 echo "==> Copying UI to embed location..."
 mkdir -p backend/pkg/ui/uidist
-rm -rf backend/pkg/ui/uidist/*
-cp -r frontend/dist/* backend/pkg/ui/uidist/
+# Remove existing contents but preserve dotfiles used to keep the folder in git (like .gitignore or .gitkeep)
+# This deletes everything inside uidist except files named .gitignore or .gitkeep
+if [ -d backend/pkg/ui/uidist ]; then
+	find backend/pkg/ui/uidist -mindepth 1 \!
+		-name '.gitignore' -a \!
+		-name '.gitkeep' -print0 | xargs -0 rm -rf -- || true
+fi
+# Copy frontend build into uidist. Use the dot/dir form to include hidden files from dist as well.
+cp -a frontend/dist/. backend/pkg/ui/uidist/
 
 echo "==> Building Go backend server..."
 cd backend
