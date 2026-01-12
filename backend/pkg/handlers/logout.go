@@ -48,7 +48,7 @@ func (h *Handlers) Logout(c echo.Context) error {
 	// Delete session-client associations
 	if err := h.storage.DeleteSessionClientsBySessionID(userSession.ID); err != nil {
 		// Log error but don't fail the logout
-		fmt.Printf("Warning: Failed to delete session clients: %v\n", err)
+		c.Logger().Warnf("Failed to delete session clients: %v", err)
 	}
 
 	// If there are clients to notify, render an HTML page with iframes

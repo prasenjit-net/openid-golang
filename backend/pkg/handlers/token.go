@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -457,6 +458,9 @@ func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client
 // generateSid generates a cryptographically secure session ID for front-channel logout
 func generateSid() string {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// This should never happen, but handle it gracefully
+		panic(fmt.Sprintf("failed to generate session ID: %v", err))
+	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
