@@ -575,6 +575,10 @@ func (h *Handlers) createClientFromRequest(req *models.ClientRegistrationRequest
 		InitiateLoginURI: req.InitiateLoginURI,
 		RequestURIs:      req.RequestURIs,
 
+		// Front-Channel Logout
+		FrontchannelLogoutURI:              req.FrontchannelLogoutURI,
+		FrontchannelLogoutSessionRequired: req.FrontchannelLogoutSessionRequired,
+
 		// Software statement
 		SoftwareID:        req.SoftwareID,
 		SoftwareVersion:   req.SoftwareVersion,

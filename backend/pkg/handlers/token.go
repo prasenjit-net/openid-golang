@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"net/http"
 	"strings"
@@ -163,7 +164,10 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 	var err error
 
 	if userSession != nil && userSession.IsAuthenticated() {
-		// Include auth_time, acr, amr from user session
+		// Generate session ID (sid) for front-channel logout
+		sid := generateSid()
+
+		// Include auth_time, acr, amr, sid from user session
 		// No at_hash/c_hash needed for authorization code flow
 		idToken, err = h.jwtManager.GenerateIDTokenWithClaims(
 			user,
@@ -175,7 +179,14 @@ func (h *Handlers) generateIDTokenForAuthCode(user *models.User, client *models.
 			userSession.AMR,
 			"", // accessToken - not included in code flow
 			"", // authCode - not included in code flow
+			sid,
 		)
+
+		// Store session-client association for front-channel logout
+		if err == nil && client.FrontchannelLogoutURI != "" {
+			sessionClient := models.NewSessionClient(userSession.ID, client.ID, sid)
+			_ = h.storage.CreateSessionClient(sessionClient)
+		}
 	} else {
 		// Fallback to basic ID token without session-specific claims
 		idToken, err = h.jwtManager.GenerateIDToken(user, client.ID, authCode.Nonce, authCode.Scope)
@@ -441,4 +452,11 @@ func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client
 		IDToken:      idToken,
 		Scope:        scope,
 	})
+}
+
+// generateSid generates a cryptographically secure session ID for front-channel logout
+func generateSid() string {
+	b := make([]byte, 32)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }

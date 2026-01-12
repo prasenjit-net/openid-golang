@@ -66,6 +66,12 @@ type Storage interface {
 	DeleteConsent(userID, clientID string) error
 	DeleteConsentsForUser(userID string) error
 
+	// SessionClient operations (for front-channel logout)
+	CreateSessionClient(sc *models.SessionClient) error
+	GetSessionClientsBySessionID(sessionID string) ([]*models.SessionClient, error)
+	DeleteSessionClient(id string) error
+	DeleteSessionClientsBySessionID(sessionID string) error
+
 	// InitialAccessToken operations (for dynamic client registration)
 	CreateInitialAccessToken(token *models.InitialAccessToken) error
 	GetInitialAccessToken(token string) (*models.InitialAccessToken, error)

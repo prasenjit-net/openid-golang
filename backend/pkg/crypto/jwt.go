@@ -98,6 +98,7 @@ type IDTokenClaims struct {
 	AMR           []string        `json:"amr,omitempty"`
 	AtHash        string          `json:"at_hash,omitempty"` // Access token hash for implicit/hybrid flows
 	CHash         string          `json:"c_hash,omitempty"`  // Authorization code hash for hybrid flows
+	Sid           string          `json:"sid,omitempty"`     // Session ID for front-channel logout
 }
 
 // GenerateIDToken generates an OpenID Connect ID token with scope-based claims
@@ -126,7 +127,7 @@ func (jm *JWTManager) GenerateIDToken(user *models.User, clientID, nonce, scope 
 // GenerateIDTokenWithClaims generates an OpenID Connect ID token with additional OIDC claims
 // accessToken and authCode are optional - if provided, at_hash and c_hash will be included
 // Only includes claims for scopes requested (profile, email, address)
-func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce, scope string, authTime time.Time, acr string, amr []string, accessToken, authCode string) (string, error) {
+func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, nonce, scope string, authTime time.Time, acr string, amr []string, accessToken, authCode, sid string) (string, error) {
 	now := time.Now()
 	authTimeUnix := authTime.Unix()
 
@@ -142,6 +143,7 @@ func (jm *JWTManager) GenerateIDTokenWithClaims(user *models.User, clientID, non
 		AuthTime: &authTimeUnix,
 		ACR:      acr,
 		AMR:      amr,
+		Sid:      sid,
 	}
 
 	// Apply scope-based claim filtering

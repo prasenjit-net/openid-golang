@@ -24,6 +24,7 @@ type MongoDBStorage struct {
 	authSessions        *mongo.Collection
 	userSessions        *mongo.Collection
 	consents            *mongo.Collection
+	sessionClients      *mongo.Collection
 	initialAccessTokens *mongo.Collection
 	signingKeys         *mongo.Collection
 }
@@ -55,6 +56,7 @@ func NewMongoDBStorage(connectionString, database string) (*MongoDBStorage, erro
 		authSessions:        db.Collection("auth_sessions"),
 		userSessions:        db.Collection("user_sessions"),
 		consents:            db.Collection("consents"),
+		sessionClients:      db.Collection("session_clients"),
 		initialAccessTokens: db.Collection("initial_access_tokens"),
 		signingKeys:         db.Collection("signing_keys"),
 	}
@@ -591,6 +593,57 @@ func (m *MongoDBStorage) DeleteConsentsForUser(userID string) error {
 	defer cancel()
 
 	_, err := m.consents.DeleteMany(ctx, bson.M{"user_id": userID})
+	return err
+}
+
+// ============================================================================
+// SessionClient Operations (for front-channel logout)
+// ============================================================================
+
+func (m *MongoDBStorage) CreateSessionClient(sc *models.SessionClient) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.sessionClients.InsertOne(ctx, sc)
+	return err
+}
+
+func (m *MongoDBStorage) GetSessionClientsBySessionID(sessionID string) ([]*models.SessionClient, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cursor, err := m.sessionClients.Find(ctx, bson.M{"session_id": sessionID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var result []*models.SessionClient
+	if err := cursor.All(ctx, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (m *MongoDBStorage) DeleteSessionClient(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := m.sessionClients.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		return err
+	}
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("session client not found")
+	}
+	return nil
+}
+
+func (m *MongoDBStorage) DeleteSessionClientsBySessionID(sessionID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.sessionClients.DeleteMany(ctx, bson.M{"session_id": sessionID})
 	return err
 }
 
