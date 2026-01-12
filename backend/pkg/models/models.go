@@ -139,6 +139,10 @@ type Client struct {
 	InitiateLoginURI string   `json:"initiate_login_uri,omitempty" bson:"initiate_login_uri,omitempty"`
 	RequestURIs      []string `json:"request_uris,omitempty" bson:"request_uris,omitempty"`
 
+	// Front-Channel Logout (OIDC Front-Channel Logout 1.0)
+	FrontchannelLogoutURI              string `json:"frontchannel_logout_uri,omitempty" bson:"frontchannel_logout_uri,omitempty"`
+	FrontchannelLogoutSessionRequired bool   `json:"frontchannel_logout_session_required,omitempty" bson:"frontchannel_logout_session_required,omitempty"`
+
 	// Software Statement (JWT containing client metadata claims)
 	SoftwareID        string `json:"software_id,omitempty" bson:"software_id,omitempty"`
 	SoftwareVersion   string `json:"software_version,omitempty" bson:"software_version,omitempty"`
@@ -303,6 +307,27 @@ func (c *Consent) HasAllScopes(requestedScopes []string) bool {
 		}
 	}
 	return true
+}
+
+// SessionClient represents the association between a user session and a client
+// Used for front-channel logout to track which clients are logged in for a session
+type SessionClient struct {
+	ID               string    `json:"id" bson:"_id"`
+	SessionID        string    `json:"session_id" bson:"session_id"`       // UserSession ID
+	ClientID         string    `json:"client_id" bson:"client_id"`         // Client ID
+	Sid              string    `json:"sid" bson:"sid"`                     // Session ID (sid claim in ID token)
+	CreatedAt        time.Time `json:"created_at" bson:"created_at"`
+}
+
+// NewSessionClient creates a new session-client association
+func NewSessionClient(sessionID, clientID, sid string) *SessionClient {
+	return &SessionClient{
+		ID:        uuid.New().String(),
+		SessionID: sessionID,
+		ClientID:  clientID,
+		Sid:       sid,
+		CreatedAt: time.Now(),
+	}
 }
 
 // NewUser creates a new user with generated ID
@@ -522,6 +547,10 @@ type ClientRegistrationRequest struct {
 	DefaultACRValues             []string `json:"default_acr_values,omitempty"`
 	InitiateLoginURI             string   `json:"initiate_login_uri,omitempty"`
 	RequestURIs                  []string `json:"request_uris,omitempty"`
+
+	// Front-Channel Logout (OIDC Front-Channel Logout 1.0)
+	FrontchannelLogoutURI              string `json:"frontchannel_logout_uri,omitempty"`
+	FrontchannelLogoutSessionRequired bool   `json:"frontchannel_logout_session_required,omitempty"`
 }
 
 // ClientRegistrationResponse represents the successful registration response

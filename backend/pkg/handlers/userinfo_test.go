@@ -84,6 +84,16 @@ func (m *MockStorage) GetConsent(userID, clientID string) (*models.Consent, erro
 func (m *MockStorage) UpdateConsent(consent *models.Consent) error { return nil }
 func (m *MockStorage) DeleteConsent(userID, clientID string) error { return nil }
 func (m *MockStorage) DeleteConsentsForUser(userID string) error   { return nil }
+func (m *MockStorage) CreateSessionClient(sc *models.SessionClient) error {
+	return nil
+}
+func (m *MockStorage) GetSessionClientsBySessionID(sessionID string) ([]*models.SessionClient, error) {
+	return nil, nil
+}
+func (m *MockStorage) DeleteSessionClient(id string) error { return nil }
+func (m *MockStorage) DeleteSessionClientsBySessionID(sessionID string) error {
+	return nil
+}
 func (m *MockStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token, error) {
 	return nil, nil
 }

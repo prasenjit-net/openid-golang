@@ -33,6 +33,7 @@ type JSONData struct {
 	AuthSessions        map[string]*models.AuthSession        `json:"auth_sessions"`
 	UserSessions        map[string]*models.UserSession        `json:"user_sessions"`
 	Consents            map[string]*models.Consent            `json:"consents"`              // Key: userID:clientID
+	SessionClients      map[string]*models.SessionClient      `json:"session_clients"`       // Key: id
 	InitialAccessTokens map[string]*models.InitialAccessToken `json:"initial_access_tokens"` // Key: token
 	SigningKeys         map[string]*models.SigningKey         `json:"signing_keys"`          // Key: key ID
 }
@@ -50,6 +51,7 @@ func NewJSONStorage(filePath string) (*JSONStorage, error) {
 			AuthSessions:        make(map[string]*models.AuthSession),
 			UserSessions:        make(map[string]*models.UserSession),
 			Consents:            make(map[string]*models.Consent),
+			SessionClients:      make(map[string]*models.SessionClient),
 			InitialAccessTokens: make(map[string]*models.InitialAccessToken),
 			SigningKeys:         make(map[string]*models.SigningKey),
 		},
@@ -641,6 +643,61 @@ func (j *JSONStorage) DeleteConsentsForUser(userID string) error {
 	for key, consent := range j.data.Consents {
 		if consent.UserID == userID {
 			delete(j.data.Consents, key)
+			deleted++
+		}
+	}
+
+	if deleted > 0 {
+		return j.save()
+	}
+	return nil
+}
+
+// ============================================================================
+// SessionClient Operations (for front-channel logout)
+// ============================================================================
+
+func (j *JSONStorage) CreateSessionClient(sc *models.SessionClient) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	j.data.SessionClients[sc.ID] = sc
+	return j.save()
+}
+
+func (j *JSONStorage) GetSessionClientsBySessionID(sessionID string) ([]*models.SessionClient, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	var result []*models.SessionClient
+	for _, sc := range j.data.SessionClients {
+		if sc.SessionID == sessionID {
+			result = append(result, sc)
+		}
+	}
+	return result, nil
+}
+
+func (j *JSONStorage) DeleteSessionClient(id string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, exists := j.data.SessionClients[id]; !exists {
+		return fmt.Errorf("session client not found")
+	}
+
+	delete(j.data.SessionClients, id)
+	return j.save()
+}
+
+func (j *JSONStorage) DeleteSessionClientsBySessionID(sessionID string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	deleted := 0
+	for key, sc := range j.data.SessionClients {
+		if sc.SessionID == sessionID {
+			delete(j.data.SessionClients, key)
 			deleted++
 		}
 	}

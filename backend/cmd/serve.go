@@ -283,6 +283,8 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	e.POST("/introspect", h.Introspect)
 	e.GET("/userinfo", h.UserInfo)
 	e.POST("/userinfo", h.UserInfo)
+	e.GET("/logout", h.Logout)
+	e.POST("/logout", h.Logout)
 
 	// Dynamic Client Registration (if enabled)
 	if cfg.Registration.Enabled {

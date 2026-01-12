@@ -21,6 +21,11 @@ type DiscoveryResponse struct {
 	RegistrationEndpoint  string `json:"registration_endpoint,omitempty"`
 	RevocationEndpoint    string `json:"revocation_endpoint,omitempty"`    // RFC 7009
 	IntrospectionEndpoint string `json:"introspection_endpoint,omitempty"` // RFC 7662
+	EndSessionEndpoint    string `json:"end_session_endpoint,omitempty"`   // OIDC Session Management
+
+	// Front-Channel Logout (OIDC Front-Channel Logout 1.0)
+	FrontchannelLogoutSupported              bool `json:"frontchannel_logout_supported,omitempty"`
+	FrontchannelLogoutSessionSupported       bool `json:"frontchannel_logout_session_supported,omitempty"`
 
 	// OPTIONAL - Documentation and policies
 	ServiceDocumentation string `json:"service_documentation,omitempty"`
@@ -68,6 +73,11 @@ func (h *Handlers) Discovery(c echo.Context) error {
 		UserInfoEndpoint:      baseURL + "/userinfo",
 		RevocationEndpoint:    baseURL + "/revoke",
 		IntrospectionEndpoint: baseURL + "/introspect",
+		EndSessionEndpoint:    baseURL + "/logout",
+
+		// Front-Channel Logout support
+		FrontchannelLogoutSupported:        true,
+		FrontchannelLogoutSessionSupported: true,
 
 		// REQUIRED - Supported features
 		ResponseTypesSupported: []string{

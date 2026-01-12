@@ -347,6 +347,7 @@ func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.Aut
 		}
 
 		// Generate ID token with auth_time, acr, amr, and at_hash (if access token present)
+		sid := generateSid()
 		idToken, err := h.jwtManager.GenerateIDTokenWithClaims(
 			user,
 			authSession.ClientID,
@@ -357,9 +358,17 @@ func (h *Handlers) completeAuthorization(c echo.Context, authSession *models.Aut
 			userSession.AMR,
 			accessToken, // at_hash will be included if this is not empty
 			"",          // c_hash not used in implicit flow
+			sid,
 		)
 		if err != nil {
 			return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to generate ID token")
+		}
+
+		// Store session-client association for front-channel logout
+		client, _ := h.storage.GetClientByID(authSession.ClientID)
+		if client != nil && client.FrontchannelLogoutURI != "" {
+			sessionClient := models.NewSessionClient(userSession.ID, client.ID, sid)
+			_ = h.storage.CreateSessionClient(sessionClient)
 		}
 
 		// Build redirect URL with fragment
