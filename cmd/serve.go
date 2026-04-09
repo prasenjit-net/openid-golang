@@ -20,7 +20,7 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/session"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
-	"github.com/prasenjit-net/openid-golang/pkg/ui"
+	"github.com/prasenjit-net/openid-golang/ui"
 )
 
 var serveCmd = &cobra.Command{

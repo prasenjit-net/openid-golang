@@ -14,7 +14,7 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
-	"github.com/prasenjit-net/openid-golang/pkg/ui"
+	"github.com/prasenjit-net/openid-golang/ui"
 )
 
 // BootstrapHandler handles the initial setup wizard

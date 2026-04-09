@@ -15,8 +15,8 @@ RUN npm ci
 # Copy frontend source
 COPY frontend/ ./
 
-# Build frontend - outputs directly to /app/pkg/ui/uidist (per vite.config.ts outDir)
-RUN mkdir -p /app/pkg/ui/uidist && npm run build
+# Build frontend - outputs to /app/ui/dist (per vite.config.ts outDir)
+RUN mkdir -p /app/ui/dist && npm run build
 
 # Stage 2: Build Go binary
 FROM golang:1.24-alpine AS builder
@@ -35,7 +35,7 @@ COPY cmd/ ./cmd/
 COPY pkg/ ./pkg/
 
 # Overlay the built frontend assets from stage 1
-COPY --from=frontend-builder /app/pkg/ui/uidist ./pkg/ui/uidist/
+COPY --from=frontend-builder /app/ui/dist ./ui/dist/
 
 # Build the Go binary with embedded UI
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o openid-server .

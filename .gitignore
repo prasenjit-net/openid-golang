@@ -66,8 +66,8 @@ keys/
 frontend/node_modules/
 frontend/.vite/
 frontend/internal/
-pkg/ui/uidist/*
-!pkg/ui/uidist/README.md
+ui/dist/*
+!ui/dist/README.md
 
 # Temporary files
 tmp/
