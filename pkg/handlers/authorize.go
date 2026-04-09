@@ -19,8 +19,9 @@ const (
 	ResponseTypeIDToken = "id_token"
 	// ResponseTypeToken is the access token response type (implicit flow - not standard OIDC)
 	ResponseTypeToken = "token"
-	// ResponseTypeTokenIDToken is the access token + ID token response type
-	ResponseTypeTokenIDToken = "token id_token"
+	// ResponseTypeTokenIDToken is the access token + ID token response type (implicit flow)
+	// OIDC Core 1.0 §3.2.2.1 specifies this order: id_token first, then token
+	ResponseTypeTokenIDToken = "id_token token"
 	// Hybrid flow response types (for future implementation)
 	// ResponseTypeCodeIDToken is the authorization code + ID token response type
 	ResponseTypeCodeIDToken = "code id_token"
@@ -60,7 +61,7 @@ func (h *Handlers) validateAuthorizationRequest(c echo.Context, clientID, redire
 
 	// Validate client
 	client, err := h.storage.GetClientByID(clientID)
-	if err != nil {
+	if err != nil || client == nil {
 		return nil, authorizationError(c, redirectURI, responseType, ErrorUnauthorizedClient, "Client not found", state)
 	}
 
