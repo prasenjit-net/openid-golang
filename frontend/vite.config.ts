@@ -9,24 +9,21 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
         // Function form: groups modules by path so tree-shaking still works.
         // All modules from the same library land in one chunk without forcing
         // full package entry points.
+        // Keep react, antd, and MUI in one chunk — antd and MUI both call
+        // React APIs at module init time, so they must share a chunk with React
+        // to avoid "Cannot read properties of undefined" TDZ crashes.
+        // Only router and query are truly standalone and safe to split.
         manualChunks(id: string) {
           if (!id.includes('node_modules')) return undefined;
-          // React core — include scheduler (react-dom peer dep)
-          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'vendor-react';
-          // React Router + its Remix core deps
           if (/node_modules\/(react-router|react-router-dom|@remix-run)\//.test(id)) return 'vendor-router';
-          // TanStack Query — both react-query wrapper and query-core
           if (id.includes('node_modules/@tanstack/')) return 'vendor-query';
-          // antd + all its sub-packages: @ant-design/*, rc-* components, @rc-component/*
-          // @mui and @emotion are intentionally excluded — their internal circular
-          // deps cause TDZ errors when forced into a manual chunk.
-          if (/node_modules\/(antd|@ant-design|rc-[^/]+|@rc-component)\//.test(id)) return 'vendor-antd';
+          return 'vendor-libs';
         },
       },
     },
