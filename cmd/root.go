@@ -17,6 +17,12 @@ var setupHTMLFS embed.FS
 func SetEmbeds(uiFS embed.FS, setupFS embed.FS) {
 	adminUIFS = uiFS
 	setupHTMLFS = setupFS
+	// Fail fast with a clear message if the frontend was not built.
+	if _, err := adminUIFS.Open("frontend/dist/index.html"); err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR: frontend/dist/index.html not found in embed.")
+		fmt.Fprintln(os.Stderr, "Run 'make build-frontend' before starting the server.")
+		os.Exit(1)
+	}
 }
 
 // rootCmd represents the base command when called without any subcommands
