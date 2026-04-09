@@ -7,8 +7,8 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  test-backend:
-    name: Test Go Backend
+  test:
+    name: Test Go
     runs-on: ubuntu-latest
     
     steps:
@@ -19,6 +19,13 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
         
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -26,30 +33,34 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
+
+    - name: Install UI dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Build UI
+      working-directory: frontend
+      run: npm run build
           
-    - name: Download dependencies
-      working-directory: backend
+    - name: Download Go dependencies
       run: go mod download
       
     - name: Run tests
-      working-directory: backend
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       
     - name: Upload coverage
       uses: codecov/codecov-action@v4
       with:
-        file: ./backend/coverage.txt
+        file: ./coverage.txt
         flags: backend
         
     - name: Run go vet
-      working-directory: backend
       run: go vet ./...
       
     - name: Run go fmt check
-      working-directory: backend
       run: |
         if [ -n "$(gofmt -s -l .)" ]; then
           echo "Go code is not formatted:"
@@ -88,12 +99,12 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ui-build
-        path: frontend/dist/
+        path: pkg/ui/uidist/
         retention-days: 7
 
   build:
     name: Build Binary
-    needs: [test-backend, test-frontend]
+    needs: [test, test-frontend]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -123,23 +134,13 @@ jobs:
       working-directory: frontend
       run: npm run build
       
-    - name: Copy UI to embed location
-      shell: bash
-      run: |
-        mkdir -p backend/pkg/ui
-        cp -r frontend/dist backend/pkg/ui/uidist
-        
     - name: Build Go binary (Linux/macOS)
       if: runner.os != 'Windows'
-      working-directory: backend
-      run: |
-        go build -v -o ../bin/openid-server .
+      run: go build -v -o bin/openid-server .
         
     - name: Build Go binary (Windows)
       if: runner.os == 'Windows'
-      working-directory: backend
-      run: |
-        go build -v -o ../bin/openid-server.exe .
+      run: go build -v -o bin/openid-server.exe .
         
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
@@ -160,13 +161,27 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install UI dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Build UI
+      working-directory: frontend
+      run: npm run build
         
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v7
       with:
         version: v2.5.0
         args: --timeout=5m
-        working-directory: backend
 
   security:
     name: Security Scan
@@ -184,15 +199,28 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install UI dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Build UI
+      working-directory: frontend
+      run: npm run build
         
     - name: Run Gosec Security Scanner
-      working-directory: backend
       run: |
         go install github.com/securego/gosec/v2/cmd/gosec@latest
         gosec -no-fail -fmt=json -out=results.json ./...
         
     - name: Display security scan results
-      working-directory: backend
       if: always()
       run: |
         if [ -f results.json ]; then

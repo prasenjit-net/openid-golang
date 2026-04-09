@@ -63,12 +63,11 @@ server.log
 keys/
 
 # UI build artifacts
-frontend/dist/
 frontend/node_modules/
 frontend/.vite/
 frontend/internal/
-backend/pkg/ui/uidist/*
-!backend/pkg/ui/uidist/README.md
+pkg/ui/uidist/*
+!pkg/ui/uidist/README.md
 
 # Temporary files
 tmp/

@@ -1,6 +1,10 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import AdminLayout from './components/layout/AdminLayout';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { QueryProvider } from './providers/QueryProvider';
+
 import Dashboard from './pages/Dashboard';
 import UserSearch from './pages/users/UserSearch';
 import UserDetail from './pages/users/UserDetail';
@@ -18,9 +22,6 @@ import Logout from './pages/Logout';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { QueryProvider } from './providers/QueryProvider';
-import { useEffect } from 'react';
 
 // Component to initiate OAuth flow for unauthenticated users
 function OAuthRedirect() {
@@ -94,29 +95,29 @@ function AppContent() {
     <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
       <BrowserRouter>
         <Routes>
-          {/* OAuth callback route - always accessible */}
-          <Route path="/admin/callback" element={<OAuthCallback />} />
-          {/* Logout route - always accessible */}
-          <Route path="/logout" element={<Logout />} />
-          
-          {!isSetupComplete ? (
-            <>
-              <Route path="/setup" element={<Setup />} />
-              <Route path="*" element={<Navigate to="/setup" replace />} />
-            </>
-          ) : !isAuthenticated ? (
-            <>
-              {/* Optional signin page - mainly redirects to OAuth */}
-              <Route path="/signin" element={<SignIn />} />
-              {/* Redirect unauthenticated users to OAuth authorize endpoint */}
-              <Route path="*" element={<OAuthRedirect />} />
-            </>
-          ) : (
-            <>
-              <Route path="/" element={<AdminLayout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="users" element={<UserSearch />} />
+            {/* OAuth callback route - always accessible */}
+            <Route path="/admin/callback" element={<OAuthCallback />} />
+            {/* Logout route - always accessible */}
+            <Route path="/logout" element={<Logout />} />
+            
+            {!isSetupComplete ? (
+              <>
+                <Route path="/setup" element={<Setup />} />
+                <Route path="*" element={<Navigate to="/setup" replace />} />
+              </>
+            ) : !isAuthenticated ? (
+              <>
+                {/* Optional signin page - mainly redirects to OAuth */}
+                <Route path="/signin" element={<SignIn />} />
+                {/* Redirect unauthenticated users to OAuth authorize endpoint */}
+                <Route path="*" element={<OAuthRedirect />} />
+              </>
+            ) : (
+              <>
+                <Route path="/" element={<AdminLayout />}>
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="users" element={<UserSearch />} />
                 <Route path="users/new" element={<UserCreate />} />
                 <Route path="users/:id" element={<UserDetail />} />
                 <Route path="users/:id/edit" element={<UserEdit />} />
@@ -132,7 +133,7 @@ function AppContent() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </>
           )}
-        </Routes>
+          </Routes>
       </BrowserRouter>
     </ConfigProvider>
   );

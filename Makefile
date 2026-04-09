@@ -1,4 +1,4 @@
-.PHONY: build run test clean deps fmt lint generate-keys help install-tools check-tools
+.PHONY: build build-all build-frontend run test clean deps fmt lint generate-keys help install-tools check-tools dev setup
 
 # Configuration
 GOLANGCI_LINT_VERSION := v2.5.0
@@ -6,51 +6,50 @@ GOLANGCI_LINT_VERSION := v2.5.0
 # Default target
 .DEFAULT_GOAL := help
 
-# Build the application
-build:
-	@echo "Building backend..."
-	@cd backend && go build -o ../bin/openid-server .
+# Build frontend then backend binary (for producing a release binary)
+build-all: build-frontend build
 
-# Build the frontend UI
+# Build the frontend UI directly into the embed directory
 build-frontend:
 	@echo "Building frontend..."
+	@mkdir -p pkg/ui/uidist
 	@cd frontend && npm run build
-	@mkdir -p backend/pkg/ui
-	@rm -rf backend/pkg/ui/uidist
-	@cp -r frontend/dist backend/pkg/ui/uidist
 	@echo "Frontend built successfully"
 
-# Build the backend server
+# Build the binary (requires frontend to be built first via build-all)
+build:
+	@echo "Building..."
+	@go build -o bin/openid-server .
 
-# Run the application
-run:
+# Run the application (builds frontend first to ensure embedded UI is up-to-date)
+run: build-frontend
 	@echo "Running server..."
-	@cd backend && go run .
+	@go run .
 
-# Run tests
-test:
-	@echo "Running backend tests..."
-	@cd backend && go test -v ./...
+# Run tests (frontend must be built first for the go:embed to compile)
+test: build-frontend
+	@echo "Running tests..."
+	@go test -v ./...
 
 # Clean build artifacts and temporary files
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf bin/
-	@rm -rf backend/pkg/ui/uidist
-	@cd frontend && rm -rf dist node_modules/.vite
+	@rm -rf pkg/ui/uidist
+	@cd frontend && rm -rf node_modules/.vite
 	@echo "Clean complete"
 
 # Download dependencies
 deps:
 	@echo "Downloading Go dependencies..."
-	@cd backend && go mod download && go mod tidy
+	@go mod download && go mod tidy
 	@echo "Installing frontend dependencies..."
 	@cd frontend && npm install
 
 # Format code
 fmt:
 	@echo "Formatting Go code..."
-	@cd backend && go fmt ./...
+	@go fmt ./...
 
 # Install development tools
 install-tools:
@@ -68,7 +67,7 @@ check-tools:
 # Run linter
 lint:
 	@echo "Running Go linter..."
-	@cd backend && golangci-lint run --timeout=5m
+	@golangci-lint run --timeout=5m
 	@echo "Running frontend linter..."
 	@cd frontend && npm run lint || true
 
@@ -81,24 +80,27 @@ generate-keys:
 	@echo "✅ Keys generated in config/keys/"
 
 # Run setup wizard
-setup:
-	@./bin/openid-server setup
+setup: build-frontend
+	@echo "Running setup wizard..."
+	@go run . setup
 
-# Development mode - build and run
-dev:
-	@$(MAKE) build-all
-	@./bin/openid-server serve
+# Development mode - build frontend and run via go run (no binary produced)
+dev: build-frontend
+	@echo "Starting development server..."
+	@go run . serve
 
 # Help target
 help:
 	@echo "OpenID Connect Server - Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make build         - Build backend only"
-	@echo "  make build-all     - Build frontend + backend with embedded UI"
-	@echo "  make run           - Run backend in development mode"
-	@echo "  make dev           - Build all and run server"
-	@echo "  make test          - Run backend tests"
+	@echo "  make dev           - Build frontend + run server via go run (development)"
+	@echo "  make run           - Build frontend + run server via go run"
+	@echo "  make setup         - Build frontend + run setup wizard via go run"
+	@echo "  make build-all     - Build frontend + compile binary (for releases)"
+	@echo "  make build         - Compile backend binary only (build-frontend required first)"
+	@echo "  make build-frontend - Build React UI into embed directory"
+	@echo "  make test          - Build frontend + run backend tests"
 	@echo "  make clean         - Clean build artifacts"
 	@echo "  make deps          - Download all dependencies (Go + NPM)"
 	@echo "  make fmt           - Format Go code"
@@ -106,5 +108,4 @@ help:
 	@echo "  make install-tools - Install development tools (golangci-lint v$(GOLANGCI_LINT_VERSION))"
 	@echo "  make check-tools   - Check installed development tools"
 	@echo "  make generate-keys - Generate RSA keys for JWT"
-	@echo "  make setup         - Run setup wizard"
 	@echo "  make help          - Show this help message"
