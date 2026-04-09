@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +21,6 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/session"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
-	"github.com/prasenjit-net/openid-golang/ui"
 )
 
 var serveCmd = &cobra.Command{
@@ -90,7 +90,7 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	e.Use(middleware.CORS())
 
 	// Setup wizard handler with reload callback
-	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, func() {
+	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, setupHTMLFS, func() {
 		// Signal that initialization is complete
 		select {
 		case reloadChan <- true:
@@ -330,13 +330,16 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 
 	// Serve Admin UI at root with HTML5 routing (must be last)
 	// Note: /setup is NOT served here - it's only available in setup mode
-	adminFS := ui.GetAdminFS()
+	adminSubFS, err := fs.Sub(adminUIFS, "frontend/dist")
+	if err != nil {
+		panic(err)
+	}
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
 		Root:       "/",
 		Index:      "index.html",
 		HTML5:      true,
 		Browse:     false,
-		Filesystem: http.FS(adminFS),
+		Filesystem: http.FS(adminSubFS),
 		Skipper: func(c echo.Context) bool {
 			// Skip static serving for API routes and OpenID endpoints
 			path := c.Request().URL.Path

@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
+	cmd.SetEmbeds(adminUIFS, setupHTMLFS)
 	cmd.Execute()
 }

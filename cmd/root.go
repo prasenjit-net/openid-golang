@@ -1,11 +1,23 @@
 package cmd
 
 import (
+	"embed"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
+
+// adminUIFS and setupHTMLFS hold the embedded assets injected from package main.
+var adminUIFS embed.FS
+var setupHTMLFS embed.FS
+
+// SetEmbeds receives the embedded filesystems from package main.
+// Must be called before Execute().
+func SetEmbeds(uiFS embed.FS, setupFS embed.FS) {
+	adminUIFS = uiFS
+	setupHTMLFS = setupFS
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{

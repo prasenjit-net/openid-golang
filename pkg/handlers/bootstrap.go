@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,28 +17,29 @@ import (
 	"github.com/prasenjit-net/openid-golang/pkg/crypto"
 	"github.com/prasenjit-net/openid-golang/pkg/models"
 	"github.com/prasenjit-net/openid-golang/pkg/storage"
-	"github.com/prasenjit-net/openid-golang/ui"
 )
 
 // BootstrapHandler handles the initial setup wizard
 type BootstrapHandler struct {
 	configStore    configstore.ConfigStore
 	onInitComplete func() // Callback function when initialization is complete
+	setupHTMLFS    embed.FS
 }
 
 // NewBootstrapHandler creates a new bootstrap handler
-func NewBootstrapHandler(configStore configstore.ConfigStore) *BootstrapHandler {
+func NewBootstrapHandler(configStore configstore.ConfigStore, setupHTMLFS embed.FS) *BootstrapHandler {
 	return &BootstrapHandler{
-		configStore:    configStore,
-		onInitComplete: nil,
+		configStore: configStore,
+		setupHTMLFS: setupHTMLFS,
 	}
 }
 
 // NewBootstrapHandlerWithCallback creates a new bootstrap handler with initialization callback
-func NewBootstrapHandlerWithCallback(configStore configstore.ConfigStore, onInitComplete func()) *BootstrapHandler {
+func NewBootstrapHandlerWithCallback(configStore configstore.ConfigStore, setupHTMLFS embed.FS, onInitComplete func()) *BootstrapHandler {
 	return &BootstrapHandler{
 		configStore:    configStore,
 		onInitComplete: onInitComplete,
+		setupHTMLFS:    setupHTMLFS,
 	}
 }
 
@@ -166,11 +170,12 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 func (h *BootstrapHandler) ServeSetupWizard(c echo.Context) error {
 	storageInfo := getStorageIndicator()
 
-	html, err := ui.GetSetupHTML(storageInfo)
+	content, err := fs.ReadFile(h.setupHTMLFS, "frontend/setup.html")
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load setup wizard: "+err.Error())
 	}
 
+	html := strings.Replace(string(content), "{{STORAGE_INFO}}", storageInfo, 1)
 	return c.HTML(http.StatusOK, html)
 }
 

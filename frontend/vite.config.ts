@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
   build: {
-    outDir: '../ui/dist',
+    outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,

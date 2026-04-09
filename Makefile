@@ -12,7 +12,7 @@ build-all: build-frontend build
 # Build the frontend UI directly into the embed directory
 build-frontend:
 	@echo "Building frontend..."
-	@mkdir -p ui/dist
+	@mkdir -p frontend/dist
 	@cd frontend && npm run build
 	@echo "Frontend built successfully"
 
@@ -35,7 +35,7 @@ test: build-frontend
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf bin/
-	@rm -rf ui/dist
+	@rm -rf frontend/dist
 	@cd frontend && rm -rf node_modules/.vite
 	@echo "Clean complete"
 
