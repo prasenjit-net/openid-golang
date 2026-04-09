@@ -33,14 +33,14 @@ func main() {
 		if code == "" {
 			errorCode := r.URL.Query().Get("error")
 			errorDesc := r.URL.Query().Get("error_description")
-			fmt.Fprintf(w, "Error: %s - %s", errorCode, errorDesc)
+			_, _ = fmt.Fprintf(w, "Error: %s - %s", errorCode, errorDesc)
 			return
 		}
 
 		fmt.Printf("\n✓ Received authorization code: %s\n", code)
 		fmt.Printf("✓ State: %s\n", state)
 
-		fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 			<html>
 			<body>
 				<h2>Authorization Successful!</h2>
@@ -61,7 +61,7 @@ curl -X POST %s/token \
 		authURL := fmt.Sprintf("%s/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=openid%%20profile%%20email&state=test123",
 			issuer, clientID, redirectURI)
 
-		fmt.Fprintf(w, `
+		_, _ = fmt.Fprintf(w, `
 			<html>
 			<body>
 				<h2>OpenID Connect Test Client</h2>
