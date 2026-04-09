@@ -23,9 +23,9 @@ export default defineConfig({
           if (/node_modules\/(react-router|react-router-dom|@remix-run)\//.test(id)) return 'vendor-router';
           // TanStack Query — both react-query wrapper and query-core
           if (id.includes('node_modules/@tanstack/')) return 'vendor-query';
-          // MUI + Emotion styling engine
-          if (/node_modules\/(@mui|@emotion)\//.test(id)) return 'vendor-mui';
           // antd + all its sub-packages: @ant-design/*, rc-* components, @rc-component/*
+          // @mui and @emotion are intentionally excluded — their internal circular
+          // deps cause TDZ errors when forced into a manual chunk.
           if (/node_modules\/(antd|@ant-design|rc-[^/]+|@rc-component)\//.test(id)) return 'vendor-antd';
         },
       },
