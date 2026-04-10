@@ -248,7 +248,7 @@ export default function Tokens() {
   ]
 
   return (
-    <div style={{ padding: '24px' }}>
+    <>
       {contextHolder}
 
       {/* Header */}
@@ -392,7 +392,7 @@ export default function Tokens() {
         overflow: 'hidden',
       }}>
         {!hasSearched ? (
-          <div style={{ padding: '60px 24px' }}>
+          <div style={{ padding: '60px 0' }}>
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               description={
@@ -429,6 +429,6 @@ export default function Tokens() {
           opacity: 0.8;
         }
       `}</style>
-    </div>
+    </>
   )
 }

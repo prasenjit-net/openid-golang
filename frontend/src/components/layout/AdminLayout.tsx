@@ -253,7 +253,7 @@ export default function AdminLayout() {
           flexDirection: 'column',
           minWidth: 0,
           height: '100vh',
-          overflow: 'hidden',
+          overflow: 'clip',
         }}
       >
         {/* Header */}
