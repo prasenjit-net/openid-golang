@@ -22,6 +22,7 @@ import Logout from './pages/Logout';
 import Setup from './pages/Setup';
 import SignIn from './pages/SignIn';
 import OAuthCallback from './pages/OAuthCallback';
+import AuditLog from './pages/AuditLog';
 
 // Component to initiate OAuth flow for unauthenticated users
 function OAuthRedirect() {
@@ -129,6 +130,7 @@ function AppContent() {
                 <Route path="settings" element={<SettingsDetail />} />
                 <Route path="settings/edit" element={<SettingsEdit />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="audit" element={<AuditLog />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </>

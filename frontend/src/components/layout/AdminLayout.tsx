@@ -20,6 +20,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   KeyOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -67,6 +68,12 @@ export default function AdminLayout() {
       icon: <SettingOutlined />,
       label: 'Configuration',
       onClick: () => navigate('/settings'),
+    },
+    {
+      key: '/audit',
+      icon: <AuditOutlined />,
+      label: 'Audit Log',
+      onClick: () => navigate('/audit'),
     },
   ];
 

@@ -116,7 +116,12 @@ func (m *MockStorage) UpdateSigningKey(key *models.SigningKey) error { return ni
 func (m *MockStorage) DeleteSigningKey(id string) error              { return nil }
 func (m *MockStorage) GetActiveTokensCount() int                     { return 0 }
 func (m *MockStorage) GetRecentUserSessionsCount() int               { return 0 }
-func (m *MockStorage) Close() error                                  { return nil }
+func (m *MockStorage) CreateAuditLog(entry *models.AuditLog) error   { return nil }
+func (m *MockStorage) GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error) {
+	return nil, nil
+}
+func (m *MockStorage) GetAuditLogsCount(filter models.AuditFilter) int { return 0 }
+func (m *MockStorage) Close() error                                    { return nil }
 
 func TestUserInfo_Success(t *testing.T) {
 	// Setup

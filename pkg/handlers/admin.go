@@ -231,6 +231,9 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminUserCreated, models.AuditActorAdmin, req.Username,
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	// Return user without password hash
 	response := map[string]interface{}{
 		"id":         user.ID,
@@ -309,6 +312,9 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminUserUpdated, models.AuditActorAdmin, "",
+		"user", existingUser.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	// Return user without password hash
 	response := map[string]interface{}{
 		"id":                    existingUser.ID,
@@ -350,6 +356,9 @@ func (h *AdminHandler) DeleteUser(c echo.Context) error {
 	if err := h.store.DeleteUser(id); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete user: " + err.Error()})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminUserDeleted, models.AuditActorAdmin, "",
+		"user", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -489,6 +498,10 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create client: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminClientCreated, models.AuditActorAdmin, "",
+		"client", client.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"name": client.Name})
+
 	// Return client with secret (only shown once)
 	response := map[string]interface{}{
 		"id":               client.ID,
@@ -559,6 +572,9 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminClientUpdated, models.AuditActorAdmin, "",
+		"client", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	// Return updated client without secret
 	response := map[string]interface{}{
 		"id":               existingClient.ID,
@@ -586,6 +602,9 @@ func (h *AdminHandler) DeleteClient(c echo.Context) error {
 	if err := h.store.DeleteClient(id); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete client: " + err.Error()})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminClientDeleted, models.AuditActorAdmin, "",
+		"client", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -733,6 +752,9 @@ func (h *AdminHandler) UpdateSettings(c echo.Context) error {
 	// Note: ConfigData doesn't have Validate or SaveToTOML methods
 	// These would need to be implemented if runtime config updates are required
 	// For now, return success - config is in memory only
+	h.logAdminAudit(models.AuditActionAdminSettingsUpdated, models.AuditActorAdmin, "",
+		"settings", "server", models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated in memory. Note: Changes are not persisted. Restart may revert changes."})
 }
 
@@ -834,6 +856,10 @@ func (h *AdminHandler) RotateKeys(c echo.Context) error {
 	h.config.JWT.PrivateKey = privateKeyPEM
 	h.config.JWT.PublicKey = publicKeyPEM
 
+	h.logAdminAudit(models.AuditActionAdminKeysRotated, models.AuditActorAdmin, "",
+		"key", newKey.KID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"new_kid": newKey.KID})
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"message":    "RSA keys rotated successfully",
 		"info":       "Old keys marked as inactive and will expire in 30 days",
@@ -905,8 +931,14 @@ func (h *AdminHandler) Login(c echo.Context) error {
 
 	// Check if user has admin role
 	if !user.IsAdmin() {
+		h.logAdminAudit(models.AuditActionAdminLogin, models.AuditActorAdmin, req.Username,
+			"user", user.ID, models.AuditStatusFailure, c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "not_admin"})
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Access denied: Admin privileges required"})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminLogin, models.AuditActorAdmin, req.Username,
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	// TODO: Generate proper session token with expiration
 	response := map[string]string{
@@ -1133,6 +1165,9 @@ func (h *AdminHandler) ChangePassword(c echo.Context) error {
 	if err := h.store.UpdateUser(user); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminPasswordReset, models.AuditActorAdmin, username,
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Password changed successfully"})
 }

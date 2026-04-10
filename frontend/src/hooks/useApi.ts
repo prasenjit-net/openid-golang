@@ -379,3 +379,42 @@ export function useChangePassword() {
   })
 }
 
+
+interface AuditFilter {
+  limit?: number
+  offset?: number
+  action?: string
+  actor?: string
+}
+
+interface AuditEntry {
+  id: string
+  timestamp: string
+  action: string
+  actor_type: string
+  actor: string
+  resource_type: string
+  resource_id: string
+  status: string
+  ip_address: string
+  user_agent: string
+  details?: Record<string, unknown>
+}
+
+export function useAuditLogs(filter: AuditFilter = {}) {
+  return useQuery({
+    queryKey: ['audit', filter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (filter.limit) params.set('limit', String(filter.limit))
+      if (filter.offset) params.set('offset', String(filter.offset))
+      if (filter.action) params.set('action', filter.action)
+      if (filter.actor) params.set('actor', filter.actor)
+      const res = await fetch(`${API_BASE}/audit?${params.toString()}`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to fetch audit logs')
+      return res.json() as Promise<{ entries: AuditEntry[]; total: number; limit: number; offset: number }>
+    },
+  })
+}

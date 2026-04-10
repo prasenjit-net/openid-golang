@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/prasenjit-net/openid-golang/pkg/models"
 )
 
 // RevokeRequest represents a token revocation request per RFC 7009
@@ -47,6 +48,12 @@ func (h *Handlers) Revoke(c echo.Context) error {
 	// Note: RFC 7009 §2.2 states that if the token doesn't exist or belongs to another client,
 	// the request should still succeed (return 200) to prevent token scanning attacks
 	_ = h.revokeToken(req.Token, req.TokenTypeHint, client.ID)
+
+	// Audit token revocation
+	h.logAudit(models.AuditActionTokenRevoked, models.AuditActorClient, clientID,
+		"token", req.Token[:min(16, len(req.Token))], models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"token_type_hint": req.TokenTypeHint})
 
 	// RFC 7009 §2.2: The authorization server responds with HTTP status code 200
 	// if the token has been revoked successfully or if the client submitted an invalid token

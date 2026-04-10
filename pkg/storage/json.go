@@ -35,6 +35,7 @@ type JSONData struct {
 	Consents            map[string]*models.Consent            `json:"consents"`              // Key: userID:clientID
 	InitialAccessTokens map[string]*models.InitialAccessToken `json:"initial_access_tokens"` // Key: token
 	SigningKeys         map[string]*models.SigningKey         `json:"signing_keys"`          // Key: key ID
+	AuditLogs           []*models.AuditLog                    `json:"audit_logs"`            // Ordered oldest→newest
 }
 
 // NewJSONStorage creates a new JSON file storage
@@ -803,6 +804,69 @@ func (j *JSONStorage) GetRecentUserSessionsCount() int {
 		if session.CreatedAt.After(cutoff) {
 			count++
 		}
+	}
+	return count
+}
+
+// ─── Audit log operations ─────────────────────────────────────────────────────
+
+// CreateAuditLog appends a new audit log entry and persists the data file.
+func (j *JSONStorage) CreateAuditLog(entry *models.AuditLog) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.data.AuditLogs = append(j.data.AuditLogs, entry)
+	return j.save()
+}
+
+// GetAuditLogs returns audit log entries in reverse-chronological order,
+// optionally filtered by Action and/or Actor. Pagination is via Limit/Offset.
+func (j *JSONStorage) GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	// Collect matching entries newest-first.
+	all := j.data.AuditLogs
+	var matched []*models.AuditLog
+	for i := len(all) - 1; i >= 0; i-- {
+		e := all[i]
+		if filter.Action != "" && e.Action != filter.Action {
+			continue
+		}
+		if filter.Actor != "" && e.Actor != filter.Actor {
+			continue
+		}
+		matched = append(matched, e)
+	}
+
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset >= len(matched) {
+		return []*models.AuditLog{}, nil
+	}
+	end := offset + limit
+	if end > len(matched) {
+		end = len(matched)
+	}
+	return matched[offset:end], nil
+}
+
+// GetAuditLogsCount returns the total number of entries matching the filter (without pagination).
+func (j *JSONStorage) GetAuditLogsCount(filter models.AuditFilter) int {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	count := 0
+	for _, e := range j.data.AuditLogs {
+		if filter.Action != "" && e.Action != filter.Action {
+			continue
+		}
+		if filter.Actor != "" && e.Actor != filter.Actor {
+			continue
+		}
+		count++
 	}
 	return count
 }

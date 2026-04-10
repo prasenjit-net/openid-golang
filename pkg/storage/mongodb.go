@@ -26,6 +26,7 @@ type MongoDBStorage struct {
 	consents            *mongo.Collection
 	initialAccessTokens *mongo.Collection
 	signingKeys         *mongo.Collection
+	auditLogs           *mongo.Collection
 }
 
 // NewMongoDBStorage creates a new MongoDB storage
@@ -57,6 +58,7 @@ func NewMongoDBStorage(connectionString, database string) (*MongoDBStorage, erro
 		consents:            db.Collection("consents"),
 		initialAccessTokens: db.Collection("initial_access_tokens"),
 		signingKeys:         db.Collection("signing_keys"),
+		auditLogs:           db.Collection("audit_logs"),
 	}
 
 	// Create indexes
@@ -110,6 +112,13 @@ func (m *MongoDBStorage) createIndexes() error {
 	_, _ = m.consents.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "client_id", Value: 1}},
 		Options: options.Index().SetUnique(true),
+	})
+
+	// AuditLogs indexes — timestamp for range queries, action/actor for filters
+	_, _ = m.auditLogs.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "timestamp", Value: -1}}},
+		{Keys: bson.D{{Key: "action", Value: 1}}},
+		{Keys: bson.D{{Key: "actor", Value: 1}}},
 	})
 
 	return nil
@@ -751,6 +760,71 @@ func (m *MongoDBStorage) GetRecentUserSessionsCount() int {
 	count, err := m.userSessions.CountDocuments(ctx, bson.M{
 		"created_at": bson.M{"$gt": cutoff},
 	})
+	if err != nil {
+		return 0
+	}
+	return int(count)
+}
+
+// ─── Audit log operations ─────────────────────────────────────────────────────
+
+// CreateAuditLog inserts a new audit log entry.
+func (m *MongoDBStorage) CreateAuditLog(entry *models.AuditLog) error {
+	ctx := context.Background()
+	_, err := m.auditLogs.InsertOne(ctx, entry)
+	return err
+}
+
+// GetAuditLogs returns audit log entries ordered newest-first with optional
+// filtering by Action and/or Actor, plus limit/offset pagination.
+func (m *MongoDBStorage) GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error) {
+	ctx := context.Background()
+
+	q := bson.M{}
+	if filter.Action != "" {
+		q["action"] = filter.Action
+	}
+	if filter.Actor != "" {
+		q["actor"] = filter.Actor
+	}
+
+	limit := int64(filter.Limit)
+	if limit <= 0 {
+		limit = 50
+	}
+	offset := int64(filter.Offset)
+
+	opts := options.Find().
+		SetSort(bson.D{{Key: "timestamp", Value: -1}}).
+		SetSkip(offset).
+		SetLimit(limit)
+
+	cursor, err := m.auditLogs.Find(ctx, q, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+
+	var entries []*models.AuditLog
+	if err = cursor.All(ctx, &entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+// GetAuditLogsCount returns the total count of entries matching the filter.
+func (m *MongoDBStorage) GetAuditLogsCount(filter models.AuditFilter) int {
+	ctx := context.Background()
+
+	q := bson.M{}
+	if filter.Action != "" {
+		q["action"] = filter.Action
+	}
+	if filter.Actor != "" {
+		q["actor"] = filter.Actor
+	}
+
+	count, err := m.auditLogs.CountDocuments(ctx, q)
 	if err != nil {
 		return 0
 	}

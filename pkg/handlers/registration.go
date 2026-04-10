@@ -120,6 +120,13 @@ func (h *Handlers) Register(c echo.Context) error {
 
 	// 7. Build and return the registration response
 	response := h.buildRegistrationResponse(client)
+
+	// Audit client registration
+	h.logAudit(models.AuditActionClientRegistered, models.AuditActorClient, client.ID,
+		"client", client.ID, models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"client_name": client.Name, "grant_types": client.GrantTypes})
+
 	return c.JSON(http.StatusCreated, response)
 }
 

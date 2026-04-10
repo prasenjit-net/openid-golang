@@ -86,6 +86,11 @@ type Storage interface {
 	GetActiveTokensCount() int
 	GetRecentUserSessionsCount() int
 
+	// Audit log operations
+	CreateAuditLog(entry *models.AuditLog) error
+	GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error)
+	GetAuditLogsCount(filter models.AuditFilter) int
+
 	Close() error
 }
 

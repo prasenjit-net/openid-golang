@@ -197,11 +197,19 @@ func (h *Handlers) Login(c echo.Context) error {
 	// Authenticate user
 	user, err := h.storage.GetUserByUsername(username)
 	if err != nil || user == nil {
+		h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+			"user", "", models.AuditStatusFailure,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "user not found"})
 		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
 	// Validate password
 	if !crypto.ValidatePassword(password, user.PasswordHash) {
+		h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+			"user", user.ID, models.AuditStatusFailure,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "invalid password"})
 		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
@@ -216,6 +224,10 @@ func (h *Handlers) Login(c echo.Context) error {
 
 		// For admin UI, verify user has admin role
 		if authSession.ClientID == "admin-ui" && user.Role != "admin" {
+			h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+				"user", user.ID, models.AuditStatusFailure,
+				c.RealIP(), c.Request().UserAgent(),
+				map[string]interface{}{"reason": "not admin", "client_id": authSession.ClientID})
 			return h.renderLoginPageWithError(c, authSessionID, "Access denied: Admin privileges required")
 		}
 	}
@@ -229,6 +241,11 @@ func (h *Handlers) Login(c echo.Context) error {
 	if sessionErr != nil {
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to create user session")
 	}
+
+	// Audit successful login
+	h.logAudit(models.AuditActionLogin, models.AuditActorUser, username,
+		"user", user.ID, models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(), nil)
 
 	// Update auth session with user info
 	if authSession != nil {
@@ -292,6 +309,10 @@ func (h *Handlers) Consent(c echo.Context) error {
 	consentDecision := c.FormValue("consent")
 	if consentDecision != "allow" {
 		// User denied consent
+		h.logAudit(models.AuditActionConsentDeny, models.AuditActorUser, userSession.UserID,
+			"client", authSession.ClientID, models.AuditStatusSuccess,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"scope": authSession.Scope})
 		return authorizationError(c, authSession.RedirectURI, authSession.ResponseType, ErrorAccessDenied, "User denied consent", authSession.State)
 	}
 
@@ -302,6 +323,12 @@ func (h *Handlers) Consent(c echo.Context) error {
 	if err := h.storage.UpdateAuthSession(authSession); err != nil {
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to update authorization session")
 	}
+
+	// Audit consent granted
+	h.logAudit(models.AuditActionConsentGrant, models.AuditActorUser, userSession.UserID,
+		"client", authSession.ClientID, models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"scope": authSession.Scope})
 
 	// Save consent for future authorization requests
 	// Check if consent already exists
