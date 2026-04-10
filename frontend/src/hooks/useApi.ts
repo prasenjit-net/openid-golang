@@ -454,7 +454,7 @@ export function useAuditLogs(filter: AuditFilter = {}) {
   })
 }
 
-export function useTokens(filter: TokenFilter = { active: true }) {
+export function useTokens(filter: TokenFilter = { active: true }, enabled = false) {
   return useQuery({
     queryKey: queryKeys.tokens(filter),
     queryFn: async () => {
@@ -468,6 +468,7 @@ export function useTokens(filter: TokenFilter = { active: true }) {
       if (!res.ok) throw new Error('Failed to fetch tokens')
       return res.json() as Promise<{ tokens: TokenEntry[]; total: number }>
     },
+    enabled,
   })
 }
 
