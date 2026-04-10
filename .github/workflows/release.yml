@@ -179,6 +179,11 @@ jobs:
             goos: windows
             goarch: amd64
             binary: openid-server-windows-amd64.exe
+          - os: windows-latest
+            platform: windows-arm64
+            goos: windows
+            goarch: arm64
+            binary: openid-server-windows-arm64.exe
             
     steps:
     - name: Checkout code
@@ -265,6 +270,7 @@ jobs:
           "openid-server-darwin-amd64"
           "openid-server-darwin-arm64"
           "openid-server-windows-amd64.exe"
+          "openid-server-windows-arm64.exe"
         )
         
         MISSING=0
@@ -335,6 +341,7 @@ jobs:
           
           ### Windows (with CGO/SQLite support)
           - AMD64: `openid-server-windows-amd64.exe`
+          - ARM64: `openid-server-windows-arm64.exe`
           
           ## Quick Start
           
@@ -382,3 +389,4 @@ jobs:
         echo "- ✅ macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Windows AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Windows ARM64" >> $GITHUB_STEP_SUMMARY
