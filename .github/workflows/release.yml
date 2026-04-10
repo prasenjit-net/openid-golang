@@ -40,13 +40,15 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-    - name: Get current version
+    - name: Get current version from latest tag
       id: get_version
       run: |
-        if [ -f VERSION ]; then
-          CURRENT_VERSION=$(cat VERSION)
-        else
+        # Get the latest semver tag; fall back to 0.0.0 if none exists
+        LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -1)
+        if [ -z "$LATEST_TAG" ]; then
           CURRENT_VERSION="0.0.0"
+        else
+          CURRENT_VERSION="${LATEST_TAG#v}"
         fi
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
         echo "Current version: $CURRENT_VERSION"
@@ -78,12 +80,6 @@ jobs:
         NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "New version: $NEW_VERSION"
-        
-    - name: Update VERSION file
-      run: |
-        echo "${{ steps.calc_version.outputs.new_version }}" > VERSION
-        git add VERSION
-        git commit -m "chore: bump version to ${{ steps.calc_version.outputs.new_version }}"
         
     - name: Create and push tag
       run: |
