@@ -223,7 +223,6 @@ export default function Tokens() {
       title: '',
       key: 'actions',
       width: 80,
-      fixed: 'right' as const,
       render: (_: unknown, record: TokenEntry) => (
         <Popconfirm
           title="Revoke token?"
