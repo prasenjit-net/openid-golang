@@ -39,6 +39,7 @@ type Storage interface {
 	GetTokensByAuthCode(authCodeID string) ([]*models.Token, error)
 	DeleteToken(accessToken string) error
 	RevokeTokensByAuthCode(authCodeID string) error
+	ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error)
 
 	// Session operations
 	CreateSession(session *models.Session) error

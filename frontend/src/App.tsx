@@ -16,6 +16,7 @@ import ClientDetail from './pages/clients/ClientDetail';
 import ClientEdit from './pages/clients/ClientEdit';
 import ClientCreate from './pages/clients/ClientCreate';
 import KeyManagement from './pages/KeyManagement';
+import Tokens from './pages/Tokens';
 import SettingsDetail from './pages/settings/SettingsDetail';
 import SettingsEdit from './pages/settings/SettingsEdit';
 import Profile from './pages/Profile';
@@ -155,6 +156,7 @@ function AppContent() {
                 <Route path="clients/:id" element={<ClientDetail />} />
                 <Route path="clients/:id/edit" element={<ClientEdit />} />
                 <Route path="keys" element={<KeyManagement />} />
+                <Route path="tokens" element={<Tokens />} />
                 <Route path="settings" element={<SettingsDetail />} />
                 <Route path="settings/edit" element={<SettingsEdit />} />
                 <Route path="profile" element={<Profile />} />

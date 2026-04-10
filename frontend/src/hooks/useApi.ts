@@ -9,6 +9,26 @@ interface CreateClientRequest {
   redirect_uris: string[];
 }
 
+export interface TokenEntry {
+  id: string
+  access_token_prefix: string
+  refresh_token_present: boolean
+  token_type: string
+  client_id: string
+  user_id: string
+  username: string
+  scope: string
+  expires_at: string
+  created_at: string
+  is_active: boolean
+}
+
+export interface TokenFilter {
+  active?: boolean
+  client_id?: string
+  user_id?: string
+}
+
 interface UpdateSettingsRequest {
   issuer?: string;
   server_host?: string;
@@ -31,6 +51,7 @@ export const queryKeys = {
   settings: ['settings'] as const,
   keys: ['keys'] as const,
   setupStatus: ['setupStatus'] as const,
+  tokens: (filter: TokenFilter) => ['tokens', filter] as const,
 }
 
 // Helper to get auth headers
@@ -429,6 +450,41 @@ export function useAuditLogs(filter: AuditFilter = {}) {
       })
       if (!res.ok) throw new Error('Failed to fetch audit logs')
       return res.json() as Promise<{ entries: AuditEntry[]; total: number; limit: number; offset: number }>
+    },
+  })
+}
+
+export function useTokens(filter: TokenFilter = { active: true }) {
+  return useQuery({
+    queryKey: queryKeys.tokens(filter),
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set('active', filter.active === false ? 'false' : 'true')
+      if (filter.client_id) params.set('client_id', filter.client_id)
+      if (filter.user_id) params.set('user_id', filter.user_id)
+      const res = await fetch(`${API_BASE}/tokens?${params.toString()}`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to fetch tokens')
+      return res.json() as Promise<{ tokens: TokenEntry[]; total: number }>
+    },
+  })
+}
+
+export function useRevokeToken() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (tokenId: string) => {
+      const res = await fetch(`${API_BASE}/tokens/${tokenId}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to revoke token')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tokens'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats })
     },
   })
 }

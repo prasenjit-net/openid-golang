@@ -1210,3 +1210,97 @@ func (h *AdminHandler) ChangePassword(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Password changed successfully"})
 }
+
+// AdminTokenInfo is the admin view of a token, with sensitive values masked and username resolved.
+type AdminTokenInfo struct {
+ID                  string    `json:"id"`
+AccessTokenPrefix   string    `json:"access_token_prefix"`  // first 12 chars + "..."
+RefreshTokenPresent bool      `json:"refresh_token_present"` // true if a refresh token exists
+TokenType           string    `json:"token_type"`
+ClientID            string    `json:"client_id"`
+UserID              string    `json:"user_id"`
+Username            string    `json:"username"`
+Scope               string    `json:"scope"`
+ExpiresAt           time.Time `json:"expires_at"`
+CreatedAt           time.Time `json:"created_at"`
+IsActive            bool      `json:"is_active"`
+}
+
+// ListTokens returns a paginated, filtered list of tokens for the admin UI.
+// Query params: active (bool, default true), client_id, user_id
+func (h *AdminHandler) ListTokens(c echo.Context) error {
+activeOnly := true
+if v := c.QueryParam("active"); v == "false" {
+activeOnly = false
+}
+clientID := c.QueryParam("client_id")
+userID := c.QueryParam("user_id")
+
+tokens, err := h.store.ListTokens(clientID, userID, activeOnly)
+if err != nil {
+return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to list tokens"})
+}
+
+// Build username cache to avoid repeated lookups
+usernameCache := map[string]string{}
+resolveUsername := func(uid string) string {
+if uid == "" {
+return ""
+}
+if name, ok := usernameCache[uid]; ok {
+return name
+}
+if user, err := h.store.GetUserByID(uid); err == nil && user != nil {
+usernameCache[uid] = user.Username
+return user.Username
+}
+usernameCache[uid] = uid
+return uid
+}
+
+now := time.Now()
+result := make([]AdminTokenInfo, 0, len(tokens))
+for _, t := range tokens {
+prefix := t.AccessToken
+if len(prefix) > 12 {
+prefix = prefix[:12] + "..."
+}
+result = append(result, AdminTokenInfo{
+ID:                  t.ID,
+AccessTokenPrefix:   prefix,
+RefreshTokenPresent: t.RefreshToken != "",
+TokenType:           t.TokenType,
+ClientID:            t.ClientID,
+UserID:              t.UserID,
+Username:            resolveUsername(t.UserID),
+Scope:               t.Scope,
+ExpiresAt:           t.ExpiresAt,
+CreatedAt:           t.CreatedAt,
+IsActive:            t.ExpiresAt.After(now),
+})
+}
+
+return c.JSON(http.StatusOK, map[string]interface{}{
+"tokens": result,
+"total":  len(result),
+})
+}
+
+// RevokeToken deletes a token by ID (admin revocation).
+func (h *AdminHandler) RevokeToken(c echo.Context) error {
+tokenID := c.Param("id")
+if tokenID == "" {
+return c.JSON(http.StatusBadRequest, map[string]string{"error": "Token ID is required"})
+}
+
+actor := h.getAdminActor(c)
+
+if err := h.store.DeleteToken(tokenID); err != nil {
+return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to revoke token"})
+}
+
+h.logAdminAudit(models.AuditActionTokenRevoked, models.AuditActorAdmin, actor,
+"token", tokenID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
+return c.JSON(http.StatusOK, map[string]string{"message": "Token revoked"})
+}

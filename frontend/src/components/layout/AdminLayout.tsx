@@ -17,6 +17,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   LockOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useTheme } from '../../context/ThemeContext';
 import { Logo } from '../Logo';
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { key: '/dashboard', label: 'Dashboard', icon: <DashboardOutlined /> },
   { key: '/users', label: 'Users', icon: <TeamOutlined /> },
   { key: '/clients', label: 'Clients', icon: <AppstoreOutlined /> },
+  { key: '/tokens', label: 'Tokens', icon: <SafetyCertificateOutlined /> },
   { key: '/keys', label: 'Keys', icon: <KeyOutlined /> },
   { key: '/settings', label: 'Settings', icon: <SettingOutlined /> },
   { key: '/audit', label: 'Audit Log', icon: <AuditOutlined /> },

@@ -88,6 +88,9 @@ func (m *MockStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token, e
 	return nil, nil
 }
 func (m *MockStorage) RevokeTokensByAuthCode(authCodeID string) error { return nil }
+func (m *MockStorage) ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error) {
+	return nil, nil
+}
 func (m *MockStorage) CreateInitialAccessToken(token *models.InitialAccessToken) error {
 	return nil
 }

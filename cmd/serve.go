@@ -326,6 +326,10 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	// Audit log endpoint
 	api.GET("/audit", adminAPIHandler.GetAuditLogs)
 
+	// Token management endpoints
+	api.GET("/tokens", adminAPIHandler.ListTokens)
+	api.DELETE("/tokens/:id", adminAPIHandler.RevokeToken)
+
 	// Profile endpoints
 	api.GET("/profile", adminAPIHandler.GetProfile)
 	api.PUT("/profile", adminAPIHandler.UpdateProfile)

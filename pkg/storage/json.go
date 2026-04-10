@@ -403,6 +403,28 @@ func (j *JSONStorage) RevokeTokensByAuthCode(authCodeID string) error {
 	return j.save()
 }
 
+// ListTokens returns tokens optionally filtered by clientID, userID, and active status.
+func (j *JSONStorage) ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	now := time.Now()
+	var tokens []*models.Token
+	for _, token := range j.data.Tokens {
+		if clientID != "" && token.ClientID != clientID {
+			continue
+		}
+		if userID != "" && token.UserID != userID {
+			continue
+		}
+		if activeOnly && !token.ExpiresAt.After(now) {
+			continue
+		}
+		tokens = append(tokens, token)
+	}
+	return tokens, nil
+}
+
 // Session operations
 func (j *JSONStorage) CreateSession(session *models.Session) error {
 	j.mu.Lock()

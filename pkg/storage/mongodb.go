@@ -367,6 +367,35 @@ func (m *MongoDBStorage) RevokeTokensByAuthCode(authCodeID string) error {
 	return err
 }
 
+// ListTokens returns tokens optionally filtered by clientID, userID, and active status.
+func (m *MongoDBStorage) ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{}
+	if clientID != "" {
+		filter["client_id"] = clientID
+	}
+	if userID != "" {
+		filter["user_id"] = userID
+	}
+	if activeOnly {
+		filter["expires_at"] = bson.M{"$gt": time.Now()}
+	}
+
+	cursor, err := m.tokens.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+
+	var tokens []*models.Token
+	if err = cursor.All(ctx, &tokens); err != nil {
+		return nil, err
+	}
+	return tokens, nil
+}
+
 // Session operations
 func (m *MongoDBStorage) CreateSession(session *models.Session) error {
 	ctx := context.Background()
