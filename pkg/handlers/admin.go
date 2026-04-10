@@ -249,6 +249,11 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 
 // UpdateUser updates an existing user
 func (h *AdminHandler) UpdateUser(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User ID is required"})
+	}
+
 	var req struct {
 		models.User
 		Password string `json:"password,omitempty"`
@@ -259,7 +264,7 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 	}
 
 	// Get existing user
-	existingUser, err := h.store.GetUserByID(req.ID)
+	existingUser, err := h.store.GetUserByID(id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
 	}
