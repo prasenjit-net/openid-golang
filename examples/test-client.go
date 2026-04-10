@@ -157,88 +157,189 @@ func prettyJSON(raw []byte) string {
 
 const pageCSS = `
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-       background: #f0f2f5; color: #1a1a2e; }
-.topbar { background: linear-gradient(135deg,#1a1a2e,#16213e);
-          color:#fff; padding:16px 32px; display:flex; align-items:center; gap:12px; }
-.topbar h1 { font-size:1.2rem; }
-.topbar .badge { background:#e94560; border-radius:999px;
-                 font-size:.7rem; padding:2px 8px; font-weight:700; }
-.container { max-width:960px; margin:32px auto; padding:0 16px; }
-.steps { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:32px; }
-.step-pill { padding:6px 14px; border-radius:999px; font-size:.8rem; font-weight:600;
-             border:2px solid transparent; cursor:default; }
-.step-pill.done   { background:#d4edda; color:#155724; border-color:#c3e6cb; }
-.step-pill.active { background:#cce5ff; color:#004085; border-color:#b8daff; }
-.step-pill.todo   { background:#e2e3e5; color:#6c757d; border-color:#d6d8db; }
-.card { background:#fff; border-radius:12px; padding:28px;
-        box-shadow:0 2px 12px rgba(0,0,0,.08); margin-bottom:24px; }
-.card h2 { font-size:1.1rem; margin-bottom:8px; color:#16213e; }
-.card .subtitle { color:#6c757d; font-size:.9rem; margin-bottom:20px; line-height:1.5; }
-.explain { background:#f8f9fa; border-left:4px solid #007bff;
-           padding:12px 16px; border-radius:0 8px 8px 0;
-           font-size:.88rem; line-height:1.6; margin-bottom:20px; color:#333; }
-.explain strong { color:#0056b3; }
-pre { background:#1e1e1e; color:#d4d4d4; padding:16px; border-radius:8px;
-      font-size:.8rem; overflow-x:auto; white-space:pre-wrap; word-break:break-all;
-      line-height:1.5; margin:8px 0; }
-.btn { display:inline-block; padding:10px 24px; border-radius:8px; font-size:.9rem;
-       font-weight:600; text-decoration:none; cursor:pointer; border:none;
-       transition:opacity .15s; }
-.btn:hover { opacity:.85; }
-.btn-primary   { background:#007bff; color:#fff; }
-.btn-success   { background:#28a745; color:#fff; }
-.btn-warning   { background:#ffc107; color:#212529; }
-.btn-danger    { background:#dc3545; color:#fff; }
-.btn-secondary { background:#6c757d; color:#fff; }
-.btn-info      { background:#17a2b8; color:#fff; }
-.row { display:flex; gap:16px; flex-wrap:wrap; }
-.col { flex:1; min-width:280px; }
-.kv { display:flex; gap:8px; align-items:flex-start; margin:6px 0; flex-wrap:wrap; }
-.kv .key { font-weight:600; font-size:.82rem; color:#495057;
-           background:#e9ecef; padding:2px 8px; border-radius:4px;
-           white-space:nowrap; }
-.kv .val { font-size:.82rem; color:#212529; font-family:monospace;
-           word-break:break-all; }
-.tag-success { color:#155724; background:#d4edda; border-radius:4px;
-               padding:2px 8px; font-size:.8rem; font-weight:700; }
-.tag-error   { color:#721c24; background:#f8d7da; border-radius:4px;
-               padding:2px 8px; font-size:.8rem; font-weight:700; }
-.log-entry { border:1px solid #dee2e6; border-radius:8px;
-             margin-bottom:12px; overflow:hidden; }
-.log-header { background:#f8f9fa; padding:8px 14px; font-size:.83rem;
-              font-weight:600; display:flex; gap:10px; align-items:center; }
-.log-body   { padding:10px 14px; }
-.divider    { border:none; border-top:1px solid #dee2e6; margin:20px 0; }
-.notice     { background:#fff3cd; border:1px solid #ffc107; border-radius:8px;
-              padding:12px 16px; font-size:.88rem; color:#856404; margin-bottom:16px; }
+:root{
+  --c-p:#1B7A5E;--c-pg:#2DC98A;--c-pd:#145f48;
+  --c-a:#C47B3B;
+  --c-ok:#10B981;--c-warn:#F59E0B;--c-err:#EF4444;--c-info:#06B6D4;
+  --bg:#F2F6F4;--bg2:#E8F0EC;--sf:#FFFFFF;--sf2:#EDF4F0;
+  --bd:#C8DDD5;--tx:#0D1814;--tx2:#3D524A;--tx3:#7A9A8E;
+  --nb:#0D1814;--nt:#DFF0E8;
+  --cb:#0A1210;--ct:#7EFFC0;--cc:#4a9070;
+  --sh-sm:0 1px 3px rgba(0,0,0,.08);
+  --sh:0 4px 16px rgba(0,0,0,.10);
+  --sh-lg:0 8px 32px rgba(0,0,0,.14);
+  --r-s:6px;--r:10px;--r-l:16px;--r-x:24px;
+  --tr:.18s ease;
+}
+[data-theme="dark"]{
+  --bg:#0B0F0D;--bg2:#111710;--sf:#161D1A;--sf2:#1E2820;
+  --bd:#2A3830;--tx:#DFF0E8;--tx2:#A0C4B4;--tx3:#5A8070;
+  --sh-sm:0 1px 3px rgba(0,0,0,.3);--sh:0 4px 16px rgba(0,0,0,.4);
+  --sh-lg:0 8px 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg);color:var(--tx);line-height:1.6;
+  transition:background var(--tr),color var(--tr);}
+.topbar{background:var(--nb);color:var(--nt);padding:0 24px;height:56px;
+  display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;
+  border-bottom:1px solid #1e2a24;}
+.topbar-brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--nt);}
+.brand-name{font-size:1rem;font-weight:700;letter-spacing:.01em;}
+.brand-server{font-size:.72rem;opacity:.55;margin-top:1px;}
+.topbar-nav{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.nav-btn{display:inline-flex;align-items:center;padding:6px 14px;
+  border-radius:var(--r-s);font-size:.8rem;font-weight:600;text-decoration:none;
+  color:var(--nt);background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);transition:background var(--tr);}
+.nav-btn:hover{background:rgba(255,255,255,.16);}
+.nav-btn-danger{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#fca5a5;}
+.nav-btn-danger:hover{background:rgba(239,68,68,.25);}
+.theme-toggle{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  color:var(--nt);border-radius:var(--r-s);padding:6px 10px;cursor:pointer;
+  font-size:.9rem;transition:background var(--tr);}
+.theme-toggle:hover{background:rgba(255,255,255,.16);}
+.step-track{background:var(--sf);border-bottom:1px solid var(--bd);
+  padding:14px 24px;overflow-x:auto;}
+.step-pipeline{display:flex;align-items:center;gap:0;
+  min-width:max-content;margin:0 auto;max-width:960px;}
+.step-node{display:flex;align-items:center;flex-direction:column;gap:4px;}
+.step-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:.78rem;font-weight:700;
+  border:2px solid var(--bd);background:var(--sf2);color:var(--tx3);
+  transition:all var(--tr);}
+.step-node.done .step-dot{background:var(--c-ok);border-color:var(--c-ok);color:#fff;}
+.step-node.active .step-dot{background:var(--c-p);border-color:var(--c-pg);color:#fff;
+  box-shadow:0 0 0 4px rgba(45,201,138,.25);}
+.step-node.todo .step-dot{opacity:.6;}
+.step-label{font-size:.68rem;font-weight:600;color:var(--tx3);
+  white-space:nowrap;letter-spacing:.01em;}
+.step-node.done .step-label{color:var(--c-ok);}
+.step-node.active .step-label{color:var(--c-pg);}
+.step-conn{flex:1;min-width:20px;height:2px;background:var(--bd);margin-bottom:16px;}
+.container{max-width:960px;margin:28px auto;padding:0 16px;}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:700px){
+  .row{grid-template-columns:1fr;}
+  .step-label{display:none;}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r-l);
+  padding:24px;box-shadow:var(--sh);margin-bottom:20px;animation:fadeUp .3s both;}
+.card:nth-child(1){animation-delay:.05s}
+.card:nth-child(2){animation-delay:.1s}
+.card:nth-child(3){animation-delay:.15s}
+.card:nth-child(4){animation-delay:.2s}
+.card h2{font-size:1.05rem;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.card .sub{color:var(--tx2);font-size:.875rem;margin-bottom:18px;line-height:1.55;}
+.info{background:var(--sf2);border-left:3px solid var(--c-pg);
+  border-radius:0 var(--r) var(--r) 0;padding:14px 18px;
+  font-size:.87rem;line-height:1.65;margin-bottom:16px;color:var(--tx2);}
+.info strong{color:var(--c-pg);}
+.info code{background:rgba(45,201,138,.12);color:var(--c-pg);
+  padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.85em;}
+pre{background:var(--cb);color:var(--ct);padding:16px;border-radius:var(--r);
+  font-size:.78rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;
+  line-height:1.55;margin:8px 0;border:1px solid rgba(45,201,138,.1);}
+.btn{display:inline-flex;align-items:center;padding:9px 22px;border-radius:var(--r);
+  font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer;border:none;
+  transition:transform var(--tr),box-shadow var(--tr),opacity var(--tr);}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--sh);}
+.btn-primary{background:var(--c-p);color:#fff;}
+.btn-success{background:var(--c-ok);color:#fff;}
+.btn-warning{background:var(--c-warn);color:#1a1a1a;}
+.btn-danger{background:var(--c-err);color:#fff;}
+.btn-ghost{background:var(--sf2);color:var(--tx);border:1px solid var(--bd);}
+.btn-info{background:var(--c-info);color:#fff;}
+.btn-lg{padding:13px 32px;font-size:1rem;}
+.tag-ok{color:#065f46;background:#d1fae5;border-radius:999px;
+  padding:2px 10px;font-size:.78rem;font-weight:700;}
+.tag-err{color:#7f1d1d;background:#fee2e2;border-radius:999px;
+  padding:2px 10px;font-size:.78rem;font-weight:700;}
+.tag-info{color:#164e63;background:#cffafe;border-radius:999px;
+  padding:2px 10px;font-size:.78rem;font-weight:700;}
+.tag-warn{color:#78350f;background:#fef3c7;border-radius:999px;
+  padding:2px 10px;font-size:.78rem;font-weight:700;}
+[data-theme="dark"] .tag-ok{color:#6ee7b7;background:rgba(16,185,129,.15);}
+[data-theme="dark"] .tag-err{color:#fca5a5;background:rgba(239,68,68,.15);}
+[data-theme="dark"] .tag-info{color:#67e8f9;background:rgba(6,182,212,.15);}
+[data-theme="dark"] .tag-warn{color:#fcd34d;background:rgba(245,158,11,.15);}
+.kv{display:flex;gap:8px;align-items:flex-start;margin:5px 0;flex-wrap:wrap;}
+.kv .k{font-size:.78rem;font-weight:600;font-family:monospace;
+  background:rgba(45,201,138,.12);color:var(--c-pg);
+  padding:1px 8px;border-radius:var(--r-s);white-space:nowrap;}
+.kv .v{font-size:.8rem;color:var(--tx);font-family:monospace;word-break:break-all;}
+.step-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;}
+@media(max-width:700px){.step-grid{grid-template-columns:1fr;}}
+.step-item{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);
+  padding:14px;display:flex;gap:12px;align-items:flex-start;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--c-p);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.78rem;font-weight:700;flex-shrink:0;}
+.step-title{font-size:.85rem;font-weight:700;color:var(--tx);margin-bottom:3px;}
+.step-desc{font-size:.78rem;color:var(--tx3);}
+.notice{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);
+  border-radius:var(--r);padding:12px 16px;font-size:.87rem;
+  color:var(--c-warn);margin-bottom:16px;display:flex;gap:8px;align-items:flex-start;}
+.notice-i{flex-shrink:0;}
+.log-entry{border:1px solid var(--bd);border-radius:var(--r);
+  margin-bottom:12px;overflow:hidden;}
+.log-entry.err{border-color:rgba(239,68,68,.3);}
+.log-hdr{background:var(--sf2);padding:8px 14px;font-size:.82rem;
+  font-weight:600;display:flex;gap:10px;align-items:center;}
+.log-entry.err .log-hdr{background:rgba(239,68,68,.06);}
+.log-ts{color:var(--tx3);font-weight:400;font-family:monospace;}
+.log-body{padding:10px 14px;}
+hr{border:none;border-top:1px solid var(--bd);margin:16px 0;}
 </style>`
+
+const themeInitScript = "<script>(function(){var t=localStorage.getItem('oidc-theme')||'light';document.documentElement.setAttribute('data-theme',t);})()</script>"
 
 func pageWrap(title, body string) string {
 	s.mu.Lock()
-	steps := buildStepPills()
+	steps := buildStepPipeline()
+	issuer := s.Issuer
 	s.mu.Unlock()
 	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>%s — OIDC Demo</title>%s</head>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>%s — OIDC Demo</title>
+%s
+%s
+</head>
 <body>
-<div class="topbar">
-  <div>
-    <h1>🔐 OIDC Interactive Demo</h1>
-    <div style="font-size:.78rem;opacity:.7;margin-top:2px">Server: %s</div>
-  </div>
-  <span class="badge">v2</span>
-  <div style="margin-left:auto;display:flex;gap:8px;">
-    <a href="/" class="btn btn-secondary" style="padding:6px 14px;font-size:.8rem;">🏠 Home</a>
-    <a href="/reset" class="btn btn-danger" style="padding:6px 14px;font-size:.8rem;" onclick="return confirm('Reset all state?')">↺ Reset</a>
-  </div>
-</div>
-<div class="container">
-  <div class="steps">%s</div>
-  %s
-</div>
-</body></html>`, html.EscapeString(title), pageCSS, state.Issuer, steps, body)
+<header class="topbar">
+  <a href="/" class="topbar-brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 2L4 7v8c0 6.5 4.7 12.6 11 14 6.3-1.4 11-7.5 11-14V7L15 2z" stroke="#2DC98A" stroke-width="1.5" fill="none"/><circle cx="15" cy="14" r="3.5" stroke="#2DC98A" stroke-width="1.5" fill="none"/><line x1="15" y1="17.5" x2="15" y2="22" stroke="#2DC98A" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <div><div class="brand-name">OIDC Demo</div><div class="brand-server">%s</div></div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="/log" class="nav-btn">Log</a>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" aria-label="Toggle theme">🌙</button>
+    <a href="/reset" class="nav-btn nav-btn-danger" onclick="return confirm('Reset all session state?')">↺ Reset</a>
+  </nav>
+</header>
+<div class="step-track"><div class="step-pipeline">%s</div></div>
+<main class="container">%s</main>
+<script>
+function toggleTheme(){
+  var h=document.documentElement,t=h.getAttribute('data-theme')==='dark'?'light':'dark';
+  h.setAttribute('data-theme',t);localStorage.setItem('oidc-theme',t);
+  document.getElementById('theme-btn').textContent=t==='dark'?'☀️':'🌙';
+}
+(function(){
+  var t=localStorage.getItem('oidc-theme')||'light';
+  document.documentElement.setAttribute('data-theme',t);
+  var b=document.getElementById('theme-btn');
+  if(b)b.textContent=t==='dark'?'☀️':'🌙';
+})();
+</script>
+</body></html>`,
+		html.EscapeString(title), themeInitScript, pageCSS,
+		html.EscapeString(issuer), steps, body)
 }
 
 var s = state // alias for lock use in pageWrap
@@ -246,17 +347,17 @@ var s = state // alias for lock use in pageWrap
 type stepDef struct{ id, label string }
 
 var stepDefs = []stepDef{
-	{"discovery", "1. Discovery"},
-	{"register", "2. Registration"},
-	{"auth-code", "3. Auth Code"},
-	{"token", "4. Token Exchange"},
-	{"userinfo", "5. UserInfo"},
-	{"introspect", "6. Introspect"},
-	{"implicit", "7. Implicit Flow"},
-	{"revoke", "8. Revoke"},
+	{"discovery", "Discovery"},
+	{"register", "Registration"},
+	{"auth-code", "Auth Code"},
+	{"token", "Token Exchange"},
+	{"userinfo", "UserInfo"},
+	{"introspect", "Introspect"},
+	{"implicit", "Implicit Flow"},
+	{"revoke", "Revoke"},
 }
 
-func buildStepPills() string {
+func buildStepPipeline() string {
 	done := map[string]bool{
 		"discovery":  state.DiscoveryDoc != nil,
 		"register":   state.ClientID != "",
@@ -267,29 +368,43 @@ func buildStepPills() string {
 		"implicit":   state.ImplicitIDToken != "",
 		"revoke":     state.RevocationDone,
 	}
+	activeFound := false
 	var b strings.Builder
-	for _, st := range stepDefs {
+	for i, st := range stepDefs {
 		cls := "todo"
+		dot := fmt.Sprintf("%d", i+1)
 		if done[st.id] {
 			cls = "done"
+			dot = "✓"
+		} else if !activeFound {
+			cls = "active"
+			activeFound = true
 		}
-		fmt.Fprintf(&b, `<span class="step-pill %s">%s</span>`, cls, st.label)
+		if i > 0 {
+			fmt.Fprintf(&b, `<div class="step-conn"></div>`)
+		}
+		fmt.Fprintf(&b, `<div class="step-node %s"><div class="step-dot">%s</div><span class="step-label">%s</span></div>`,
+			cls, dot, st.label)
 	}
 	return b.String()
 }
 
 func kv(key, val string) string {
-	return fmt.Sprintf(`<div class="kv"><span class="key">%s</span><span class="val">%s</span></div>`,
+	return fmt.Sprintf(`<div class="kv"><span class="k">%s</span><span class="v">%s</span></div>`,
 		html.EscapeString(key), html.EscapeString(val))
 }
 
 func card(title, subtitle, body string) string {
-	return fmt.Sprintf(`<div class="card"><h2>%s</h2><p class="subtitle">%s</p>%s</div>`,
-		html.EscapeString(title), subtitle, body)
+	sub := ""
+	if subtitle != "" {
+		sub = fmt.Sprintf(`<p class="sub">%s</p>`, html.EscapeString(subtitle))
+	}
+	return fmt.Sprintf(`<div class="card"><h2>%s</h2>%s%s</div>`,
+		html.EscapeString(title), sub, body)
 }
 
 func explain(text string) string {
-	return fmt.Sprintf(`<div class="explain">%s</div>`, text)
+	return fmt.Sprintf(`<div class="info">%s</div>`, text)
 }
 
 func codeBlock(text string) string {
@@ -303,34 +418,25 @@ func codeBlock(text string) string {
 func handleHome(w http.ResponseWriter, _ *http.Request) {
 	body := `
 <div class="card">
-  <h2>Welcome to the OIDC Interactive Demo Client</h2>
-  <p class="subtitle">This tool walks you through every step of OpenID Connect, one interaction at a time.
-  Each step shows you the exact HTTP request, the server response, and explains <em>why</em> it matters.</p>
-
-  <div class="explain">
+  <h2>Welcome to the OIDC Interactive Demo</h2>
+  <p class="sub">Walk through every step of OpenID Connect — one interaction at a time.</p>
+  <div class="info">
     <strong>What is OpenID Connect?</strong><br>
     OpenID Connect (OIDC) is an identity layer on top of OAuth 2.0. It lets clients verify
     the identity of an end-user and obtain basic profile information using standard HTTP flows.
-    <br><br>
-    <strong>What you will explore here:</strong>
-    <ol style="margin-left:18px;margin-top:6px;line-height:2">
-      <li><strong>Discovery</strong> — Fetch the server's capabilities from the well-known endpoint</li>
-      <li><strong>Dynamic Registration</strong> — Register this client with the server at runtime (RFC 7591)</li>
-      <li><strong>Authorization Code Flow</strong> — The most secure OAuth 2.0 flow, with PKCE</li>
-      <li><strong>Token Exchange</strong> — Trade the authorization code for access/ID/refresh tokens</li>
-      <li><strong>UserInfo Endpoint</strong> — Fetch the authenticated user's profile</li>
-      <li><strong>Token Introspection</strong> — Ask the server if a token is still valid (RFC 7662)</li>
-      <li><strong>Implicit Flow</strong> — Legacy browser flow where tokens arrive in the URL fragment</li>
-      <li><strong>Token Revocation</strong> — Invalidate a token immediately (RFC 7009)</li>
-    </ol>
   </div>
-
-  <div class="notice">
-    ℹ️ Make sure the OIDC server is running at <strong>http://localhost:8080</strong> before you begin.
-    Default test credentials: <strong>testuser / password123</strong>
+  <div class="step-grid">
+    <div class="step-item"><div class="step-num">1</div><div><div class="step-title">Discovery</div><div class="step-desc">Fetch server capabilities from the well-known endpoint.</div></div></div>
+    <div class="step-item"><div class="step-num">2</div><div><div class="step-title">Registration</div><div class="step-desc">Register this client dynamically at runtime (RFC 7591).</div></div></div>
+    <div class="step-item"><div class="step-num">3</div><div><div class="step-title">Auth Code Flow</div><div class="step-desc">The most secure OAuth 2.0 flow, with PKCE protection.</div></div></div>
+    <div class="step-item"><div class="step-num">4</div><div><div class="step-title">Token Exchange</div><div class="step-desc">Trade the authorization code for access/ID/refresh tokens.</div></div></div>
+    <div class="step-item"><div class="step-num">5</div><div><div class="step-title">UserInfo</div><div class="step-desc">Fetch the authenticated user's profile claims.</div></div></div>
+    <div class="step-item"><div class="step-num">6</div><div><div class="step-title">Introspection</div><div class="step-desc">Ask the server if a token is still valid (RFC 7662).</div></div></div>
+    <div class="step-item"><div class="step-num">7</div><div><div class="step-title">Implicit Flow</div><div class="step-desc">Legacy browser flow — tokens arrive in the URL fragment.</div></div></div>
+    <div class="step-item"><div class="step-num">8</div><div><div class="step-title">Revocation</div><div class="step-desc">Immediately invalidate a token (RFC 7009).</div></div></div>
   </div>
-
-  <a href="/step/discovery" class="btn btn-primary">Begin → Step 1: Discovery</a>
+  <div class="notice"><span class="notice-i">ℹ️</span><span>Make sure the OIDC server is running at <strong>http://localhost:8080</strong> before you begin. Default test credentials: <strong>testuser / password123</strong></span></div>
+  <a href="/step/discovery" class="btn btn-primary btn-lg">Begin → Step 1: Discovery</a>
 </div>`
 	_, _ = fmt.Fprint(w, pageWrap("Home", body))
 }
@@ -368,9 +474,9 @@ func handleDiscovery(w http.ResponseWriter, _ *http.Request) {
   <div class="col">
     <div class="card">
       <h2>Server Response</h2>
-      <p class="subtitle">HTTP %d — Discovery Document</p>
+      <p class="sub">HTTP %d — Discovery Document</p>
       %s
-      <hr class="divider">
+      <hr>
       <a href="/step/register" class="btn btn-success">Next → Step 2: Dynamic Registration</a>
     </div>
   </div>
@@ -471,9 +577,9 @@ with the assigned <code>client_id</code>, <code>client_secret</code>, and echoes
 configuration it accepted.`)+
 				func() string {
 					if errMsg != "" {
-						return fmt.Sprintf(`<div class="tag-error">✗ Registration failed: %s</div>`, html.EscapeString(errMsg))
+						return fmt.Sprintf(`<div class="tag-err">✗ Registration failed: %s</div>`, html.EscapeString(errMsg))
 					}
-					return `<div class="tag-success">✓ Registered successfully</div><br>` +
+					return `<div class="tag-ok">✓ Registered successfully</div><br>` +
 						kv("client_id", state.ClientID) +
 						kv("client_secret", state.ClientSecret) +
 						`<br><a href="/step/auth-code" class="btn btn-success">Next → Step 3: Authorization Code Flow</a>`
@@ -534,7 +640,7 @@ func handleAuthCode(w http.ResponseWriter, _ *http.Request) {
     %s
     <div class="card">
       <h2>👆 Your Turn!</h2>
-      <p class="subtitle">Click the button below to redirect to the OIDC server's login page.
+      <p class="sub">Click the button below to redirect to the OIDC server's login page.
       Log in with <strong>testuser / password123</strong>, approve the consent, and you will
       be redirected back here with an authorization code.</p>
       <a href="%s" class="btn btn-primary" style="font-size:1rem;padding:14px 32px;">
@@ -607,7 +713,7 @@ Common causes: user denied consent, invalid parameters, or expired session.`,
     %s
     <div class="card">
       <h2>State Validation</h2>
-      <p class="subtitle">CSRF protection — the <code>state</code> we sent must match.</p>
+      <p class="sub">CSRF protection — the <code>state</code> we sent must match.</p>
       %s
       %s
     </div>
@@ -629,9 +735,9 @@ because they would also need the <code>code_verifier</code> (PKCE) and the clien
 			card("Redirect URI Parameters", "", codeBlock(r.URL.RawQuery)),
 			func() string {
 				if stateOK {
-					return `<span class="tag-success">✓ State matches — no CSRF</span>`
+					return `<span class="tag-ok">✓ State matches — no CSRF</span>`
 				}
-				return `<span class="tag-error">✗ State mismatch! Possible CSRF attack.</span>`
+				return `<span class="tag-err">✗ State mismatch! Possible CSRF attack.</span>`
 			}(),
 			"",
 		)
@@ -643,7 +749,7 @@ because they would also need the <code>code_verifier</code> (PKCE) and the clien
 	body := fmt.Sprintf(`
 <div class="card">
   <h2>⚡ Implicit Flow Callback</h2>
-  <p class="subtitle">Tokens arrive in the URL <strong>fragment</strong> (after <code>#</code>).
+  <p class="sub">Tokens arrive in the URL <strong>fragment</strong> (after <code>#</code>).
   Fragments are <em>never sent to the server</em> — only JavaScript can read them.</p>
   %s
   <div id="result" style="margin-top:16px;"></div>
@@ -659,11 +765,11 @@ because they would also need the <code>code_verifier</code> (PKCE) and the clien
   });
   var div = document.getElementById('result');
   if (params.id_token) {
-    div.innerHTML = '<span class="tag-success">✓ id_token received in fragment</span><br><br>'
-      + '<div class="kv"><span class="key">id_token</span><span class="val">' + params.id_token + '</span></div>'
-      + '<div class="kv"><span class="key">state</span><span class="val">' + (params.state||'') + '</span></div>'
-      + (params.access_token ? '<div class="kv"><span class="key">access_token</span><span class="val">' + params.access_token + '</span></div>' : '')
-      + (params.token_type ? '<div class="kv"><span class="key">token_type</span><span class="val">' + params.token_type + '</span></div>' : '');
+    div.innerHTML = '<span class="tag-ok">✓ id_token received in fragment</span><br><br>'
+      + '<div class="kv"><span class="k">id_token</span><span class="v">' + params.id_token + '</span></div>'
+      + '<div class="kv"><span class="k">state</span><span class="v">' + (params.state||'') + '</span></div>'
+      + (params.access_token ? '<div class="kv"><span class="k">access_token</span><span class="v">' + params.access_token + '</span></div>' : '')
+      + (params.token_type ? '<div class="kv"><span class="k">token_type</span><span class="v">' + params.token_type + '</span></div>' : '');
 
     // Save to server
     var form = document.createElement('form');
@@ -679,7 +785,7 @@ because they would also need the <code>code_verifier</code> (PKCE) and the clien
     document.body.appendChild(form);
     form.submit();
   } else {
-    div.innerHTML = '<span class="tag-error">✗ No id_token found in fragment. '
+    div.innerHTML = '<span class="tag-err">✗ No id_token found in fragment. '
       + 'Fragment was: ' + (fragment||'(empty)') + '</span>';
     document.getElementById('next').innerHTML = '<a href="/step/implicit" class="btn btn-warning">← Try Implicit Flow again</a>';
   }
@@ -714,13 +820,13 @@ func handleImplicitResult(w http.ResponseWriter, _ *http.Request) {
 	body := fmt.Sprintf(`
 <div class="card">
   <h2>⚡ Implicit Flow — ID Token Received</h2>
-  <p class="subtitle">The browser extracted the token from the fragment and posted it here.</p>
+  <p class="sub">The browser extracted the token from the fragment and posted it here.</p>
   %s
   %s
-  <hr class="divider">
+  <hr>
   <a href="/step/revoke" class="btn btn-success">Next → Step 8: Token Revocation</a>
   &nbsp;
-  <a href="/step/implicit" class="btn btn-secondary">Repeat Implicit Flow</a>
+  <a href="/step/implicit" class="btn btn-ghost">Repeat Implicit Flow</a>
 </div>`,
 		explain(`The <code>id_token</code> is a signed JWT. You can decode it to inspect the user's identity claims.
 The token is self-contained — no server lookup needed to verify it (just check the signature).`),
@@ -818,10 +924,10 @@ If everything matches, it returns three tokens:<br>
 • <strong>refresh_token</strong>: a long-lived token to get new access tokens`)+
 				func() string {
 					if errMsg != "" {
-						return fmt.Sprintf(`<span class="tag-error">✗ %s</span><br><br>
+						return fmt.Sprintf(`<span class="tag-err">✗ %s</span><br><br>
 <a href="/step/auth-code" class="btn btn-warning">← Restart Auth Code Flow</a>`, html.EscapeString(errMsg))
 					}
-					return `<span class="tag-success">✓ Tokens received!</span><br><br>` +
+					return `<span class="tag-ok">✓ Tokens received!</span><br><br>` +
 						kv("access_token (first 40 chars)", at[:min(40, len(at))]+"…") +
 						kv("id_token (first 40 chars)", idt[:min(40, len(idt))]+"…") +
 						`<br><a href="/step/userinfo" class="btn btn-success">Next → Step 5: UserInfo</a>`
@@ -886,7 +992,7 @@ on the <em>scopes</em> that were granted (e.g., <code>profile</code> gives name/
 The access token is sent as a <strong>Bearer token</strong> in the Authorization header.
 The server validates the token, looks up the user, and returns the appropriate claims as JSON.
 This is an alternative to embedding all claims in the ID token.`)+
-				`<span class="tag-success">✓ Profile loaded</span><br><br>`+
+				`<span class="tag-ok">✓ Profile loaded</span><br><br>`+
 				`<a href="/step/introspect" class="btn btn-success">Next → Step 6: Token Introspection</a>`,
 		),
 		card("Request", "", codeBlock(reqStr)),
@@ -953,7 +1059,7 @@ checks its database, verifies the token hasn't been revoked or expired, and retu
 • <code>scope</code>, <code>sub</code>, <code>client_id</code>, <code>exp</code> — token metadata<br><br>
 This is essential for <em>opaque tokens</em> (non-JWTs) and for detecting revoked tokens
 even if they haven't expired yet.`)+
-				`<span class="tag-success">✓ Introspection complete</span><br><br>`+
+				`<span class="tag-ok">✓ Introspection complete</span><br><br>`+
 				`<a href="/step/implicit" class="btn btn-success">Next → Step 7: Implicit Flow</a>`,
 		),
 		card("Request", "", codeBlock(reqStr)),
@@ -1002,7 +1108,7 @@ func handleImplicit(w http.ResponseWriter, _ *http.Request) {
     %s
     <div class="card">
       <h2>👆 Your Turn!</h2>
-      <p class="subtitle">Click below to start the implicit flow. Log in (or reuse the existing
+      <p class="sub">Click below to start the implicit flow. Log in (or reuse the existing
       session), grant consent, and observe how the <code>id_token</code> lands in the
       URL fragment — <em>never on the server</em>.</p>
       <a href="%s" class="btn btn-warning" style="font-size:1rem;padding:14px 32px;">
@@ -1100,12 +1206,12 @@ Both <strong>access tokens</strong> and <strong>refresh tokens</strong> can be r
 Revoking a refresh token may also revoke all associated access tokens.`)+
 				func() string {
 					if isErr {
-						return fmt.Sprintf(`<span class="tag-error">✗ %s</span>`, html.EscapeString(resultMsg))
+						return fmt.Sprintf(`<span class="tag-err">✗ %s</span>`, html.EscapeString(resultMsg))
 					}
-					return `<span class="tag-success">✓ Token revoked!</span><br><br>` +
-						`<p style="font-size:.9rem;color:#555;margin-top:8px;">The access token is now invalid. Try UserInfo again to confirm.</p>` +
+					return `<span class="tag-ok">✓ Token revoked!</span><br><br>` +
+						`<p style="font-size:.875rem;color:var(--tx2);margin-top:8px;">The access token is now invalid. Try UserInfo again to confirm.</p>` +
 						`<br><a href="/step/userinfo" class="btn btn-info" style="margin-right:8px;">↺ Re-test UserInfo (expect 401)</a>` +
-						`<a href="/log" class="btn btn-secondary">📋 View Full Session Log</a>`
+						`<a href="/log" class="btn btn-ghost">📋 View Full Session Log</a>`
 				}(),
 		),
 		card("Revocation Request", "", codeBlock(reqStr)),
@@ -1122,19 +1228,19 @@ func handleLog(w http.ResponseWriter, _ *http.Request) {
 
 	var logHTML strings.Builder
 	if len(entries) == 0 {
-		logHTML.WriteString(`<p style="color:#6c757d">No API calls recorded yet. Complete the steps first.</p>`)
+		logHTML.WriteString(`<p style="color:var(--tx3);font-style:italic">No API calls recorded yet. Complete the steps first.</p>`)
 	}
 	for _, e := range entries {
-		cls := "tag-success"
+		entryCls, tagCls := "log-entry", "tag-ok"
 		icon := "✓"
 		if e.IsError {
-			cls = "tag-error"
+			entryCls, tagCls = "log-entry err", "tag-err"
 			icon = "✗"
 		}
 		fmt.Fprintf(&logHTML, `
-<div class="log-entry">
-  <div class="log-header">
-    <span class="timestamp" style="color:#6c757d;font-weight:normal">%s</span>
+<div class="%s">
+  <div class="log-hdr">
+    <span class="log-ts">%s</span>
     <span class="%s">%s %s</span>
   </div>
   <div class="log-body">
@@ -1143,13 +1249,13 @@ func handleLog(w http.ResponseWriter, _ *http.Request) {
     <strong style="font-size:.83rem">Response:</strong>
     %s
   </div>
-</div>`, e.Timestamp, cls, icon, html.EscapeString(e.Label),
+</div>`, entryCls, e.Timestamp, tagCls, icon, html.EscapeString(e.Label),
 			codeBlock(e.Request), codeBlock(e.Response))
 	}
 
 	body := fmt.Sprintf(`<div class="card">
   <h2>📋 Full Session Log</h2>
-  <p class="subtitle">Every API call made during this session, in chronological order.</p>
+  <p class="sub">Every API call made during this session, in chronological order.</p>
   %s
 </div>`, logHTML.String())
 	_, _ = fmt.Fprint(w, pageWrap("Session Log", body))
