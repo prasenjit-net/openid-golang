@@ -25,7 +25,9 @@ interface UpdateSettingsRequest {
 export const queryKeys = {
   stats: ['stats'] as const,
   users: ['users'] as const,
+  user: (id: string) => ['user', id] as const,
   clients: ['clients'] as const,
+  client: (id: string) => ['client', id] as const,
   settings: ['settings'] as const,
   keys: ['keys'] as const,
   setupStatus: ['setupStatus'] as const,
@@ -97,8 +99,9 @@ export function useDeleteUser() {
       })
       if (!res.ok) throw new Error('Failed to delete user')
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
+      queryClient.removeQueries({ queryKey: queryKeys.user(id) })
     },
   })
 }
@@ -145,8 +148,9 @@ export function useDeleteClient() {
       })
       if (!res.ok) throw new Error('Failed to delete client')
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      queryClient.removeQueries({ queryKey: queryKeys.client(id) })
     },
   })
 }
@@ -229,9 +233,11 @@ export function useSetupStatus() {
 // Individual User
 export function useUser(id: string) {
   return useQuery({
-    queryKey: ['user', id],
+    queryKey: queryKeys.user(id),
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/users/${id}`)
+      const res = await fetch(`${API_BASE}/users/${id}`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch user')
       return res.json()
     },
@@ -242,17 +248,19 @@ export function useUser(id: string) {
 export function useUpdateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...user }: { id: string; username?: string; email?: string; password?: string; role?: string }) => {
+    mutationFn: async ({ id, ...user }: { id: string; username?: string; email?: string; name?: string; password?: string; role?: string; [key: string]: unknown }) => {
       const res = await fetch(`${API_BASE}/users/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(user),
       })
       if (!res.ok) throw new Error('Failed to update user')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
+      // Immediately update individual user cache so detail page shows fresh data
+      queryClient.setQueryData(queryKeys.user(id), data)
     },
   })
 }
@@ -260,9 +268,11 @@ export function useUpdateUser() {
 // Individual Client
 export function useClient(id: string) {
   return useQuery({
-    queryKey: ['client', id],
+    queryKey: queryKeys.client(id),
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/clients/${id}`)
+      const res = await fetch(`${API_BASE}/clients/${id}`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch client')
       return res.json()
     },
@@ -273,17 +283,19 @@ export function useClient(id: string) {
 export function useUpdateClient() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...client }: { id: string; name?: string; redirect_uris?: string[] }) => {
+    mutationFn: async ({ id, ...client }: { id: string; name?: string; redirect_uris?: string[]; grant_types?: string[]; response_types?: string[]; scope?: string; application_type?: string }) => {
       const res = await fetch(`${API_BASE}/clients/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(client),
       })
       if (!res.ok) throw new Error('Failed to update client')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      // Immediately update individual client cache so detail page shows fresh data
+      queryClient.setQueryData(queryKeys.client(id), data)
     },
   })
 }
@@ -294,12 +306,14 @@ export function useRegenerateClientSecret() {
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/clients/${id}/regenerate-secret`, {
         method: 'POST',
+        headers: { ...getAuthHeaders() },
       })
       if (!res.ok) throw new Error('Failed to regenerate client secret')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(id) })
     },
   })
 }
