@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Card,
-  Descriptions,
   Button,
   Space,
-  Typography,
   Tag,
   Spin,
   Alert,
@@ -13,27 +10,43 @@ import {
   Popconfirm,
   Modal,
   Input,
-  List,
 } from 'antd';
 import {
   EditOutlined,
   ArrowLeftOutlined,
   DeleteOutlined,
-  LockOutlined,
   ReloadOutlined,
   CopyOutlined,
   KeyOutlined,
+  AppstoreOutlined,
+  LinkOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useClient, useDeleteClient, useRegenerateClientSecret } from '../../hooks/useApi';
 
-const { Title, Paragraph } = Typography;
+const infoCard = (icon: React.ReactNode, title: string, children: React.ReactNode) => (
+  <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', overflow: 'hidden', marginBottom: 24 }}>
+    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: 'var(--color-primary)', fontSize: 16, display: 'flex' }}>{icon}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+    </div>
+    <div style={{ padding: '4px 0' }}>{children}</div>
+  </div>
+);
+
+const infoRow = (label: string, value: React.ReactNode, last = false) => (
+  <div style={{ display: 'flex', padding: '10px 20px', borderBottom: last ? 'none' : '1px solid var(--border-subtle)' }}>
+    <span style={{ width: 200, flexShrink: 0, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+    <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{value}</span>
+  </div>
+);
 
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [secretModalVisible, setSecretModalVisible] = useState(false);
   const [newSecret, setNewSecret] = useState<string>('');
-  
+
   const { data: client, isLoading: loading } = useClient(id || '');
   const deleteClientMutation = useDeleteClient();
   const regenerateSecretMutation = useRegenerateClientSecret();
@@ -77,54 +90,36 @@ const ClientDetail = () => {
   if (!client) {
     return (
       <>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/clients')}
-          style={{ marginBottom: 16 }}
-        >
-          Back to Search
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/clients')} style={{ marginBottom: 16 }}>
+          ← Clients
         </Button>
-        <Alert
-          message="Error"
-          description={'Client not found'}
-          type="error"
-          showIcon
-        />
+        <Alert message="Error" description="Client not found" type="error" showIcon />
       </>
     );
   }
 
   return (
     <>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Back button */}
+      <div style={{ marginBottom: 16 }}>
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/clients')} style={{ color: 'var(--text-secondary)', paddingLeft: 0 }}>
+          ← Clients
+        </Button>
+      </div>
+
+      {/* Page header */}
+      <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {client.name || client.client_name || 'Unnamed Client'}
+          </span>
+          <code style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 10px', fontFamily: 'monospace', fontSize: 12, color: 'var(--color-primary)' }}>
+            {client.client_id}
+          </code>
+        </div>
         <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/clients')}
-          >
-            Back
-          </Button>
-          <Title level={2} style={{ margin: 0 }}>Client Details</Title>
-        </Space>
-        <Space>
-          <Popconfirm
-            title="Regenerate Client Secret"
-            description="This will generate a new secret and invalidate the old one. The new secret will only be shown once."
-            onConfirm={handleRegenerateSecret}
-            okText="Regenerate"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button icon={<ReloadOutlined />}>
-              Regenerate Secret
-            </Button>
-          </Popconfirm>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/clients/${id}/edit`)}
-          >
-            Edit
+          <Button type="primary" icon={<EditOutlined />} onClick={() => navigate(`/clients/${id}/edit`)}>
+            Edit Client
           </Button>
           <Popconfirm
             title="Delete client"
@@ -134,153 +129,85 @@ const ClientDetail = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button danger icon={<DeleteOutlined />}>
-              Delete
+            <Button danger icon={<DeleteOutlined />}>Delete Client</Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Regenerate Client Secret"
+            description="This will invalidate the old secret. The new secret will only be shown once."
+            onConfirm={handleRegenerateSecret}
+            okText="Regenerate"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+          >
+            <Button icon={<ReloadOutlined />} style={{ color: '#d97706', borderColor: '#d97706' }}>
+              Regenerate Secret
             </Button>
           </Popconfirm>
         </Space>
       </div>
 
       {/* Basic Information */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>
-          <LockOutlined /> Basic Information
-        </Title>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Client ID" span={2}>
-            <Space>
-              <code>{client.client_id}</code>
-              <Button
-                type="text"
-                size="small"
-                icon={<CopyOutlined />}
-                onClick={() => copyToClipboard(client.client_id)}
-              />
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="Client Name" span={2}>
-            {client.name || client.client_name || '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Application Type">
-            {client.application_type || 'web'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Created">
-            {new Date(client.created_at).toLocaleString()}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      {infoCard(<AppstoreOutlined />, 'Basic Information', <>
+        {infoRow('Client Name', client.name || client.client_name || '-')}
+        {infoRow('Application Type', client.application_type || 'web')}
+        {infoRow('Created', new Date(client.created_at).toLocaleString(), true)}
+      </>)}
 
       {/* Redirect URIs */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>Redirect URIs</Title>
-        <List
-          dataSource={client.redirect_uris || []}
-          renderItem={(uri: string) => (
-            <List.Item>
-              <Tag color="blue">{uri}</Tag>
-            </List.Item>
-          )}
-        />
-      </Card>
+      {infoCard(<LinkOutlined />, 'Redirect URIs',
+        <div style={{ padding: '10px 20px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {(client.redirect_uris || []).length > 0
+            ? client.redirect_uris.map((uri: string, i: number) => (
+                <span key={i} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '3px 10px', fontSize: 13, color: '#1d4ed8', fontFamily: 'monospace' }}>{uri}</span>
+              ))
+            : <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>No redirect URIs configured</span>}
+        </div>
+      )}
 
       {/* OAuth Configuration */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>OAuth Configuration</Title>
-        <Descriptions bordered column={1}>
-          <Descriptions.Item label="Grant Types">
-            <Space wrap>
-              {client.grant_types?.map((type: string, i: number) => (
-                <Tag key={i} color="green">{type}</Tag>
-              )) || '-'}
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="Response Types">
-            <Space wrap>
-              {client.response_types?.map((type: string, i: number) => (
-                <Tag key={i} color="purple">{type}</Tag>
-              )) || '-'}
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item label="Scope">
-            {client.scope || 'openid profile email'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Token Endpoint Auth Method">
-            {client.token_endpoint_auth_method || 'client_secret_basic'}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      {infoCard(<SettingOutlined />, 'OAuth Configuration', <>
+        {infoRow('Grant Types',
+          <Space wrap>
+            {client.grant_types?.map((type: string, i: number) => <Tag key={i} color="green">{type}</Tag>) || '-'}
+          </Space>
+        )}
+        {infoRow('Response Types',
+          <Space wrap>
+            {client.response_types?.map((type: string, i: number) => <Tag key={i} color="purple">{type}</Tag>) || '-'}
+          </Space>
+        )}
+        {infoRow('Scope', client.scope || 'openid profile email')}
+        {infoRow('Token Auth Method', client.token_endpoint_auth_method || 'client_secret_basic', true)}
+      </>)}
 
-      {/* Additional Information */}
-      {(client.contacts || client.client_uri || client.logo_uri || client.policy_uri || client.tos_uri || client.jwks_uri) && (
-        <Card bordered={false} style={{ marginBottom: 24 }}>
-          <Title level={4} style={{ marginTop: 0 }}>Additional Information</Title>
-          <Descriptions bordered column={1}>
-            {client.contacts && client.contacts.length > 0 && (
-              <Descriptions.Item label="Contacts">
-                {client.contacts.join(', ')}
-              </Descriptions.Item>
-            )}
-            {client.client_uri && (
-              <Descriptions.Item label="Client URI">
-                <a href={client.client_uri} target="_blank" rel="noopener noreferrer">
-                  {client.client_uri}
-                </a>
-              </Descriptions.Item>
-            )}
-            {client.logo_uri && (
-              <Descriptions.Item label="Logo URI">
-                <a href={client.logo_uri} target="_blank" rel="noopener noreferrer">
-                  {client.logo_uri}
-                </a>
-              </Descriptions.Item>
-            )}
-            {client.policy_uri && (
-              <Descriptions.Item label="Policy URI">
-                <a href={client.policy_uri} target="_blank" rel="noopener noreferrer">
-                  {client.policy_uri}
-                </a>
-              </Descriptions.Item>
-            )}
-            {client.tos_uri && (
-              <Descriptions.Item label="Terms of Service URI">
-                <a href={client.tos_uri} target="_blank" rel="noopener noreferrer">
-                  {client.tos_uri}
-                </a>
-              </Descriptions.Item>
-            )}
-            {client.jwks_uri && (
-              <Descriptions.Item label="JWKS URI">
-                <a href={client.jwks_uri} target="_blank" rel="noopener noreferrer">
-                  {client.jwks_uri}
-                </a>
-              </Descriptions.Item>
-            )}
-          </Descriptions>
-        </Card>
+      {/* Client Secret */}
+      {infoCard(<KeyOutlined />, 'Client Secret',
+        <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 480 }}>
+            The client secret is stored securely and cannot be retrieved. Use Regenerate to issue a new one.
+          </span>
+          <Popconfirm
+            title="Regenerate Client Secret"
+            description="This will invalidate the old secret. The new secret will only be shown once."
+            onConfirm={handleRegenerateSecret}
+            okText="Regenerate"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+          >
+            <Button icon={<ReloadOutlined />} style={{ color: '#d97706', borderColor: '#d97706' }}>
+              Regenerate Secret
+            </Button>
+          </Popconfirm>
+        </div>
       )}
 
       {/* New Secret Modal */}
       <Modal
-        title={
-          <Space>
-            <KeyOutlined />
-            <span>New Client Secret Generated</span>
-          </Space>
-        }
+        title={<Space><KeyOutlined /><span>New Client Secret Generated</span></Space>}
         open={secretModalVisible}
-        onCancel={() => {
-          setSecretModalVisible(false);
-          setNewSecret('');
-        }}
+        onCancel={() => { setSecretModalVisible(false); setNewSecret(''); }}
         footer={[
-          <Button
-            key="close"
-            type="primary"
-            onClick={() => {
-              setSecretModalVisible(false);
-              setNewSecret('');
-            }}
-          >
+          <Button key="close" type="primary" onClick={() => { setSecretModalVisible(false); setNewSecret(''); }}>
             Close
           </Button>,
         ]}
@@ -292,37 +219,19 @@ const ClientDetail = () => {
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <Paragraph>
-          <strong>Client ID:</strong>
-        </Paragraph>
+        <p style={{ marginBottom: 4, fontWeight: 600, fontSize: 13 }}>Client ID:</p>
         <Input
           value={client.client_id}
           readOnly
           addonAfter={
-            <Button
-              type="text"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => copyToClipboard(client.client_id)}
-            >
+            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => copyToClipboard(client.client_id)}>
               Copy
             </Button>
           }
         />
-        <Paragraph style={{ marginTop: 16 }}>
-          <strong>Client Secret:</strong>
-        </Paragraph>
-        <Input.TextArea
-          value={newSecret}
-          readOnly
-          rows={3}
-          style={{ fontFamily: 'monospace' }}
-        />
-        <Button
-          icon={<CopyOutlined />}
-          onClick={() => copyToClipboard(newSecret)}
-          style={{ marginTop: 8 }}
-        >
+        <p style={{ marginTop: 16, marginBottom: 4, fontWeight: 600, fontSize: 13 }}>Client Secret:</p>
+        <Input.TextArea value={newSecret} readOnly rows={3} style={{ fontFamily: 'monospace' }} />
+        <Button icon={<CopyOutlined />} onClick={() => copyToClipboard(newSecret)} style={{ marginTop: 8 }}>
           Copy Secret
         </Button>
       </Modal>

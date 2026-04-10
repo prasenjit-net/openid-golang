@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider, theme as antTheme } from 'antd';
 import AdminLayout from './components/layout/AdminLayout';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { QueryProvider } from './providers/QueryProvider';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 import Dashboard from './pages/Dashboard';
 import UserSearch from './pages/users/UserSearch';
@@ -71,10 +72,37 @@ function OAuthRedirect() {
 
 function AppContent() {
   const { isAuthenticated, isSetupComplete, loading } = useAuth();
+  const { isDark } = useTheme();
+
+  const configTheme = {
+    algorithm: isDark ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+    token: {
+      colorPrimary: '#0D9488',
+      colorSuccess: '#10B981',
+      colorWarning: '#F59E0B',
+      colorError: '#EF4444',
+      colorInfo: '#0EA5E9',
+      borderRadius: 8,
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      fontSize: 14,
+      colorBgBase: isDark ? '#1E293B' : '#FFFFFF',
+      colorBgContainer: isDark ? '#1E293B' : '#FFFFFF',
+      colorBgLayout: isDark ? '#0B1120' : '#F1F5F9',
+      colorBgElevated: isDark ? '#253347' : '#FFFFFF',
+      colorBorder: isDark ? '#334155' : '#E2E8F0',
+      colorBorderSecondary: isDark ? '#1E293B' : '#F1F5F9',
+      colorText: isDark ? '#F1F5F9' : '#0F172A',
+      colorTextSecondary: isDark ? '#94A3B8' : '#475569',
+      colorTextTertiary: isDark ? '#64748B' : '#94A3B8',
+      colorTextQuaternary: isDark ? '#475569' : '#CBD5E1',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      boxShadowSecondary: '0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04)',
+    },
+  };
 
   if (loading) {
     return (
-      <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
+      <ConfigProvider theme={configTheme}>
         <div
           style={{
             display: 'flex',
@@ -93,7 +121,7 @@ function AppContent() {
   }
 
   return (
-    <ConfigProvider theme={{ algorithm: theme.defaultAlgorithm }}>
+    <ConfigProvider theme={configTheme}>
       <BrowserRouter>
         <Routes>
             {/* OAuth callback route - always accessible */}
@@ -143,11 +171,13 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </QueryProvider>
+    <ThemeProvider>
+      <QueryProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </QueryProvider>
+    </ThemeProvider>
   );
 }
 

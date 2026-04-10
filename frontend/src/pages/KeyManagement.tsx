@@ -1,27 +1,8 @@
 import { useState } from 'react';
-import {
-  Card,
-  Table,
-  Button,
-  Space,
-  Typography,
-  message,
-  Modal,
-  Alert,
-  Tag,
-  Spin,
-} from 'antd';
-import {
-  KeyOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import { Table, Button, Modal, Alert, Tag, Spin, message } from 'antd';
+import { KeyOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useKeys, useRotateKeys } from '../hooks/useApi';
-
-const { Title, Text } = Typography;
 
 interface SigningKey {
   id: string;
@@ -32,6 +13,15 @@ interface SigningKey {
   expires_at?: string;
   status: 'active' | 'expired' | 'inactive';
 }
+
+const STATUS_CONFIG = {
+  active: { label: 'Active', color: '#0D9488', bg: 'rgba(13,148,136,0.1)', icon: <CheckCircleOutlined /> },
+  expired: { label: 'Expired', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: <CloseCircleOutlined /> },
+  inactive: { label: 'Inactive', color: '#94A3B8', bg: 'rgba(148,163,184,0.1)', icon: <ClockCircleOutlined /> },
+};
+
+const formatDate = (d?: string) =>
+  d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
 const KeyManagement = () => {
   const { data: keys = [], isLoading: loading } = useKeys();
@@ -59,59 +49,65 @@ const KeyManagement = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Tag icon={<CheckCircleOutlined />} color="success">Active</Tag>;
-      case 'expired':
-        return <Tag icon={<CloseCircleOutlined />} color="error">Expired</Tag>;
-      case 'inactive':
-        return <Tag icon={<ClockCircleOutlined />} color="warning">Inactive</Tag>;
-      default:
-        return <Tag>{status}</Tag>;
-    }
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleString();
-  };
-
   const columns: ColumnsType<SigningKey> = [
     {
       title: 'Key ID',
       dataIndex: 'kid',
       key: 'kid',
-      render: (kid: string) => <Text code>{kid}</Text>,
+      render: (kid: string) => (
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-primary)' }}>{kid}</span>
+      ),
     },
     {
       title: 'Algorithm',
       dataIndex: 'algorithm',
       key: 'algorithm',
+      width: 120,
+      render: (alg: string) => (
+        <Tag style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{alg}</Tag>
+      ),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => getStatusTag(status),
+      width: 120,
+      render: (status: 'active' | 'expired' | 'inactive') => {
+        const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.inactive;
+        return (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: cfg.bg, color: cfg.color,
+            borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 500,
+          }}>
+            {cfg.icon} {cfg.label}
+          </div>
+        );
+      },
     },
     {
-      title: 'Created At',
+      title: 'Created',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => formatDate(date),
+      width: 140,
+      render: (d: string) => (
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{formatDate(d)}</span>
+      ),
     },
     {
-      title: 'Expires At',
+      title: 'Expires',
       dataIndex: 'expires_at',
       key: 'expires_at',
-      render: (date: string) => formatDate(date),
+      width: 140,
+      render: (d: string) => (
+        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{formatDate(d)}</span>
+      ),
     },
   ];
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '80px' }}>
         <Spin size="large" />
       </div>
     );
@@ -119,41 +115,54 @@ const KeyManagement = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>
-            <KeyOutlined /> Signing Keys
-          </Title>
-          <Button
-            type="primary"
-            danger
-            icon={<ReloadOutlined />}
-            onClick={() => setRotateModalVisible(true)}
-          >
-            Rotate Keys
-          </Button>
-        </Space>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 'var(--text-3xl)', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+            Signing Keys
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+            RSA key pairs for JWT token signing
+          </p>
+        </div>
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
+          onClick={() => setRotateModalVisible(true)}
+        >
+          Rotate Keys
+        </Button>
       </div>
 
-      <Alert
-        message="Key Rotation Strategy"
-        description="When you rotate keys, the old active key is marked as inactive and will expire in 30 days. This allows existing tokens to be validated during the grace period. Only the newest active key is used for signing new tokens."
-        type="info"
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
+      {/* Info Alert */}
+      <div style={{
+        background: 'rgba(14,165,233,0.07)',
+        border: '1px solid rgba(14,165,233,0.25)',
+        borderRadius: 8,
+        padding: '10px 16px',
+        marginBottom: 20,
+        fontSize: 'var(--text-sm)',
+        color: 'var(--text-secondary)',
+      }}>
+        <strong style={{ color: '#0EA5E9' }}>ℹ</strong>
+        {'  '}Active keys sign new tokens. Expired keys validate existing tokens for 30 days.
+      </div>
 
-      <Card bordered={false}>
-        <Table
+      {/* Table */}
+      <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
+        <Table<SigningKey>
           columns={columns}
           dataSource={keys}
           rowKey="id"
           pagination={false}
+          style={{ borderRadius: 0 }}
           locale={{
             emptyText: (
-              <div style={{ padding: '40px' }}>
-                <KeyOutlined style={{ fontSize: 48, color: '#ccc', marginBottom: 16 }} />
-                <p>No signing keys found</p>
+              <div style={{ padding: '60px 0', textAlign: 'center' }}>
+                <KeyOutlined style={{ fontSize: 48, color: 'var(--text-muted)', marginBottom: 12, display: 'block' }} />
+                <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 16 }}>
+                  No signing keys found
+                </div>
                 <Button type="primary" icon={<ReloadOutlined />} onClick={() => setRotateModalVisible(true)}>
                   Generate First Key
                 </Button>
@@ -161,15 +170,15 @@ const KeyManagement = () => {
             ),
           }}
         />
-      </Card>
+      </div>
 
       {/* Rotate Keys Modal */}
       <Modal
         title={
-          <Space>
-            <KeyOutlined />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <KeyOutlined style={{ color: '#0D9488' }} />
             <span>Rotate Signing Keys</span>
-          </Space>
+          </div>
         }
         open={rotateModalVisible}
         onCancel={() => setRotateModalVisible(false)}
@@ -180,7 +189,6 @@ const KeyManagement = () => {
           <Button
             key="rotate"
             type="primary"
-            danger
             icon={<ReloadOutlined />}
             loading={rotateKeysMutation.isPending}
             onClick={handleRotateKeys}
@@ -190,20 +198,11 @@ const KeyManagement = () => {
         ]}
       >
         <Alert
-          message="Important"
-          description="Rotating signing keys will generate a new RSA key pair and mark the current active key as inactive."
+          message="A new RSA key pair will be generated and the current active key will be marked inactive with a 30-day expiration. Existing tokens remain valid during this grace period."
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
         />
-        <p><strong>What happens when you rotate keys:</strong></p>
-        <ul>
-          <li>A new RSA key pair is generated and marked as active</li>
-          <li>The old active key is marked as inactive with a 30-day expiration</li>
-          <li>New tokens will be signed with the new key</li>
-          <li>Existing tokens remain valid and can be verified with the old key</li>
-          <li>After 30 days, the old key will expire and tokens signed with it will be rejected</li>
-        </ul>
         <p>Are you sure you want to rotate the signing keys?</p>
       </Modal>
     </>

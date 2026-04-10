@@ -1,22 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Form,
-  Input,
-  InputNumber,
-  Button,
-  Space,
-  Typography,
-  message,
-  Select,
-  Spin,
-  Alert,
-} from 'antd';
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import { Form, Input, InputNumber, Button, Space, message, Select, Spin, Alert } from 'antd';
+import { GlobalOutlined, DatabaseOutlined, SafetyOutlined, SaveOutlined } from '@ant-design/icons';
 import { useSettings, useUpdateSettings } from '../../hooks/useApi';
 
-const { Title } = Typography;
+const FormSection = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
+  <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', overflow: 'hidden', marginBottom: 24 }}>
+    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: 'var(--color-primary)', fontSize: 16 }}>{icon}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+    </div>
+    <div style={{ padding: '24px' }}>{children}</div>
+  </div>
+);
 
 const SettingsEdit = () => {
   const navigate = useNavigate();
@@ -52,12 +48,9 @@ const SettingsEdit = () => {
     try {
       const result = await updateSettingsMutation.mutateAsync(values);
       message.success('Settings updated successfully');
-      
-      // Show warning if changes are not persisted
       if (result.message && result.message.includes('not persisted')) {
         message.warning('Changes are in memory only. Restart may revert changes.', 5);
       }
-      
       navigate('/settings');
     } catch (error) {
       message.error('Failed to update settings');
@@ -75,16 +68,14 @@ const SettingsEdit = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/settings')}
-          >
-            Back to Settings
-          </Button>
-          <Title level={2} style={{ margin: 0 }}>Edit Settings</Title>
-        </Space>
+      <div style={{ marginBottom: 4 }}>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--color-primary)', padding: 0, marginBottom: 12 }}
+        >
+          ← Settings
+        </button>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>Edit Settings</div>
       </div>
 
       <Alert
@@ -95,12 +86,8 @@ const SettingsEdit = () => {
         style={{ marginBottom: 24 }}
       />
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
-        <Card bordered={false} title="Server Configuration" style={{ marginBottom: 24 }}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <FormSection icon={<GlobalOutlined />} title="Server Configuration">
           <Form.Item
             label="Issuer URL"
             name="issuer"
@@ -112,7 +99,6 @@ const SettingsEdit = () => {
           >
             <Input placeholder="https://auth.example.com" />
           </Form.Item>
-
           <Form.Item
             label="Server Host"
             name="server_host"
@@ -121,7 +107,6 @@ const SettingsEdit = () => {
           >
             <Input placeholder="0.0.0.0" />
           </Form.Item>
-
           <Form.Item
             label="Server Port"
             name="server_port"
@@ -133,9 +118,9 @@ const SettingsEdit = () => {
           >
             <InputNumber min={1} max={65535} style={{ width: '100%' }} />
           </Form.Item>
-        </Card>
+        </FormSection>
 
-        <Card bordered={false} title="Storage Configuration" style={{ marginBottom: 24 }}>
+        <FormSection icon={<DatabaseOutlined />} title="Storage Configuration">
           <Form.Item
             label="Storage Type"
             name="storage_type"
@@ -147,7 +132,6 @@ const SettingsEdit = () => {
               <Select.Option value="mongodb">MongoDB</Select.Option>
             </Select>
           </Form.Item>
-
           {storageType === 'json' && (
             <Form.Item
               label="JSON File Path"
@@ -158,7 +142,6 @@ const SettingsEdit = () => {
               <Input placeholder="./data.json" />
             </Form.Item>
           )}
-
           {storageType === 'mongodb' && (
             <Form.Item
               label="MongoDB URI"
@@ -169,9 +152,9 @@ const SettingsEdit = () => {
               <Input.Password placeholder="mongodb://localhost:27017/openid" />
             </Form.Item>
           )}
-        </Card>
+        </FormSection>
 
-        <Card bordered={false} title="JWT Configuration" style={{ marginBottom: 24 }}>
+        <FormSection icon={<SafetyOutlined />} title="JWT Configuration">
           <Form.Item
             label="Token Expiry (Minutes)"
             name="jwt_expiry_minutes"
@@ -183,30 +166,28 @@ const SettingsEdit = () => {
           >
             <InputNumber min={1} max={43200} style={{ width: '100%' }} />
           </Form.Item>
-
           <Alert
             message="RSA Keys"
             description="RSA signing keys cannot be edited directly. Use the 'Rotate Keys' button on the detail page to generate new keys."
             type="info"
             showIcon
           />
-        </Card>
+        </FormSection>
 
-        <Card bordered={false}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Space>
+            <Button onClick={() => navigate('/settings')}>Cancel</Button>
             <Button
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
               loading={updateSettingsMutation.isPending}
+              style={{ background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
             >
               Save Settings
             </Button>
-            <Button onClick={() => navigate('/settings')}>
-              Cancel
-            </Button>
           </Space>
-        </Card>
+        </div>
       </Form>
     </>
   );

@@ -1,30 +1,38 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  Card,
-  Descriptions,
-  Button,
-  Space,
-  Typography,
-  Tag,
-  Spin,
-  Alert,
-  message,
-  Popconfirm,
-} from 'antd';
+import { Button, Space, Tag, Spin, Alert, message, Popconfirm } from 'antd';
 import {
   EditOutlined,
   ArrowLeftOutlined,
   DeleteOutlined,
   UserOutlined,
+  MailOutlined,
+  ClockCircleOutlined,
+  TagsOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import { useUser, useDeleteUser } from '../../hooks/useApi';
 
-const { Title } = Typography;
+const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ display: 'flex', padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+    <span style={{ width: 160, flexShrink: 0, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+    <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{children}</span>
+  </div>
+);
+
+const InfoCard = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
+  <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: 'var(--color-primary)', fontSize: 16, display: 'flex' }}>{icon}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+    </div>
+    <div style={{ padding: '4px 0' }}>{children}</div>
+  </div>
+);
 
 const UserDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const { data: user, isLoading: loading, error: queryError } = useUser(id || '');
   const deleteUserMutation = useDeleteUser();
 
@@ -67,25 +75,48 @@ const UserDetail = () => {
     );
   }
 
+  const initials = (user.username || '?')[0].toUpperCase();
+
   return (
     <>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/users')}
-          >
-            Back
-          </Button>
-          <Title level={2} style={{ margin: 0 }}>User Details</Title>
-        </Space>
+      {/* Back button */}
+      <Button
+        type="link"
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/users')}
+        style={{ padding: 0, marginBottom: 20, color: 'var(--text-secondary)', fontWeight: 500 }}
+      >
+        Users
+      </Button>
+
+      {/* Page header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'var(--color-primary)', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff', flexShrink: 0,
+          }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{user.name || user.username}</span>
+              <Tag color={user.role === 'admin' ? 'red' : 'blue'} style={{ margin: 0 }}>
+                {user.role?.toUpperCase() || 'USER'}
+              </Tag>
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 2 }}>@{user.username}</div>
+          </div>
+        </div>
         <Space>
           <Button
             type="primary"
             icon={<EditOutlined />}
             onClick={() => navigate(`/users/${id}/edit`)}
+            style={{ background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
           >
-            Edit
+            Edit User
           </Button>
           <Popconfirm
             title="Delete user"
@@ -95,101 +126,82 @@ const UserDetail = () => {
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button danger icon={<DeleteOutlined />}>
-              Delete
+            <Button danger icon={<DeleteOutlined />} loading={deleteUserMutation.isPending}>
+              Delete User
             </Button>
           </Popconfirm>
         </Space>
       </div>
 
-      {/* Basic Information */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>
-          <UserOutlined /> Basic Information
-        </Title>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="User ID" span={2}>
-            <code>{user.id}</code>
-          </Descriptions.Item>
-          <Descriptions.Item label="Username">{user.username}</Descriptions.Item>
-          <Descriptions.Item label="Role">
-            <Tag color={user.role === 'admin' ? 'red' : 'blue'}>
-              {user.role?.toUpperCase() || 'USER'}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Name" span={2}>{user.name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Email">{user.email || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Email Verified">
-            {user.email_verified ? (
-              <Tag color="success">Verified</Tag>
-            ) : (
-              <Tag color="warning">Not Verified</Tag>
+      {/* Two-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        {/* Left column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <InfoCard icon={<UserOutlined />} title="Basic Information">
+            <InfoRow label="User ID"><code style={{ fontSize: 12 }}>{user.id}</code></InfoRow>
+            <InfoRow label="Username">{user.username}</InfoRow>
+            <InfoRow label="Full Name">{user.name || '-'}</InfoRow>
+            <InfoRow label="Role">
+              <Tag color={user.role === 'admin' ? 'red' : 'blue'} style={{ margin: 0 }}>
+                {user.role?.toUpperCase() || 'USER'}
+              </Tag>
+            </InfoRow>
+          </InfoCard>
+
+          <InfoCard icon={<MailOutlined />} title="Contact">
+            <InfoRow label="Email">{user.email || '-'}</InfoRow>
+            <InfoRow label="Email Verified">
+              {user.email_verified
+                ? <Tag color="success" style={{ margin: 0 }}>Verified</Tag>
+                : <Tag color="warning" style={{ margin: 0 }}>Not Verified</Tag>}
+            </InfoRow>
+            <InfoRow label="Phone">{user.phone_number || '-'}</InfoRow>
+            <InfoRow label="Phone Verified">
+              {user.phone_number_verified
+                ? <Tag color="success" style={{ margin: 0 }}>Verified</Tag>
+                : <Tag color="warning" style={{ margin: 0 }}>Not Verified</Tag>}
+            </InfoRow>
+          </InfoCard>
+        </div>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <InfoCard icon={<IdcardOutlined />} title="Profile Claims">
+            <InfoRow label="Given Name">{user.given_name || '-'}</InfoRow>
+            <InfoRow label="Family Name">{user.family_name || '-'}</InfoRow>
+            <InfoRow label="Middle Name">{user.middle_name || '-'}</InfoRow>
+            <InfoRow label="Nickname">{user.nickname || '-'}</InfoRow>
+            <InfoRow label="Preferred Username">{user.preferred_username || '-'}</InfoRow>
+            <InfoRow label="Profile URL">{user.profile || '-'}</InfoRow>
+            <InfoRow label="Picture URL">{user.picture || '-'}</InfoRow>
+            <InfoRow label="Website">{user.website || '-'}</InfoRow>
+            <InfoRow label="Gender">{user.gender || '-'}</InfoRow>
+            <InfoRow label="Birthdate">{user.birthdate || '-'}</InfoRow>
+            <InfoRow label="Timezone">{user.zoneinfo || '-'}</InfoRow>
+            <InfoRow label="Locale">{user.locale || '-'}</InfoRow>
+            {user.address && (
+              <>
+                <InfoRow label="Street">{user.address.street_address || '-'}</InfoRow>
+                <InfoRow label="City">{user.address.locality || '-'}</InfoRow>
+                <InfoRow label="Region">{user.address.region || '-'}</InfoRow>
+                <InfoRow label="Postal Code">{user.address.postal_code || '-'}</InfoRow>
+                <InfoRow label="Country">{user.address.country || '-'}</InfoRow>
+              </>
             )}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+          </InfoCard>
 
-      {/* Profile Claims */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>Profile Claims</Title>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Given Name">{user.given_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Family Name">{user.family_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Middle Name">{user.middle_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Nickname">{user.nickname || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Preferred Username">{user.preferred_username || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Profile URL">{user.profile || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Picture URL">{user.picture || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Website">{user.website || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Gender">{user.gender || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Birthdate">{user.birthdate || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Timezone">{user.zoneinfo || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Locale">{user.locale || '-'}</Descriptions.Item>
-        </Descriptions>
-      </Card>
+          <InfoCard icon={<ClockCircleOutlined />} title="Metadata">
+            <InfoRow label="Created At">{new Date(user.created_at).toLocaleString()}</InfoRow>
+            <InfoRow label="Updated At">{user.updated_at ? new Date(user.updated_at).toLocaleString() : '-'}</InfoRow>
+          </InfoCard>
 
-      {/* Contact Information */}
-      <Card bordered={false} style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginTop: 0 }}>Contact Information</Title>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Phone Number">{user.phone_number || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Phone Verified">
-            {user.phone_number_verified ? (
-              <Tag color="success">Verified</Tag>
-            ) : (
-              <Tag color="warning">Not Verified</Tag>
-            )}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
-
-      {/* Address */}
-      {user.address && (
-        <Card bordered={false} style={{ marginBottom: 24 }}>
-          <Title level={4} style={{ marginTop: 0 }}>Address</Title>
-          <Descriptions bordered column={1}>
-            <Descriptions.Item label="Formatted">{user.address.formatted || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Street Address">{user.address.street_address || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Locality">{user.address.locality || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Region">{user.address.region || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Postal Code">{user.address.postal_code || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Country">{user.address.country || '-'}</Descriptions.Item>
-          </Descriptions>
-        </Card>
-      )}
-
-      {/* Metadata */}
-      <Card bordered={false}>
-        <Title level={4} style={{ marginTop: 0 }}>Metadata</Title>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Created At">
-            {new Date(user.created_at).toLocaleString()}
-          </Descriptions.Item>
-          <Descriptions.Item label="Updated At">
-            {user.updated_at ? new Date(user.updated_at).toLocaleString() : '-'}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+          {user.address?.formatted && (
+            <InfoCard icon={<TagsOutlined />} title="Address">
+              <InfoRow label="Formatted">{user.address.formatted}</InfoRow>
+            </InfoCard>
+          )}
+        </div>
+      </div>
     </>
   );
 };
