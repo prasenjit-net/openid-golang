@@ -322,6 +322,8 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	api.PUT("/settings", adminAPIHandler.UpdateSettings)
 	api.GET("/keys", adminAPIHandler.GetKeys)
 	api.POST("/settings/rotate-keys", adminAPIHandler.RotateKeys)
+	api.GET("/keys/:id/csr", adminAPIHandler.GenerateKeyCSR)
+	api.POST("/keys/:id/import-cert", adminAPIHandler.ImportKeyCert)
 
 	// Audit log endpoint
 	api.GET("/audit", adminAPIHandler.GetAuditLogs)

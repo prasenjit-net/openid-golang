@@ -196,13 +196,15 @@ type Session struct {
 // Supports key rotation by maintaining multiple keys with different states
 type SigningKey struct {
 	ID         string    `json:"id" bson:"_id"`                          // Unique identifier for the key
-	KID        string    `json:"kid" bson:"kid"`                         // Key ID used in JWT header
+	KID        string    `json:"kid" bson:"kid"`                         // Key ID used in JWT header (x5t#S256 of cert)
 	Algorithm  string    `json:"algorithm" bson:"algorithm"`             // Signing algorithm (e.g., RS256)
 	PrivateKey string    `json:"private_key" bson:"private_key"`         // PEM-encoded private key
 	PublicKey  string    `json:"public_key" bson:"public_key"`           // PEM-encoded public key
+	CertPEM    string    `json:"cert_pem,omitempty" bson:"cert_pem"`     // PEM-encoded certificate (self-signed or CA-signed)
+	CSRPEM     string    `json:"csr_pem,omitempty" bson:"csr_pem"`       // PEM-encoded Certificate Signing Request (if generated)
 	IsActive   bool      `json:"is_active" bson:"is_active"`             // Whether this key is used for signing
 	CreatedAt  time.Time `json:"created_at" bson:"created_at"`           // When the key was created
-	ExpiresAt  time.Time `json:"expires_at,omitempty" bson:"expires_at"` // When the key expires (for rotation)
+	ExpiresAt  time.Time `json:"expires_at,omitempty" bson:"expires_at"` // When the key expires — taken from cert NotAfter
 }
 
 // IsExpired checks if the key has expired

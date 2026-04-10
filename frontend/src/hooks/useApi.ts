@@ -225,12 +225,50 @@ export function useKeys() {
 export function useRotateKeys() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (validityDays: number = 90) => {
       const res = await fetch(`${API_BASE}/settings/rotate-keys`, {
         method: 'POST',
-        headers: { ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ validity_days: validityDays }),
       })
       if (!res.ok) throw new Error('Failed to rotate keys')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.keys })
+    },
+  })
+}
+
+export function useGenerateCSR() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (keyId: string) => {
+      const res = await fetch(`${API_BASE}/keys/${keyId}/csr`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to generate CSR')
+      return res.json() as Promise<{ kid: string; csr_pem: string }>
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.keys })
+    },
+  })
+}
+
+export function useImportCert() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ keyId, certPem }: { keyId: string; certPem: string }) => {
+      const res = await fetch(`${API_BASE}/keys/${keyId}/import-cert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ cert_pem: certPem }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to import certificate' }))
+        throw new Error(err.error ?? 'Failed to import certificate')
+      }
       return res.json()
     },
     onSuccess: () => {

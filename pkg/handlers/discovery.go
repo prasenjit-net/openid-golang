@@ -157,18 +157,54 @@ func (h *Handlers) Discovery(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-// JWKS handles the JWKS endpoint
+// JWKS handles the JWKS endpoint.
+// It serves all currently-valid signing keys (active + not-yet-expired) so that
+// resource servers can validate tokens signed by both the current and the previous key
+// during a rotation grace period.
 func (h *Handlers) JWKS(c echo.Context) error {
-	publicKey := h.jwtManager.GetPublicKey()
-	jwks, err := crypto.PublicKeyToJWKS(publicKey, "default")
+	keys, err := h.storage.GetAllSigningKeys()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error":             "server_error",
-			"error_description": "Failed to generate JWKS",
-		})
+		// Fall back to the single key from JWTManager if storage fails
+		publicKey := h.jwtManager.GetPublicKey()
+		jwks, jerr := crypto.PublicKeyToJWKS(publicKey, "default")
+		if jerr != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error":             "server_error",
+				"error_description": "Failed to generate JWKS",
+			})
+		}
+		c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+		jwksJSON, _ := crypto.MarshalJWKS(jwks)
+		return c.Blob(http.StatusOK, "application/json", jwksJSON)
 	}
 
-	c.Response().Header().Set("Content-Type", "application/json")
+	jwks := &crypto.JWKS{Keys: []crypto.JWK{}}
+	for _, key := range keys {
+		// Include active keys AND inactive keys that have not yet expired
+		if !key.IsActive && key.IsExpired() {
+			continue
+		}
+		pk, parseErr := crypto.ParsePublicKeyFromPEM(key.PublicKey)
+		if parseErr != nil {
+			continue
+		}
+		jwk, jwkErr := crypto.PublicKeyToJWKWithCert(pk, key.KID, key.CertPEM)
+		if jwkErr != nil {
+			continue
+		}
+		jwks.Keys = append(jwks.Keys, jwk)
+	}
+
+	// If no stored keys found, fall back to JWTManager key
+	if len(jwks.Keys) == 0 {
+		publicKey := h.jwtManager.GetPublicKey()
+		fallback, ferr := crypto.PublicKeyToJWKS(publicKey, "default")
+		if ferr == nil {
+			jwks = fallback
+		}
+	}
+
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
 	jwksJSON, _ := crypto.MarshalJWKS(jwks)
 	return c.Blob(http.StatusOK, "application/json", jwksJSON)
 }
