@@ -5,11 +5,13 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -55,12 +57,14 @@ func VerifyCodeChallenge(codeVerifier, codeChallenge, method string) bool {
 
 // JWK represents a JSON Web Key
 type JWK struct {
-	Kty string `json:"kty"`
-	Use string `json:"use"`
-	Kid string `json:"kid"`
-	Alg string `json:"alg"`
-	N   string `json:"n"`
-	E   string `json:"e"`
+	Kty     string   `json:"kty"`
+	Use     string   `json:"use"`
+	Kid     string   `json:"kid"`
+	Alg     string   `json:"alg"`
+	N       string   `json:"n"`
+	E       string   `json:"e"`
+	X5c     []string `json:"x5c,omitempty"`      // Certificate chain (base64 DER, not base64url)
+	X5tS256 string   `json:"x5t#S256,omitempty"` // SHA-256 thumbprint of leaf cert
 }
 
 // JWKS represents a JSON Web Key Set
@@ -83,6 +87,34 @@ func PublicKeyToJWKS(publicKey *rsa.PublicKey, keyID string) (*JWKS, error) {
 	}
 
 	return &JWKS{Keys: []JWK{jwk}}, nil
+}
+
+// PublicKeyToJWKWithCert builds a JWK entry including x5c and x5t#S256 from a PEM cert.
+func PublicKeyToJWKWithCert(publicKey *rsa.PublicKey, keyID, certPEM string) (JWK, error) {
+	n := base64.RawURLEncoding.EncodeToString(publicKey.N.Bytes())
+	e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(publicKey.E)).Bytes())
+
+	jwk := JWK{
+		Kty: "RSA",
+		Use: "sig",
+		Kid: keyID,
+		Alg: "RS256",
+		N:   n,
+		E:   e,
+	}
+
+	if certPEM != "" {
+		block, _ := pem.Decode([]byte(certPEM))
+		if block != nil {
+			// x5c: standard base64 (not base64url) of DER bytes — RFC 7517 §4.7
+			jwk.X5c = []string{base64.StdEncoding.EncodeToString(block.Bytes)}
+			// x5t#S256: base64url of SHA-256 of DER bytes — RFC 7517 §4.9
+			sum := sha256.Sum256(block.Bytes)
+			jwk.X5tS256 = base64.RawURLEncoding.EncodeToString(sum[:])
+		}
+	}
+
+	return jwk, nil
 }
 
 // MarshalJWKS marshals JWKS to JSON
@@ -120,6 +152,117 @@ func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 		return nil, nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
 	}
 	return privateKey, &privateKey.PublicKey, nil
+}
+
+// SigningKeyMaterial holds all PEM-encoded artifacts for a newly generated signing key.
+type SigningKeyMaterial struct {
+	PrivateKeyPEM string
+	PublicKeyPEM  string
+	CertPEM       string
+	KID           string // base64url(SHA-256(DER cert)) — RFC 7517 x5t#S256
+	NotBefore     time.Time
+	NotAfter      time.Time
+}
+
+// GenerateSigningKeyWithCert generates a 2048-bit RSA key pair and a self-signed X.509
+// certificate valid for validityDays days. The KID is derived as the RFC 7517 x5t#S256
+// thumbprint (base64url of SHA-256 of the DER-encoded certificate).
+func GenerateSigningKeyWithCert(validityDays int) (*SigningKeyMaterial, error) {
+	if validityDays <= 0 {
+		validityDays = 90
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
+	}
+
+	now := time.Now().UTC()
+	notAfter := now.AddDate(0, 0, validityDays)
+
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serial,
+		Subject: pkix.Name{
+			CommonName:   "openid-server",
+			Organization: []string{"OpenID Server"},
+		},
+		NotBefore:             now,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	// KID = base64url(SHA-256(DER cert)) — same as x5t#S256
+	sum := sha256.Sum256(certDER)
+	kid := base64.RawURLEncoding.EncodeToString(sum[:])
+
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicKeyDER})
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	return &SigningKeyMaterial{
+		PrivateKeyPEM: string(privateKeyPEM),
+		PublicKeyPEM:  string(publicKeyPEM),
+		CertPEM:       string(certPEM),
+		KID:           kid,
+		NotBefore:     now,
+		NotAfter:      notAfter,
+	}, nil
+}
+
+// CertThumbprintS256 returns the RFC 7517 x5t#S256 thumbprint for a PEM-encoded certificate.
+func CertThumbprintS256(certPEM string) (string, error) {
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		return "", fmt.Errorf("failed to decode PEM block")
+	}
+	sum := sha256.Sum256(block.Bytes)
+	return base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
+// ParseCertFromPEM parses a PEM-encoded X.509 certificate.
+func ParseCertFromPEM(certPEM string) (*x509.Certificate, error) {
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+// ParsePublicKeyFromPEM parses a PEM-encoded RSA public key (PKIX format).
+func ParsePublicKeyFromPEM(pemData string) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode([]byte(pemData))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	key, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not an RSA public key")
+	}
+	return key, nil
 }
 
 // EncodePrivateKeyToPEM encodes an RSA private key to PEM format

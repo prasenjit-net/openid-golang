@@ -804,7 +804,15 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get signing keys"})
 	}
 
-	// Convert to response format (don't expose private keys in list)
+	type CertInfo struct {
+		Subject     string    `json:"subject"`
+		Issuer      string    `json:"issuer"`
+		Serial      string    `json:"serial"`
+		NotBefore   time.Time `json:"not_before"`
+		NotAfter    time.Time `json:"not_after"`
+		Fingerprint string    `json:"fingerprint"` // x5t#S256
+	}
+
 	type KeyResponse struct {
 		ID        string    `json:"id"`
 		KID       string    `json:"kid"`
@@ -813,6 +821,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 		CreatedAt time.Time `json:"created_at"`
 		ExpiresAt time.Time `json:"expires_at,omitempty"`
 		Status    string    `json:"status"` // "active", "expired", "inactive"
+		Cert      *CertInfo `json:"cert,omitempty"`
 	}
 
 	response := make([]KeyResponse, len(keys))
@@ -824,7 +833,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 			status = "expired"
 		}
 
-		response[i] = KeyResponse{
+		kr := KeyResponse{
 			ID:        key.ID,
 			KID:       key.KID,
 			Algorithm: key.Algorithm,
@@ -833,81 +842,103 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 			ExpiresAt: key.ExpiresAt,
 			Status:    status,
 		}
+
+		if key.CertPEM != "" {
+			if cert, err := crypto.ParseCertFromPEM(key.CertPEM); err == nil {
+				fp, _ := crypto.CertThumbprintS256(key.CertPEM)
+				kr.Cert = &CertInfo{
+					Subject:     cert.Subject.CommonName,
+					Issuer:      cert.Issuer.CommonName,
+					Serial:      cert.SerialNumber.Text(16),
+					NotBefore:   cert.NotBefore,
+					NotAfter:    cert.NotAfter,
+					Fingerprint: fp,
+				}
+			}
+		}
+
+		response[i] = kr
 	}
 
 	return c.JSON(http.StatusOK, response)
 }
 
-// RotateKeys rotates signing keys
+// RotateKeys generates a new RSA key pair with a self-signed certificate and
+// deactivates the current active key. Old keys remain in storage for JWT validation
+// until their certificate expires. Accepts JSON body: {"validity_days": 90}
 func (h *AdminHandler) RotateKeys(c echo.Context) error {
-	// Generate new RSA key pair
-	privateKey, publicKey, err := crypto.GenerateRSAKeyPair()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate new keys: " + err.Error()})
+	// Parse optional body for validity_days (default 90 = ~3 months)
+	var req struct {
+		ValidityDays int `json:"validity_days"`
+	}
+	req.ValidityDays = 90
+	_ = c.Bind(&req) // not fatal if body is empty
+	if req.ValidityDays <= 0 {
+		req.ValidityDays = 90
 	}
 
-	// Convert keys to PEM format
-	privateKeyPEM, err := crypto.EncodePrivateKeyToPEM(privateKey)
+	// Generate new key pair + self-signed certificate
+	km, err := crypto.GenerateSigningKeyWithCert(req.ValidityDays)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode private key: " + err.Error()})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate key: " + err.Error()})
 	}
 
-	publicKeyPEM, err := crypto.EncodePublicKeyToPEM(publicKey)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encode public key: " + err.Error()})
-	}
-
-	// Get all existing keys and mark them as inactive with expiration
+	// Deactivate existing active keys. Keep their ExpiresAt as-is so they remain
+	// available for JWT verification until their own cert validity runs out.
 	existingKeys, err := h.store.GetAllSigningKeys()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get existing keys: " + err.Error()})
 	}
-
-	// Set expiration for old keys (30 days from now to allow token validation)
-	expirationTime := time.Now().Add(30 * 24 * time.Hour)
 	for _, key := range existingKeys {
 		if key.IsActive {
 			key.IsActive = false
-			key.ExpiresAt = expirationTime
+			// If the old key has no cert-based expiry, set a 90-day grace period
+			if key.ExpiresAt.IsZero() {
+				key.ExpiresAt = time.Now().Add(90 * 24 * time.Hour)
+			}
 			if err := h.store.UpdateSigningKey(key); err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update old key: " + err.Error()})
 			}
 		}
 	}
 
-	// Create new active key
+	// Persist new active key
 	newKey := &models.SigningKey{
 		ID:         uuid.New().String(),
-		KID:        fmt.Sprintf("key-%d", time.Now().Unix()),
+		KID:        km.KID,
 		Algorithm:  "RS256",
-		PrivateKey: privateKeyPEM,
-		PublicKey:  publicKeyPEM,
+		PrivateKey: km.PrivateKeyPEM,
+		PublicKey:  km.PublicKeyPEM,
+		CertPEM:    km.CertPEM,
 		IsActive:   true,
 		CreatedAt:  time.Now(),
-		ExpiresAt:  time.Time{}, // No expiration for active key
+		ExpiresAt:  km.NotAfter, // cert validity drives key lifecycle
 	}
-
 	if err := h.store.CreateSigningKey(newKey); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create new key: " + err.Error()})
 	}
 
-	// Update config with new active key (for backward compatibility)
-	h.config.JWT.PrivateKey = privateKeyPEM
-	h.config.JWT.PublicKey = publicKeyPEM
+	// Keep JWTManager in sync for tokens issued in this process lifetime
+	h.config.JWT.PrivateKey = km.PrivateKeyPEM
+	h.config.JWT.PublicKey = km.PublicKeyPEM
 
 	h.logAdminAudit(models.AuditActionAdminKeysRotated, models.AuditActorAdmin, h.getAdminActor(c),
 		"key", newKey.KID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
-		map[string]interface{}{"new_kid": newKey.KID})
+		map[string]interface{}{"new_kid": newKey.KID, "validity_days": req.ValidityDays, "expires_at": newKey.ExpiresAt})
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message":    "RSA keys rotated successfully",
-		"info":       "Old keys marked as inactive and will expire in 30 days",
-		"new_key_id": newKey.KID,
+		"message":       "RSA key rotated successfully",
+		"info":          fmt.Sprintf("New key valid for %d days until %s", req.ValidityDays, km.NotAfter.Format("2006-01-02")),
+		"new_key_id":    newKey.KID,
+		"validity_days": req.ValidityDays,
+		"not_before":    km.NotBefore,
+		"not_after":     km.NotAfter,
 		"active_key": map[string]interface{}{
 			"id":         newKey.ID,
 			"kid":        newKey.KID,
 			"algorithm":  newKey.Algorithm,
 			"created_at": newKey.CreatedAt,
+			"expires_at": newKey.ExpiresAt,
 		},
 	})
 }

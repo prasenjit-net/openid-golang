@@ -225,10 +225,11 @@ export function useKeys() {
 export function useRotateKeys() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (validityDays: number = 90) => {
       const res = await fetch(`${API_BASE}/settings/rotate-keys`, {
         method: 'POST',
-        headers: { ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ validity_days: validityDays }),
       })
       if (!res.ok) throw new Error('Failed to rotate keys')
       return res.json()
