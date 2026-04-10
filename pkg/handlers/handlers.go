@@ -34,11 +34,11 @@ const fallbackConsentTmpl = `<!DOCTYPE html><html><body>
 <button name="consent" value="deny">Deny</button></form></body></html>`
 
 // NewHandlers creates a new handlers instance.
-// templatesFS should contain frontend/login.html and frontend/consent.html.
+// publicFS should contain public/login.html and public/consent.html.
 // Pass an empty embed.FS (or zero value) to use minimal fallback templates (useful in tests).
-func NewHandlers(store storage.Storage, jwtManager *crypto.JWTManager, cfg *configstore.ConfigData, sessionMgr *session.Manager, templatesFS embed.FS) *Handlers {
-	loginTmpl := parseOrFallback(templatesFS, "frontend/login.html", fallbackLoginTmpl)
-	consentTmpl := parseOrFallback(templatesFS, "frontend/consent.html", fallbackConsentTmpl)
+func NewHandlers(store storage.Storage, jwtManager *crypto.JWTManager, cfg *configstore.ConfigData, sessionMgr *session.Manager, publicFS embed.FS) *Handlers {
+	loginTmpl := parseOrFallback(publicFS, "public/login.html", fallbackLoginTmpl)
+	consentTmpl := parseOrFallback(publicFS, "public/consent.html", fallbackConsentTmpl)
 	return &Handlers{
 		config:         cfg,
 		storage:        store,

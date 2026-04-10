@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-	cmd.SetEmbeds(adminUIFS, setupHTMLFS, oidcTemplatesFS)
+	cmd.SetEmbeds(adminUIFS, publicFS)
 	cmd.Execute()
 }

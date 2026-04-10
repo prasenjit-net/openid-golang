@@ -8,17 +8,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// adminUIFS, setupHTMLFS, and oidcTemplatesFS hold the embedded assets injected from package main.
+// adminUIFS and publicFS hold the embedded assets injected from package main.
 var adminUIFS embed.FS
-var setupHTMLFS embed.FS
-var oidcTemplatesFS embed.FS
+var publicFS embed.FS
 
 // SetEmbeds receives the embedded filesystems from package main.
 // Must be called before Execute().
-func SetEmbeds(uiFS embed.FS, setupFS embed.FS, templatesFS embed.FS) {
+func SetEmbeds(uiFS embed.FS, pubFS embed.FS) {
 	adminUIFS = uiFS
-	setupHTMLFS = setupFS
-	oidcTemplatesFS = templatesFS
+	publicFS = pubFS
 	// Fail fast with a clear message if the frontend was not built.
 	if _, err := adminUIFS.Open("frontend/dist/index.html"); err != nil {
 		fmt.Fprintln(os.Stderr, "ERROR: frontend/dist/index.html not found in embed.")

@@ -90,7 +90,7 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	e.Use(middleware.CORS())
 
 	// Setup wizard handler with reload callback
-	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, setupHTMLFS, func() {
+	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, publicFS, func() {
 		// Signal that initialization is complete
 		select {
 		case reloadChan <- true:
@@ -237,7 +237,7 @@ func runNormalMode(configData *configstore.ConfigData) {
 	e.Use(sessionManager.Middleware()) // Add session middleware
 
 	// Initialize handlers
-	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager, oidcTemplatesFS)
+	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager, publicFS)
 
 	// Register routes (without /setup - it's disabled in normal mode)
 	registerRoutes(e, h, configData)
