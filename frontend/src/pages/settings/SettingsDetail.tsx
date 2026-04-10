@@ -1,19 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Descriptions,
-  Button,
-  Space,
-  Typography,
-  Spin,
-  Alert,
-} from 'antd';
-import {
-  EditOutlined,
-} from '@ant-design/icons';
+import { Button, Spin, Alert } from 'antd';
+import { EditOutlined, GlobalOutlined, DatabaseOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useSettings } from '../../hooks/useApi';
 
-const { Title } = Typography;
+const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div style={{ display: 'flex', padding: '10px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+    <span style={{ width: 200, flexShrink: 0, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{label}</span>
+    <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{value}</span>
+  </div>
+);
+
+const InfoCard = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
+  <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)', overflow: 'hidden', marginBottom: 24 }}>
+    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: 'var(--color-primary)', fontSize: 16 }}>{icon}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</span>
+    </div>
+    <div style={{ padding: '4px 0' }}>{children}</div>
+  </div>
+);
 
 const SettingsDetail = () => {
   const navigate = useNavigate();
@@ -40,65 +45,45 @@ const SettingsDetail = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 24 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2} style={{ margin: 0 }}>Server Settings</Title>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate('/settings/edit')}
-          >
-            Edit Settings
-          </Button>
-        </Space>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>Server Settings</span>
+        <Button
+          type="primary"
+          icon={<EditOutlined />}
+          onClick={() => navigate('/settings/edit')}
+          style={{ background: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+        >
+          Edit Settings
+        </Button>
       </div>
 
-      <Card bordered={false} title="Server Configuration" style={{ marginBottom: 24 }}>
-        <Descriptions column={1} bordered>
-          <Descriptions.Item label="Issuer URL">
-            {settings.issuer}
-          </Descriptions.Item>
-          <Descriptions.Item label="Server Host">
-            {settings.server_host}
-          </Descriptions.Item>
-          <Descriptions.Item label="Server Port">
-            {settings.server_port}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      <InfoCard icon={<GlobalOutlined />} title="Server Configuration">
+        <InfoRow label="Issuer URL" value={settings.issuer} />
+        <InfoRow label="Server Host" value={settings.server_host} />
+        <InfoRow label="Server Port" value={settings.server_port} />
+      </InfoCard>
 
-      <Card bordered={false} title="Storage Configuration" style={{ marginBottom: 24 }}>
-        <Descriptions column={1} bordered>
-          <Descriptions.Item label="Storage Type">
-            {settings.storage_type}
-          </Descriptions.Item>
-          {settings.storage_type === 'json' && (
-            <Descriptions.Item label="JSON File Path">
-              {settings.json_file_path || 'Not configured'}
-            </Descriptions.Item>
-          )}
-          {settings.storage_type === 'mongodb' && (
-            <Descriptions.Item label="MongoDB URI">
-              {settings.mongo_uri ? '••••••••••••' : 'Not configured'}
-            </Descriptions.Item>
-          )}
-        </Descriptions>
-      </Card>
+      <InfoCard icon={<DatabaseOutlined />} title="Storage Configuration">
+        <InfoRow label="Storage Type" value={settings.storage_type} />
+        {settings.storage_type === 'json' && (
+          <InfoRow label="JSON File Path" value={settings.json_file_path || 'Not configured'} />
+        )}
+        {settings.storage_type === 'mongodb' && (
+          <InfoRow label="MongoDB URI" value={settings.mongo_uri ? '••••••••••••' : 'Not configured'} />
+        )}
+      </InfoCard>
 
-      <Card bordered={false} title="JWT Configuration" style={{ marginBottom: 24 }}>
-        <Descriptions column={1} bordered>
-          <Descriptions.Item label="Token Expiry">
-            {settings.jwt_expiry_minutes} minutes
-          </Descriptions.Item>
-        </Descriptions>
-        <Alert
-          message="RSA Signing Keys"
-          description="Signing keys are now managed separately. Go to the Keys page to view and rotate signing keys."
-          type="info"
-          showIcon
-          style={{ marginTop: 16 }}
-        />
-      </Card>
+      <InfoCard icon={<SafetyOutlined />} title="JWT Configuration">
+        <InfoRow label="Token Expiry" value={`${settings.jwt_expiry_minutes} minutes`} />
+        <div style={{ padding: '12px 20px' }}>
+          <Alert
+            message="RSA Signing Keys"
+            description="Signing keys are now managed separately. Go to the Keys page to view and rotate signing keys."
+            type="info"
+            showIcon
+          />
+        </div>
+      </InfoCard>
     </>
   );
 };

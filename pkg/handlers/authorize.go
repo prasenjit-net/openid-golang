@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -197,11 +198,19 @@ func (h *Handlers) Login(c echo.Context) error {
 	// Authenticate user
 	user, err := h.storage.GetUserByUsername(username)
 	if err != nil || user == nil {
+		h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+			"user", "", models.AuditStatusFailure,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "user not found"})
 		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
 	// Validate password
 	if !crypto.ValidatePassword(password, user.PasswordHash) {
+		h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+			"user", user.ID, models.AuditStatusFailure,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "invalid password"})
 		return h.renderLoginPageWithError(c, authSessionID, "Invalid username or password")
 	}
 
@@ -216,6 +225,10 @@ func (h *Handlers) Login(c echo.Context) error {
 
 		// For admin UI, verify user has admin role
 		if authSession.ClientID == "admin-ui" && user.Role != "admin" {
+			h.logAudit(models.AuditActionLoginFailed, models.AuditActorUser, username,
+				"user", user.ID, models.AuditStatusFailure,
+				c.RealIP(), c.Request().UserAgent(),
+				map[string]interface{}{"reason": "not admin", "client_id": authSession.ClientID})
 			return h.renderLoginPageWithError(c, authSessionID, "Access denied: Admin privileges required")
 		}
 	}
@@ -229,6 +242,11 @@ func (h *Handlers) Login(c echo.Context) error {
 	if sessionErr != nil {
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to create user session")
 	}
+
+	// Audit successful login
+	h.logAudit(models.AuditActionLogin, models.AuditActorUser, username,
+		"user", user.ID, models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(), nil)
 
 	// Update auth session with user info
 	if authSession != nil {
@@ -292,6 +310,10 @@ func (h *Handlers) Consent(c echo.Context) error {
 	consentDecision := c.FormValue("consent")
 	if consentDecision != "allow" {
 		// User denied consent
+		h.logAudit(models.AuditActionConsentDeny, models.AuditActorUser, h.userIDToUsername(userSession.UserID),
+			"client", authSession.ClientID, models.AuditStatusSuccess,
+			c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"scope": authSession.Scope})
 		return authorizationError(c, authSession.RedirectURI, authSession.ResponseType, ErrorAccessDenied, "User denied consent", authSession.State)
 	}
 
@@ -302,6 +324,12 @@ func (h *Handlers) Consent(c echo.Context) error {
 	if err := h.storage.UpdateAuthSession(authSession); err != nil {
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError, "Failed to update authorization session")
 	}
+
+	// Audit consent granted
+	h.logAudit(models.AuditActionConsentGrant, models.AuditActorUser, h.userIDToUsername(userSession.UserID),
+		"client", authSession.ClientID, models.AuditStatusSuccess,
+		c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"scope": authSession.Scope})
 
 	// Save consent for future authorization requests
 	// Check if consent already exists
@@ -402,86 +430,67 @@ func (h *Handlers) renderLoginPage(c echo.Context, authSessionID string) error {
 }
 
 func (h *Handlers) renderLoginPageWithError(c echo.Context, authSessionID, errorMsg string) error {
-	errorHTML := ""
-	if errorMsg != "" {
-		errorHTML = fmt.Sprintf(`<div style="color: red; text-align: center; margin: 10px 0;">%s</div>`, errorMsg)
+	data := struct {
+		AuthSessionID string
+		ErrorMessage  string
+	}{
+		AuthSessionID: authSessionID,
+		ErrorMessage:  errorMsg,
 	}
+	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
+	return h.loginTmpl.Execute(c.Response().Writer, data)
+}
 
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login - OpenID Connect</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; }
-        input { width: 100%%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { width: 100%%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        h2 { text-align: center; }
-    </style>
-</head>
-<body>
-    <h2>Sign In</h2>
-    %s
-    <form method="POST" action="/login?auth_session=%s">
-        <input type="text" name="username" placeholder="Username" required autofocus>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Sign In</button>
-    </form>
-</body>
-</html>
-	`, errorHTML, authSessionID)
+// scopeInfo maps a scope name to a human-readable description and an SVG icon path.
+// IconPath values are trusted static strings embedded in the binary — not user input.
+var scopeInfo = map[string][2]string{
+	"openid":  {"Verify your identity", `<path d="M12 2a5 5 0 1 1 0 10A5 5 0 0 1 12 2zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/>`},
+	"profile": {"Access your name and profile info", `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`},
+	"email":   {"Read your email address", `<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>`},
+}
 
-	return c.HTML(http.StatusOK, html)
+// consentScopeItem is a single permission entry rendered in the consent template.
+type consentScopeItem struct {
+	Name     string
+	Label    string
+	IconPath template.HTML // trusted static SVG path data from scopeInfo map
 }
 
 func (h *Handlers) renderConsentPage(c echo.Context, authSession *models.AuthSession, client *models.Client) error {
 	scopes := strings.Split(authSession.Scope, " ")
-	scopeList := ""
+	items := make([]consentScopeItem, 0, len(scopes))
 	for _, scope := range scopes {
-		scopeList += fmt.Sprintf("<li>%s</li>", scope)
+		label := scope
+		iconPath := template.HTML(`<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/>`) //nolint:gosec
+		if info, ok := scopeInfo[scope]; ok {
+			label = info[0]
+			iconPath = template.HTML(info[1]) //nolint:gosec
+		}
+		items = append(items, consentScopeItem{Name: scope, Label: label, IconPath: iconPath})
 	}
 
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Grant Permission - OpenID Connect</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 100px auto; padding: 20px; }
-        .client { font-weight: bold; color: #007bff; }
-        .scopes { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 5px 0; }
-        .buttons { display: flex; gap: 10px; }
-        button { flex: 1; padding: 12px; border: none; cursor: pointer; font-size: 16px; }
-        .allow { background: #28a745; color: white; }
-        .allow:hover { background: #218838; }
-        .deny { background: #dc3545; color: white; }
-        .deny:hover { background: #c82333; }
-        h2 { text-align: center; }
-    </style>
-</head>
-<body>
-    <h2>Grant Permission</h2>
-    <p>The application <span class="client">%s</span> is requesting access to your account.</p>
-    
-    <div class="scopes">
-        <strong>Requested permissions:</strong>
-        <ul>%s</ul>
-    </div>
+	clientName := client.Name
+	if clientName == "" {
+		clientName = "App"
+	}
+	initials := string([]rune(clientName)[0:1])
+	if words := strings.Fields(clientName); len(words) >= 2 {
+		initials = string([]rune(words[0])[0:1]) + string([]rune(words[1])[0:1])
+	}
 
-    <form method="POST" action="/consent?auth_session=%s">
-        <div class="buttons">
-            <button type="submit" name="consent" value="deny" class="deny">Deny</button>
-            <button type="submit" name="consent" value="allow" class="allow">Allow</button>
-        </div>
-    </form>
-</body>
-</html>
-	`, client.Name, scopeList, authSession.ID)
-
-	return c.HTML(http.StatusOK, html)
+	data := struct {
+		AuthSessionID string
+		ClientName    string
+		Initials      string
+		Scopes        []consentScopeItem
+	}{
+		AuthSessionID: authSession.ID,
+		ClientName:    clientName,
+		Initials:      strings.ToUpper(initials),
+		Scopes:        items,
+	}
+	c.Response().Header().Set("Content-Type", "text/html; charset=utf-8")
+	return h.consentTmpl.Execute(c.Response().Writer, data)
 }
 
 func contains(slice []string, item string) bool {

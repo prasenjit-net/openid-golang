@@ -170,7 +170,7 @@ func (h *BootstrapHandler) Initialize(c echo.Context) error {
 func (h *BootstrapHandler) ServeSetupWizard(c echo.Context) error {
 	storageInfo := getStorageIndicator()
 
-	content, err := fs.ReadFile(h.setupHTMLFS, "frontend/setup.html")
+	content, err := fs.ReadFile(h.setupHTMLFS, "public/setup.html")
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "Failed to load setup wizard: "+err.Error())
 	}

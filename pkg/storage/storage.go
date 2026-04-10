@@ -39,6 +39,7 @@ type Storage interface {
 	GetTokensByAuthCode(authCodeID string) ([]*models.Token, error)
 	DeleteToken(accessToken string) error
 	RevokeTokensByAuthCode(authCodeID string) error
+	ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error)
 
 	// Session operations
 	CreateSession(session *models.Session) error
@@ -85,6 +86,11 @@ type Storage interface {
 	// Statistics operations
 	GetActiveTokensCount() int
 	GetRecentUserSessionsCount() int
+
+	// Audit log operations
+	CreateAuditLog(entry *models.AuditLog) error
+	GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error)
+	GetAuditLogsCount(filter models.AuditFilter) int
 
 	Close() error
 }

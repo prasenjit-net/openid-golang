@@ -90,7 +90,7 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	e.Use(middleware.CORS())
 
 	// Setup wizard handler with reload callback
-	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, setupHTMLFS, func() {
+	bootstrapHandler := handlers.NewBootstrapHandlerWithCallback(configStoreInstance, publicFS, func() {
 		// Signal that initialization is complete
 		select {
 		case reloadChan <- true:
@@ -237,7 +237,7 @@ func runNormalMode(configData *configstore.ConfigData) {
 	e.Use(sessionManager.Middleware()) // Add session middleware
 
 	// Initialize handlers
-	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager)
+	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager, publicFS)
 
 	// Register routes (without /setup - it's disabled in normal mode)
 	registerRoutes(e, h, configData)
@@ -322,6 +322,13 @@ func registerRoutes(e *echo.Echo, h *handlers.Handlers, cfg *configstore.ConfigD
 	api.PUT("/settings", adminAPIHandler.UpdateSettings)
 	api.GET("/keys", adminAPIHandler.GetKeys)
 	api.POST("/settings/rotate-keys", adminAPIHandler.RotateKeys)
+
+	// Audit log endpoint
+	api.GET("/audit", adminAPIHandler.GetAuditLogs)
+
+	// Token management endpoints
+	api.GET("/tokens", adminAPIHandler.ListTokens)
+	api.DELETE("/tokens/:id", adminAPIHandler.RevokeToken)
 
 	// Profile endpoints
 	api.GET("/profile", adminAPIHandler.GetProfile)

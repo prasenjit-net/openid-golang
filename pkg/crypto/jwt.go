@@ -345,30 +345,36 @@ func parsePublicKeyPEM(pemData string) (*rsa.PublicKey, error) {
 	return key, nil
 }
 
-// ValidateAdminToken validates an admin JWT token and returns the claims
-// This is a simplified version for admin authentication
-func ValidateAdminToken(tokenString string) (jwt.MapClaims, error) {
-	// Parse without verification first to check if it's valid JWT format
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// For now, we'll accept the token without strict signature verification
-		// In production, you should verify with the actual public key
-		return nil, nil
-	})
+// GenerateAdminToken creates a signed HMAC-SHA256 JWT for admin session use.
+// The token embeds the admin username in the "sub" claim.
+func GenerateAdminToken(username string, secret []byte) (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"sub":  username,
+		"role": "admin",
+		"iat":  now.Unix(),
+		"exp":  now.Add(24 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(secret)
+}
 
-	if err != nil && !strings.Contains(err.Error(), "key is of invalid type") {
+// ValidateAdminToken validates an admin JWT token and returns the claims.
+// The secret must match the one used in GenerateAdminToken.
+func ValidateAdminToken(tokenString string, secret []byte) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secret, nil
+	})
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	// Extract claims
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		// Check expiration
-		if exp, ok := claims["exp"].(float64); ok {
-			if time.Now().Unix() > int64(exp) {
-				return nil, fmt.Errorf("token expired")
-			}
-		}
-		return claims, nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token claims")
 	}
-
-	return nil, fmt.Errorf("invalid token claims")
+	return claims, nil
 }

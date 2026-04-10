@@ -222,6 +222,12 @@ func (h *Handlers) handleAuthorizationCodeGrant(c echo.Context, req *TokenReques
 	// Delete authorization code (one-time use completed)
 	_ = h.storage.DeleteAuthorizationCode(req.Code)
 
+	// Audit token issued for auth-code grant
+	h.logAudit(models.AuditActionTokenIssued, models.AuditActorUser, user.Username,
+		"token", token.AccessToken[:min(16, len(token.AccessToken))],
+		models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"grant_type": "authorization_code", "client_id": client.ID, "scope": token.Scope})
+
 	// Return token response
 	response := TokenResponse{
 		AccessToken:  token.AccessToken,
@@ -266,6 +272,12 @@ func (h *Handlers) handleRefreshTokenGrant(c echo.Context, req *TokenRequest, cl
 
 	// Delete old token
 	_ = h.storage.DeleteToken(oldToken.AccessToken)
+
+	// Audit token issued via refresh
+	h.logAudit(models.AuditActionTokenIssued, models.AuditActorUser, user.Username,
+		"token", newToken.AccessToken[:min(16, len(newToken.AccessToken))],
+		models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"grant_type": "refresh_token", "client_id": client.ID, "scope": newToken.Scope})
 
 	// Return token response
 	response := TokenResponse{
@@ -324,6 +336,12 @@ func (h *Handlers) handleClientCredentialsGrant(c echo.Context, req *TokenReques
 		return jsonError(c, http.StatusInternalServerError, ErrorServerError,
 			"Failed to create token")
 	}
+
+	// Audit token issued via client credentials
+	h.logAudit(models.AuditActionTokenIssued, models.AuditActorClient, client.ID,
+		"token", token.AccessToken[:min(16, len(token.AccessToken))],
+		models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"grant_type": "client_credentials", "scope": requestedScope})
 
 	// 5. Return token response
 	// Note: No refresh token per RFC 6749 §4.4.3
@@ -432,6 +450,12 @@ func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client
 		}
 	}
 
+	// Audit token issued via password grant
+	h.logAudit(models.AuditActionTokenIssued, models.AuditActorUser, user.Username,
+		"token", token.AccessToken[:min(16, len(token.AccessToken))],
+		models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"grant_type": "password", "client_id": client.ID, "scope": scope})
+
 	// Return token response
 	return c.JSON(http.StatusOK, TokenResponse{
 		AccessToken:  token.AccessToken,
@@ -441,4 +465,11 @@ func (h *Handlers) handlePasswordGrant(c echo.Context, req *TokenRequest, client
 		IDToken:      idToken,
 		Scope:        scope,
 	})
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

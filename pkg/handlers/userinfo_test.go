@@ -88,6 +88,9 @@ func (m *MockStorage) GetTokensByAuthCode(authCodeID string) ([]*models.Token, e
 	return nil, nil
 }
 func (m *MockStorage) RevokeTokensByAuthCode(authCodeID string) error { return nil }
+func (m *MockStorage) ListTokens(clientID, userID string, activeOnly bool) ([]*models.Token, error) {
+	return nil, nil
+}
 func (m *MockStorage) CreateInitialAccessToken(token *models.InitialAccessToken) error {
 	return nil
 }
@@ -116,7 +119,12 @@ func (m *MockStorage) UpdateSigningKey(key *models.SigningKey) error { return ni
 func (m *MockStorage) DeleteSigningKey(id string) error              { return nil }
 func (m *MockStorage) GetActiveTokensCount() int                     { return 0 }
 func (m *MockStorage) GetRecentUserSessionsCount() int               { return 0 }
-func (m *MockStorage) Close() error                                  { return nil }
+func (m *MockStorage) CreateAuditLog(entry *models.AuditLog) error   { return nil }
+func (m *MockStorage) GetAuditLogs(filter models.AuditFilter) ([]*models.AuditLog, error) {
+	return nil, nil
+}
+func (m *MockStorage) GetAuditLogsCount(filter models.AuditFilter) int { return 0 }
+func (m *MockStorage) Close() error                                    { return nil }
 
 func TestUserInfo_Success(t *testing.T) {
 	// Setup

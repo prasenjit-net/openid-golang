@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,20 +19,52 @@ import (
 
 const (
 	bearerPrefix = "Bearer"
+	unknownAdmin = "admin"
 )
 
 // AdminHandler handles admin API endpoints
 type AdminHandler struct {
-	store  storage.Storage
-	config *configstore.ConfigData
+	store       storage.Storage
+	config      *configstore.ConfigData
+	adminSecret []byte // HMAC secret for admin JWT tokens
 }
 
 // NewAdminHandler creates a new admin handler
 func NewAdminHandler(store storage.Storage, cfg *configstore.ConfigData) *AdminHandler {
-	return &AdminHandler{
-		store:  store,
-		config: cfg,
+	// Derive a stable HMAC secret from the JWT private key PEM.
+	// Falls back to a constant salt when no key is configured yet.
+	seed := []byte(cfg.JWT.PrivateKey)
+	if len(seed) == 0 {
+		seed = []byte("openid-admin-default-secret-seed")
 	}
+	sum := sha256.Sum256(seed)
+	return &AdminHandler{
+		store:       store,
+		config:      cfg,
+		adminSecret: sum[:],
+	}
+}
+
+// getAdminActor extracts the authenticated admin's username from the Bearer
+// token.  Returns unknownAdmin when the token is absent or cannot be parsed so
+// that the audit actor field is never left blank.
+func (h *AdminHandler) getAdminActor(c echo.Context) string {
+	authHeader := c.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return unknownAdmin
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 {
+		return unknownAdmin
+	}
+	claims, err := crypto.ValidateAdminToken(parts[1], h.adminSecret)
+	if err != nil {
+		return unknownAdmin
+	}
+	if sub, ok := claims["sub"].(string); ok && sub != "" {
+		return sub
+	}
+	return unknownAdmin
 }
 
 // GetStats returns dashboard statistics
@@ -231,6 +264,10 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create user: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminUserCreated, models.AuditActorAdmin, h.getAdminActor(c),
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"created_username": req.Username})
+
 	// Return user without password hash
 	response := map[string]interface{}{
 		"id":         user.ID,
@@ -246,6 +283,11 @@ func (h *AdminHandler) CreateUser(c echo.Context) error {
 
 // UpdateUser updates an existing user
 func (h *AdminHandler) UpdateUser(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User ID is required"})
+	}
+
 	var req struct {
 		models.User
 		Password string `json:"password,omitempty"`
@@ -256,7 +298,7 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 	}
 
 	// Get existing user
-	existingUser, err := h.store.GetUserByID(req.ID)
+	existingUser, err := h.store.GetUserByID(id)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user"})
 	}
@@ -309,6 +351,9 @@ func (h *AdminHandler) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update user: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminUserUpdated, models.AuditActorAdmin, h.getAdminActor(c),
+		"user", existingUser.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	// Return user without password hash
 	response := map[string]interface{}{
 		"id":                    existingUser.ID,
@@ -350,6 +395,9 @@ func (h *AdminHandler) DeleteUser(c echo.Context) error {
 	if err := h.store.DeleteUser(id); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete user: " + err.Error()})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminUserDeleted, models.AuditActorAdmin, h.getAdminActor(c),
+		"user", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -489,6 +537,10 @@ func (h *AdminHandler) CreateClient(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create client: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminClientCreated, models.AuditActorAdmin, h.getAdminActor(c),
+		"client", client.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"name": client.Name})
+
 	// Return client with secret (only shown once)
 	response := map[string]interface{}{
 		"id":               client.ID,
@@ -559,6 +611,9 @@ func (h *AdminHandler) UpdateClient(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update client: " + err.Error()})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminClientUpdated, models.AuditActorAdmin, h.getAdminActor(c),
+		"client", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	// Return updated client without secret
 	response := map[string]interface{}{
 		"id":               existingClient.ID,
@@ -586,6 +641,9 @@ func (h *AdminHandler) DeleteClient(c echo.Context) error {
 	if err := h.store.DeleteClient(id); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete client: " + err.Error()})
 	}
+
+	h.logAdminAudit(models.AuditActionAdminClientDeleted, models.AuditActorAdmin, h.getAdminActor(c),
+		"client", id, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
 
 	return c.NoContent(http.StatusNoContent)
 }
@@ -733,6 +791,9 @@ func (h *AdminHandler) UpdateSettings(c echo.Context) error {
 	// Note: ConfigData doesn't have Validate or SaveToTOML methods
 	// These would need to be implemented if runtime config updates are required
 	// For now, return success - config is in memory only
+	h.logAdminAudit(models.AuditActionAdminSettingsUpdated, models.AuditActorAdmin, h.getAdminActor(c),
+		"settings", "server", models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated in memory. Note: Changes are not persisted. Restart may revert changes."})
 }
 
@@ -834,6 +895,10 @@ func (h *AdminHandler) RotateKeys(c echo.Context) error {
 	h.config.JWT.PrivateKey = privateKeyPEM
 	h.config.JWT.PublicKey = publicKeyPEM
 
+	h.logAdminAudit(models.AuditActionAdminKeysRotated, models.AuditActorAdmin, h.getAdminActor(c),
+		"key", newKey.KID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"new_kid": newKey.KID})
+
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"message":    "RSA keys rotated successfully",
 		"info":       "Old keys marked as inactive and will expire in 30 days",
@@ -905,14 +970,20 @@ func (h *AdminHandler) Login(c echo.Context) error {
 
 	// Check if user has admin role
 	if !user.IsAdmin() {
+		h.logAdminAudit(models.AuditActionAdminLogin, models.AuditActorAdmin, req.Username,
+			"user", user.ID, models.AuditStatusFailure, c.RealIP(), c.Request().UserAgent(),
+			map[string]interface{}{"reason": "not_admin"})
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Access denied: Admin privileges required"})
 	}
 
-	// TODO: Generate proper session token with expiration
-	response := map[string]string{
-		"token": "dummy-session-token",
+	h.logAdminAudit(models.AuditActionAdminLogin, models.AuditActorAdmin, req.Username,
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
+	token, err := crypto.GenerateAdminToken(req.Username, h.adminSecret)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate token"})
 	}
-	return c.JSON(http.StatusOK, response)
+	return c.JSON(http.StatusOK, map[string]string{"token": token})
 }
 
 // GetProfile returns the current user's profile
@@ -931,7 +1002,7 @@ func (h *AdminHandler) GetProfile(c echo.Context) error {
 	tokenString := parts[1]
 
 	// Parse and validate JWT token
-	claims, err := crypto.ValidateAdminToken(tokenString)
+	claims, err := crypto.ValidateAdminToken(tokenString, h.adminSecret)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
 	}
@@ -994,7 +1065,7 @@ func (h *AdminHandler) UpdateProfile(c echo.Context) error {
 	tokenString := parts[1]
 
 	// Parse and validate JWT token
-	claims, err := crypto.ValidateAdminToken(tokenString)
+	claims, err := crypto.ValidateAdminToken(tokenString, h.adminSecret)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
 	}
@@ -1072,7 +1143,7 @@ func (h *AdminHandler) ChangePassword(c echo.Context) error {
 	tokenString := parts[1]
 
 	// Parse and validate JWT token
-	claims, err := crypto.ValidateAdminToken(tokenString)
+	claims, err := crypto.ValidateAdminToken(tokenString, h.adminSecret)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid token"})
 	}
@@ -1134,5 +1205,102 @@ func (h *AdminHandler) ChangePassword(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update password"})
 	}
 
+	h.logAdminAudit(models.AuditActionAdminPasswordReset, models.AuditActorAdmin, username,
+		"user", user.ID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
 	return c.JSON(http.StatusOK, map[string]string{"message": "Password changed successfully"})
+}
+
+// AdminTokenInfo is the admin view of a token, with sensitive values masked and username resolved.
+type AdminTokenInfo struct {
+	ID                  string    `json:"id"`
+	AccessTokenPrefix   string    `json:"access_token_prefix"`   // first 12 chars + "..."
+	RefreshTokenPresent bool      `json:"refresh_token_present"` // true if a refresh token exists
+	TokenType           string    `json:"token_type"`
+	ClientID            string    `json:"client_id"`
+	UserID              string    `json:"user_id"`
+	Username            string    `json:"username"`
+	Scope               string    `json:"scope"`
+	ExpiresAt           time.Time `json:"expires_at"`
+	CreatedAt           time.Time `json:"created_at"`
+	IsActive            bool      `json:"is_active"`
+}
+
+// ListTokens returns a paginated, filtered list of tokens for the admin UI.
+// Query params: active (bool, default true), client_id, user_id
+func (h *AdminHandler) ListTokens(c echo.Context) error {
+	activeOnly := true
+	if v := c.QueryParam("active"); v == "false" {
+		activeOnly = false
+	}
+	clientID := c.QueryParam("client_id")
+	userID := c.QueryParam("user_id")
+
+	tokens, err := h.store.ListTokens(clientID, userID, activeOnly)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to list tokens"})
+	}
+
+	// Build username cache to avoid repeated lookups
+	usernameCache := map[string]string{}
+	resolveUsername := func(uid string) string {
+		if uid == "" {
+			return ""
+		}
+		if name, ok := usernameCache[uid]; ok {
+			return name
+		}
+		if user, err := h.store.GetUserByID(uid); err == nil && user != nil {
+			usernameCache[uid] = user.Username
+			return user.Username
+		}
+		usernameCache[uid] = uid
+		return uid
+	}
+
+	now := time.Now()
+	result := make([]AdminTokenInfo, 0, len(tokens))
+	for _, t := range tokens {
+		prefix := t.AccessToken
+		if len(prefix) > 12 {
+			prefix = prefix[:12] + "..."
+		}
+		result = append(result, AdminTokenInfo{
+			ID:                  t.ID,
+			AccessTokenPrefix:   prefix,
+			RefreshTokenPresent: t.RefreshToken != "",
+			TokenType:           t.TokenType,
+			ClientID:            t.ClientID,
+			UserID:              t.UserID,
+			Username:            resolveUsername(t.UserID),
+			Scope:               t.Scope,
+			ExpiresAt:           t.ExpiresAt,
+			CreatedAt:           t.CreatedAt,
+			IsActive:            t.ExpiresAt.After(now),
+		})
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"tokens": result,
+		"total":  len(result),
+	})
+}
+
+// RevokeToken deletes a token by ID (admin revocation).
+func (h *AdminHandler) RevokeToken(c echo.Context) error {
+	tokenID := c.Param("id")
+	if tokenID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Token ID is required"})
+	}
+
+	actor := h.getAdminActor(c)
+
+	if err := h.store.DeleteToken(tokenID); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to revoke token"})
+	}
+
+	h.logAdminAudit(models.AuditActionTokenRevoked, models.AuditActorAdmin, actor,
+		"token", tokenID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(), nil)
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Token revoked"})
 }

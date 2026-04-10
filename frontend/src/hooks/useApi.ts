@@ -9,6 +9,26 @@ interface CreateClientRequest {
   redirect_uris: string[];
 }
 
+export interface TokenEntry {
+  id: string
+  access_token_prefix: string
+  refresh_token_present: boolean
+  token_type: string
+  client_id: string
+  user_id: string
+  username: string
+  scope: string
+  expires_at: string
+  created_at: string
+  is_active: boolean
+}
+
+export interface TokenFilter {
+  active?: boolean
+  client_id?: string
+  user_id?: string
+}
+
 interface UpdateSettingsRequest {
   issuer?: string;
   server_host?: string;
@@ -25,10 +45,13 @@ interface UpdateSettingsRequest {
 export const queryKeys = {
   stats: ['stats'] as const,
   users: ['users'] as const,
+  user: (id: string) => ['user', id] as const,
   clients: ['clients'] as const,
+  client: (id: string) => ['client', id] as const,
   settings: ['settings'] as const,
   keys: ['keys'] as const,
   setupStatus: ['setupStatus'] as const,
+  tokens: (filter: TokenFilter) => ['tokens', filter] as const,
 }
 
 // Helper to get auth headers
@@ -97,8 +120,9 @@ export function useDeleteUser() {
       })
       if (!res.ok) throw new Error('Failed to delete user')
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
+      queryClient.removeQueries({ queryKey: queryKeys.user(id) })
     },
   })
 }
@@ -145,8 +169,9 @@ export function useDeleteClient() {
       })
       if (!res.ok) throw new Error('Failed to delete client')
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      queryClient.removeQueries({ queryKey: queryKeys.client(id) })
     },
   })
 }
@@ -229,9 +254,11 @@ export function useSetupStatus() {
 // Individual User
 export function useUser(id: string) {
   return useQuery({
-    queryKey: ['user', id],
+    queryKey: queryKeys.user(id),
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/users/${id}`)
+      const res = await fetch(`${API_BASE}/users/${id}`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch user')
       return res.json()
     },
@@ -242,17 +269,19 @@ export function useUser(id: string) {
 export function useUpdateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...user }: { id: string; username?: string; email?: string; password?: string; role?: string }) => {
+    mutationFn: async ({ id, ...user }: { id: string; username?: string; email?: string; name?: string; password?: string; role?: string; [key: string]: unknown }) => {
       const res = await fetch(`${API_BASE}/users/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(user),
       })
       if (!res.ok) throw new Error('Failed to update user')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users })
+      // Immediately update individual user cache so detail page shows fresh data
+      queryClient.setQueryData(queryKeys.user(id), data)
     },
   })
 }
@@ -260,9 +289,11 @@ export function useUpdateUser() {
 // Individual Client
 export function useClient(id: string) {
   return useQuery({
-    queryKey: ['client', id],
+    queryKey: queryKeys.client(id),
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/clients/${id}`)
+      const res = await fetch(`${API_BASE}/clients/${id}`, {
+        headers: { ...getAuthHeaders() },
+      })
       if (!res.ok) throw new Error('Failed to fetch client')
       return res.json()
     },
@@ -273,17 +304,19 @@ export function useClient(id: string) {
 export function useUpdateClient() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...client }: { id: string; name?: string; redirect_uris?: string[] }) => {
+    mutationFn: async ({ id, ...client }: { id: string; name?: string; redirect_uris?: string[]; grant_types?: string[]; response_types?: string[]; scope?: string; application_type?: string }) => {
       const res = await fetch(`${API_BASE}/clients/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(client),
       })
       if (!res.ok) throw new Error('Failed to update client')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      // Immediately update individual client cache so detail page shows fresh data
+      queryClient.setQueryData(queryKeys.client(id), data)
     },
   })
 }
@@ -294,12 +327,14 @@ export function useRegenerateClientSecret() {
     mutationFn: async (id: string) => {
       const res = await fetch(`${API_BASE}/clients/${id}/regenerate-secret`, {
         method: 'POST',
+        headers: { ...getAuthHeaders() },
       })
       if (!res.ok) throw new Error('Failed to regenerate client secret')
       return res.json()
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clients })
+      queryClient.invalidateQueries({ queryKey: queryKeys.client(id) })
     },
   })
 }
@@ -379,3 +414,78 @@ export function useChangePassword() {
   })
 }
 
+
+interface AuditFilter {
+  limit?: number
+  offset?: number
+  action?: string
+  actor?: string
+}
+
+interface AuditEntry {
+  id: string
+  timestamp: string
+  action: string
+  actor_type: string
+  actor: string
+  resource: string
+  resource_id: string
+  status: string
+  ip_address: string
+  user_agent: string
+  details?: Record<string, unknown>
+}
+
+export function useAuditLogs(filter: AuditFilter = {}) {
+  return useQuery({
+    queryKey: ['audit', filter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (filter.limit) params.set('limit', String(filter.limit))
+      if (filter.offset) params.set('offset', String(filter.offset))
+      if (filter.action) params.set('action', filter.action)
+      if (filter.actor) params.set('actor', filter.actor)
+      const res = await fetch(`${API_BASE}/audit?${params.toString()}`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to fetch audit logs')
+      return res.json() as Promise<{ entries: AuditEntry[]; total: number; limit: number; offset: number }>
+    },
+  })
+}
+
+export function useTokens(filter: TokenFilter = { active: true }, enabled = false) {
+  return useQuery({
+    queryKey: queryKeys.tokens(filter),
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set('active', filter.active === false ? 'false' : 'true')
+      if (filter.client_id) params.set('client_id', filter.client_id)
+      if (filter.user_id) params.set('user_id', filter.user_id)
+      const res = await fetch(`${API_BASE}/tokens?${params.toString()}`, {
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to fetch tokens')
+      return res.json() as Promise<{ tokens: TokenEntry[]; total: number }>
+    },
+    enabled,
+  })
+}
+
+export function useRevokeToken() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (tokenId: string) => {
+      const res = await fetch(`${API_BASE}/tokens/${tokenId}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      })
+      if (!res.ok) throw new Error('Failed to revoke token')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tokens'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats })
+    },
+  })
+}

@@ -545,6 +545,86 @@ const (
 	ErrUnapprovedSoftwareStatement = "unapproved_software_statement"
 )
 
+// ─── Audit Logging ───────────────────────────────────────────────────────────
+
+// AuditAction is a typed string representing the kind of security event.
+type AuditAction string
+
+const (
+	// User / session events
+	AuditActionLogin        AuditAction = "user.login"
+	AuditActionLoginFailed  AuditAction = "user.login_failed"
+	AuditActionConsentGrant AuditAction = "user.consent_granted"
+	AuditActionConsentDeny  AuditAction = "user.consent_denied"
+
+	// Token events
+	AuditActionTokenIssued  AuditAction = "token.issued"
+	AuditActionTokenRevoked AuditAction = "token.revoked"
+
+	// Dynamic client registration
+	AuditActionClientRegistered AuditAction = "client.registered"
+
+	// Admin — user management
+	AuditActionAdminLogin         AuditAction = "admin.login"
+	AuditActionAdminUserCreated   AuditAction = "admin.user.created"
+	AuditActionAdminUserUpdated   AuditAction = "admin.user.updated"
+	AuditActionAdminUserDeleted   AuditAction = "admin.user.deleted"
+	AuditActionAdminPasswordReset AuditAction = "admin.password.changed"
+
+	// Admin — client management
+	AuditActionAdminClientCreated AuditAction = "admin.client.created"
+	AuditActionAdminClientUpdated AuditAction = "admin.client.updated"
+	AuditActionAdminClientDeleted AuditAction = "admin.client.deleted"
+
+	// Admin — system
+	AuditActionAdminSettingsUpdated AuditAction = "admin.settings.updated"
+	AuditActionAdminKeysRotated     AuditAction = "admin.keys.rotated"
+)
+
+// AuditActorType describes who performed the action.
+type AuditActorType string
+
+const (
+	AuditActorUser   AuditActorType = "user"
+	AuditActorClient AuditActorType = "client"
+	AuditActorAdmin  AuditActorType = "admin"
+	AuditActorSystem AuditActorType = "system"
+)
+
+// AuditStatus is the outcome of the audited event.
+type AuditStatus string
+
+const (
+	AuditStatusSuccess AuditStatus = "success"
+	AuditStatusFailure AuditStatus = "failure"
+)
+
+// AuditLog is a single immutable audit record written for every security-
+// relevant event (logins, token issuance, admin mutations, etc.).
+type AuditLog struct {
+	ID         string                 `json:"id"          bson:"_id"`
+	Timestamp  time.Time              `json:"timestamp"   bson:"timestamp"`
+	Action     AuditAction            `json:"action"      bson:"action"`
+	Actor      string                 `json:"actor"       bson:"actor"` // username, client_id, or "system"
+	ActorType  AuditActorType         `json:"actor_type"  bson:"actor_type"`
+	Resource   string                 `json:"resource"    bson:"resource"`    // "user", "client", "token", …
+	ResourceID string                 `json:"resource_id" bson:"resource_id"` // ID of the affected entity
+	IPAddress  string                 `json:"ip_address"  bson:"ip_address"`
+	UserAgent  string                 `json:"user_agent"  bson:"user_agent"`
+	Status     AuditStatus            `json:"status"      bson:"status"`
+	Details    map[string]interface{} `json:"details"     bson:"details"` // free-form extra context
+}
+
+// AuditFilter carries optional query constraints for listing audit logs.
+type AuditFilter struct {
+	Action AuditAction
+	Actor  string
+	Limit  int
+	Offset int
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // InitialAccessToken represents a token used to authenticate client registration requests
 // This provides access control for who can register new OAuth clients
 type InitialAccessToken struct {
