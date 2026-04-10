@@ -431,82 +431,541 @@ func (h *Handlers) renderLoginPage(c echo.Context, authSessionID string) error {
 func (h *Handlers) renderLoginPageWithError(c echo.Context, authSessionID, errorMsg string) error {
 	errorHTML := ""
 	if errorMsg != "" {
-		errorHTML = fmt.Sprintf(`<div style="color: red; text-align: center; margin: 10px 0;">%s</div>`, errorMsg)
+		errorHTML = fmt.Sprintf(`
+		<div class="error-banner">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+				<line x1="12" y1="16" x2="12.01" y2="16"/>
+			</svg>
+			<span>%s</span>
+		</div>`, errorMsg)
 	}
 
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Login - OpenID Connect</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — OpenID Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; max-width: 400px; margin: 100px auto; padding: 20px; }
-        input { width: 100%%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
-        button { width: 100%%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        h2 { text-align: center; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+            background: #0B1120;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80%% 60%% at 20%% 20%%, rgba(13,148,136,0.18) 0%%, transparent 60%%),
+                radial-gradient(ellipse 60%% 80%% at 80%% 80%%, rgba(245,158,11,0.10) 0%%, transparent 60%%);
+            pointer-events: none;
+        }
+
+        .card {
+            position: relative;
+            background: #1E293B;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 40px 36px;
+            width: 100%%;
+            max-width: 400px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(13,148,136,0.12);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 28px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0D9488 0%%, #0F766E 100%%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(13,148,136,0.35);
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #F1F5F9;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text span {
+            color: #0D9488;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #F1F5F9;
+            text-align: center;
+            letter-spacing: -0.3px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: #94A3B8;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .error-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #FCA5A5;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94A3B8;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%%;
+            padding: 11px 14px;
+            background: #0F172A;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #F1F5F9;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input::placeholder { color: #475569; }
+
+        input:focus {
+            border-color: #0D9488;
+            box-shadow: 0 0 0 3px rgba(13,148,136,0.2);
+        }
+
+        button[type="submit"] {
+            width: 100%%;
+            padding: 12px;
+            margin-top: 8px;
+            background: linear-gradient(135deg, #0D9488, #0F766E);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.01em;
+            transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 4px 14px rgba(13,148,136,0.35);
+        }
+
+        button[type="submit"]:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(13,148,136,0.45);
+        }
+
+        button[type="submit"]:active { transform: translateY(0); }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #475569;
+        }
     </style>
 </head>
 <body>
-    <h2>Sign In</h2>
-    %s
-    <form method="POST" action="/login?auth_session=%s">
-        <input type="text" name="username" placeholder="Username" required autofocus>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit">Sign In</button>
-    </form>
+    <div class="card">
+        <div class="logo">
+            <div class="logo-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6L12 2z" fill="rgba(255,255,255,0.9)"/>
+                    <circle cx="12" cy="11" r="2" fill="#0D9488"/>
+                    <path d="M12 13v3" stroke="#0D9488" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <span class="logo-text">Secure<span>ID</span></span>
+        </div>
+
+        <h2>Welcome back</h2>
+        <p class="subtitle">Sign in to your account to continue</p>
+
+        %s
+
+        <form method="POST" action="/login?auth_session=%s">
+            <div class="field">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Enter your username" required autofocus autocomplete="username">
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+            <button type="submit">
+                Sign In
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-left:6px;">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </form>
+
+        <p class="footer">Protected by OpenID Connect</p>
+    </div>
 </body>
-</html>
-	`, errorHTML, authSessionID)
+</html>`, errorHTML, authSessionID)
 
 	return c.HTML(http.StatusOK, html)
 }
 
+// scopeInfo maps a scope name to a human-readable description and an SVG icon path.
+var scopeInfo = map[string][2]string{
+	"openid":  {"Verify your identity", `<path d="M12 2a5 5 0 1 1 0 10A5 5 0 0 1 12 2zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/>`},
+	"profile": {"Access your name and profile info", `<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>`},
+	"email":   {"Read your email address", `<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>`},
+}
+
 func (h *Handlers) renderConsentPage(c echo.Context, authSession *models.AuthSession, client *models.Client) error {
 	scopes := strings.Split(authSession.Scope, " ")
-	scopeList := ""
+	scopeItems := ""
 	for _, scope := range scopes {
-		scopeList += fmt.Sprintf("<li>%s</li>", scope)
+		info, ok := scopeInfo[scope]
+		label := scope
+		iconPath := `<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/>`
+		if ok {
+			label = info[1]
+			iconPath = info[0]
+		}
+		scopeItems += fmt.Sprintf(`
+		<li class="scope-item">
+			<div class="scope-icon">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">%s</svg>
+			</div>
+			<div class="scope-text">
+				<span class="scope-name">%s</span>
+				<span class="scope-desc">%s</span>
+			</div>
+		</li>`, iconPath, scope, label)
 	}
 
-	html := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
+	// Generate client initials for avatar
+	clientName := client.Name
+	if clientName == "" {
+		clientName = "App"
+	}
+	initials := string([]rune(clientName)[0:1])
+	if len([]rune(clientName)) > 1 {
+		words := strings.Fields(clientName)
+		if len(words) >= 2 {
+			initials = string([]rune(words[0])[0:1]) + string([]rune(words[1])[0:1])
+		}
+	}
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Grant Permission - OpenID Connect</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorize Access — OpenID Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 100px auto; padding: 20px; }
-        .client { font-weight: bold; color: #007bff; }
-        .scopes { background: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 5px 0; }
-        .buttons { display: flex; gap: 10px; }
-        button { flex: 1; padding: 12px; border: none; cursor: pointer; font-size: 16px; }
-        .allow { background: #28a745; color: white; }
-        .allow:hover { background: #218838; }
-        .deny { background: #dc3545; color: white; }
-        .deny:hover { background: #c82333; }
-        h2 { text-align: center; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+            background: #0B1120;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80%% 60%% at 20%% 20%%, rgba(13,148,136,0.18) 0%%, transparent 60%%),
+                radial-gradient(ellipse 60%% 80%% at 80%% 80%%, rgba(245,158,11,0.10) 0%%, transparent 60%%);
+            pointer-events: none;
+        }
+
+        .card {
+            position: relative;
+            background: #1E293B;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 36px 32px;
+            width: 100%%;
+            max-width: 440px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(13,148,136,0.12);
+        }
+
+        .logo-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #0D9488 0%%, #0F766E 100%%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(13,148,136,0.35);
+            flex-shrink: 0;
+        }
+
+        .logo-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #F1F5F9;
+        }
+
+        .logo-text span { color: #0D9488; }
+
+        .app-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .app-avatar {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #0D9488 0%%, #0F766E 100%%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(13,148,136,0.35);
+            text-transform: uppercase;
+        }
+
+        .app-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #F1F5F9;
+            letter-spacing: -0.3px;
+        }
+
+        .app-sub {
+            font-size: 13px;
+            color: #94A3B8;
+            margin-top: 2px;
+            text-align: center;
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.07);
+            margin: 20px 0;
+        }
+
+        .permissions-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 12px;
+        }
+
+        .scope-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .scope-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .scope-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(13,148,136,0.15);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0D9488;
+            flex-shrink: 0;
+        }
+
+        .scope-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .scope-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94A3B8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .scope-desc {
+            font-size: 13px;
+            color: #CBD5E1;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:hover { opacity: 0.88; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        .btn-deny {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #FCA5A5;
+        }
+
+        .btn-deny:hover {
+            background: rgba(239,68,68,0.18);
+            box-shadow: 0 4px 12px rgba(239,68,68,0.2);
+        }
+
+        .btn-allow {
+            background: linear-gradient(135deg, #0D9488, #0F766E);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(13,148,136,0.35);
+        }
+
+        .btn-allow:hover {
+            box-shadow: 0 6px 20px rgba(13,148,136,0.45);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 11px;
+            color: #475569;
+        }
     </style>
 </head>
 <body>
-    <h2>Grant Permission</h2>
-    <p>The application <span class="client">%s</span> is requesting access to your account.</p>
-    
-    <div class="scopes">
-        <strong>Requested permissions:</strong>
-        <ul>%s</ul>
-    </div>
-
-    <form method="POST" action="/consent?auth_session=%s">
-        <div class="buttons">
-            <button type="submit" name="consent" value="deny" class="deny">Deny</button>
-            <button type="submit" name="consent" value="allow" class="allow">Allow</button>
+    <div class="card">
+        <div class="logo-bar">
+            <div class="logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.35C16.5 22.15 20 17.25 20 12V6L12 2z" fill="rgba(255,255,255,0.9)"/>
+                    <circle cx="12" cy="11" r="2" fill="#0D9488"/>
+                    <path d="M12 13v3" stroke="#0D9488" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <span class="logo-text">Secure<span>ID</span></span>
         </div>
-    </form>
+
+        <div class="app-header">
+            <div class="app-avatar">%s</div>
+            <div>
+                <div class="app-name">%s</div>
+                <div class="app-sub">is requesting access to your account</div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="permissions-label">Requested permissions</p>
+        <ul class="scope-list">%s</ul>
+
+        <form method="POST" action="/consent?auth_session=%s">
+            <div class="buttons">
+                <button type="submit" name="consent" value="deny" class="btn-deny">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Deny
+                </button>
+                <button type="submit" name="consent" value="allow" class="btn-allow">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Allow Access
+                </button>
+            </div>
+        </form>
+
+        <p class="footer">Your data is protected · Powered by OpenID Connect</p>
+    </div>
 </body>
-</html>
-	`, client.Name, scopeList, authSession.ID)
+</html>`, initials, clientName, scopeItems, authSession.ID)
 
 	return c.HTML(http.StatusOK, html)
 }
