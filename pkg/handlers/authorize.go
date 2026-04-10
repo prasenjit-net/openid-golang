@@ -309,7 +309,7 @@ func (h *Handlers) Consent(c echo.Context) error {
 	consentDecision := c.FormValue("consent")
 	if consentDecision != "allow" {
 		// User denied consent
-		h.logAudit(models.AuditActionConsentDeny, models.AuditActorUser, userSession.UserID,
+		h.logAudit(models.AuditActionConsentDeny, models.AuditActorUser, h.userIDToUsername(userSession.UserID),
 			"client", authSession.ClientID, models.AuditStatusSuccess,
 			c.RealIP(), c.Request().UserAgent(),
 			map[string]interface{}{"scope": authSession.Scope})
@@ -325,7 +325,7 @@ func (h *Handlers) Consent(c echo.Context) error {
 	}
 
 	// Audit consent granted
-	h.logAudit(models.AuditActionConsentGrant, models.AuditActorUser, userSession.UserID,
+	h.logAudit(models.AuditActionConsentGrant, models.AuditActorUser, h.userIDToUsername(userSession.UserID),
 		"client", authSession.ClientID, models.AuditStatusSuccess,
 		c.RealIP(), c.Request().UserAgent(),
 		map[string]interface{}{"scope": authSession.Scope})

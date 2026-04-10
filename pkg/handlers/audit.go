@@ -13,6 +13,20 @@ import (
 
 // ─── Helper used by all handlers ─────────────────────────────────────────────
 
+// userIDToUsername resolves a user UUID to their username for audit logging.
+// Falls back to the raw id when the user cannot be found so the actor field
+// is never blank.
+func (h *Handlers) userIDToUsername(id string) string {
+	if id == "" {
+		return id
+	}
+	user, err := h.storage.GetUserByID(id)
+	if err != nil || user == nil {
+		return id
+	}
+	return user.Username
+}
+
 // logAudit creates and persists an AuditLog entry. Errors are silently dropped
 // so that an audit-write failure never interrupts the primary request flow.
 func (h *Handlers) logAudit(
