@@ -237,7 +237,7 @@ func runNormalMode(configData *configstore.ConfigData) {
 	e.Use(sessionManager.Middleware()) // Add session middleware
 
 	// Initialize handlers
-	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager)
+	h := handlers.NewHandlers(store, jwtManager, configData, sessionManager, oidcTemplatesFS)
 
 	// Register routes (without /setup - it's disabled in normal mode)
 	registerRoutes(e, h, configData)

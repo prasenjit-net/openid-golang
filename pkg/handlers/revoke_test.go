@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"embed"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -50,7 +51,7 @@ func setupRevokeTest(t *testing.T) (*Handlers, storage.Storage, *models.Client, 
 	sessionMgr := session.NewManager(sessionCfg)
 
 	// Create handlers
-	h := NewHandlers(store, jwtManager, cfg, sessionMgr)
+	h := NewHandlers(store, jwtManager, cfg, sessionMgr, embed.FS{})
 
 	// Create test client
 	client := &models.Client{
