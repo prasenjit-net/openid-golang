@@ -389,7 +389,6 @@ export default function Tokens() {
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
         borderRadius: 12,
-        overflow: 'hidden',
       }}>
         {!hasSearched ? (
           <div style={{ padding: '60px 0' }}>
@@ -404,6 +403,7 @@ export default function Tokens() {
           </div>
         ) : (
           <Table
+            className="token-table"
             dataSource={tokens}
             columns={columns}
             rowKey="id"
@@ -427,6 +427,17 @@ export default function Tokens() {
         }
         .token-row-expired:hover td {
           opacity: 0.8;
+        }
+        /* Round the header corners without overflow:hidden on wrapper */
+        .token-table .ant-table-thead > tr:first-child > th:first-child {
+          border-top-left-radius: 11px !important;
+        }
+        .token-table .ant-table-thead > tr:first-child > th:last-child {
+          border-top-right-radius: 11px !important;
+        }
+        /* Round bottom pagination area */
+        .token-table .ant-table-wrapper {
+          border-radius: 11px;
         }
       `}</style>
     </>
