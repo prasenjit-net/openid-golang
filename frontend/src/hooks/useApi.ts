@@ -407,7 +407,7 @@ interface AuditEntry {
   action: string
   actor_type: string
   actor: string
-  resource_type: string
+  resource: string
   resource_id: string
   status: string
   ip_address: string

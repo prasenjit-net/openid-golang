@@ -22,7 +22,7 @@ interface AuditEntry {
   action: string;
   actor_type: string;
   actor: string;
-  resource_type: string;
+  resource: string;
   resource_id: string;
   status: string;
   ip_address: string;
@@ -101,9 +101,9 @@ export default function AuditLog() {
       key: 'resource',
       width: 200,
       render: (_: unknown, record) =>
-        record.resource_type ? (
+        record.resource ? (
           <span>
-            <Tag>{record.resource_type}</Tag>
+            <Tag>{record.resource}</Tag>
             <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
               {record.resource_id?.slice(0, 20)}
               {record.resource_id?.length > 20 ? '…' : ''}
