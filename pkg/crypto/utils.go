@@ -293,3 +293,68 @@ func EncodePublicKeyToPEM(publicKey *rsa.PublicKey) (string, error) {
 	}
 	return string(publicKeyPEM), nil
 }
+
+// GenerateCSR creates a PKCS#10 Certificate Signing Request for the given PEM-encoded
+// RSA private key. The subject is taken from existingCertPEM when provided (so the
+// CN/Org of the self-signed cert is preserved), otherwise defaults to
+// CN=openid-server, O=OpenID Server.
+func GenerateCSR(privateKeyPEM, existingCertPEM string) (string, error) {
+	block, _ := pem.Decode([]byte(privateKeyPEM))
+	if block == nil {
+		return "", fmt.Errorf("failed to decode private key PEM")
+	}
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	subject := pkix.Name{
+		CommonName:   "openid-server",
+		Organization: []string{"OpenID Server"},
+	}
+	if existingCertPEM != "" {
+		if cert, err := ParseCertFromPEM(existingCertPEM); err == nil {
+			subject = cert.Subject
+		}
+	}
+
+	csrTemplate := &x509.CertificateRequest{
+		Subject:            subject,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to create CSR: %w", err)
+	}
+
+	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
+	return string(csrPEM), nil
+}
+
+// ValidateCertMatchesPrivateKey checks that the certificate's public key matches the
+// given PEM-encoded RSA private key.
+func ValidateCertMatchesPrivateKey(certPEM, privateKeyPEM string) error {
+	cert, err := ParseCertFromPEM(certPEM)
+	if err != nil {
+		return fmt.Errorf("invalid certificate: %w", err)
+	}
+	certPub, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("certificate does not contain an RSA public key")
+	}
+
+	privBlock, _ := pem.Decode([]byte(privateKeyPEM))
+	if privBlock == nil {
+		return fmt.Errorf("failed to decode private key PEM")
+	}
+	privateKey, err := x509.ParsePKCS1PrivateKey(privBlock.Bytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	if certPub.N.Cmp(privateKey.N) != 0 || certPub.E != privateKey.E {
+		return fmt.Errorf("certificate public key does not match private key")
+	}
+	return nil
+}

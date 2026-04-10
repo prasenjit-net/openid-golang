@@ -200,7 +200,8 @@ type SigningKey struct {
 	Algorithm  string    `json:"algorithm" bson:"algorithm"`             // Signing algorithm (e.g., RS256)
 	PrivateKey string    `json:"private_key" bson:"private_key"`         // PEM-encoded private key
 	PublicKey  string    `json:"public_key" bson:"public_key"`           // PEM-encoded public key
-	CertPEM    string    `json:"cert_pem,omitempty" bson:"cert_pem"`     // PEM-encoded self-signed certificate
+	CertPEM    string    `json:"cert_pem,omitempty" bson:"cert_pem"`     // PEM-encoded certificate (self-signed or CA-signed)
+	CSRPEM     string    `json:"csr_pem,omitempty" bson:"csr_pem"`       // PEM-encoded Certificate Signing Request (if generated)
 	IsActive   bool      `json:"is_active" bson:"is_active"`             // Whether this key is used for signing
 	CreatedAt  time.Time `json:"created_at" bson:"created_at"`           // When the key was created
 	ExpiresAt  time.Time `json:"expires_at,omitempty" bson:"expires_at"` // When the key expires — taken from cert NotAfter

@@ -811,6 +811,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 		NotBefore   time.Time `json:"not_before"`
 		NotAfter    time.Time `json:"not_after"`
 		Fingerprint string    `json:"fingerprint"` // x5t#S256
+		SelfSigned  bool      `json:"self_signed"`
 	}
 
 	type KeyResponse struct {
@@ -822,6 +823,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 		ExpiresAt time.Time `json:"expires_at,omitempty"`
 		Status    string    `json:"status"` // "active", "expired", "inactive"
 		Cert      *CertInfo `json:"cert,omitempty"`
+		HasCSR    bool      `json:"has_csr"`
 	}
 
 	response := make([]KeyResponse, len(keys))
@@ -841,6 +843,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 			CreatedAt: key.CreatedAt,
 			ExpiresAt: key.ExpiresAt,
 			Status:    status,
+			HasCSR:    key.CSRPEM != "",
 		}
 
 		if key.CertPEM != "" {
@@ -853,6 +856,7 @@ func (h *AdminHandler) GetKeys(c echo.Context) error {
 					NotBefore:   cert.NotBefore,
 					NotAfter:    cert.NotAfter,
 					Fingerprint: fp,
+					SelfSigned:  cert.Subject.String() == cert.Issuer.String(),
 				}
 			}
 		}
@@ -939,6 +943,107 @@ func (h *AdminHandler) RotateKeys(c echo.Context) error {
 			"algorithm":  newKey.Algorithm,
 			"created_at": newKey.CreatedAt,
 			"expires_at": newKey.ExpiresAt,
+		},
+	})
+}
+
+// GenerateKeyCSR generates a PKCS#10 Certificate Signing Request for the signing key
+// identified by :id and persists it on the key record. Returns the CSR as PEM text.
+// GET /api/keys/:id/csr
+func (h *AdminHandler) GenerateKeyCSR(c echo.Context) error {
+	id := c.Param("id")
+	key, err := h.store.GetSigningKey(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Key not found"})
+	}
+
+	csrPEM, err := crypto.GenerateCSR(key.PrivateKey, key.CertPEM)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to generate CSR: " + err.Error()})
+	}
+
+	// Persist CSR so it can be retrieved again without regenerating
+	key.CSRPEM = csrPEM
+	if err := h.store.UpdateSigningKey(key); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to save CSR: " + err.Error()})
+	}
+
+	h.logAdminAudit(models.AuditActionAdminKeysRotated, models.AuditActorAdmin, h.getAdminActor(c),
+		"key", key.KID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{"action": "generate_csr", "kid": key.KID})
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"kid":     key.KID,
+		"csr_pem": csrPEM,
+	})
+}
+
+// ImportKeyCert imports a CA-signed certificate for the signing key identified by :id.
+// The certificate's public key must match the key's private key.
+// Updating the certificate re-derives the KID from the new cert and resets ExpiresAt.
+// POST /api/keys/:id/import-cert   Body: {"cert_pem": "-----BEGIN CERTIFICATE-----\n..."}
+func (h *AdminHandler) ImportKeyCert(c echo.Context) error {
+	id := c.Param("id")
+	key, err := h.store.GetSigningKey(id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Key not found"})
+	}
+
+	var req struct {
+		CertPEM string `json:"cert_pem"`
+	}
+	if err := c.Bind(&req); err != nil || req.CertPEM == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "cert_pem is required"})
+	}
+
+	// Validate that the cert matches this key's private key
+	if err := crypto.ValidateCertMatchesPrivateKey(req.CertPEM, key.PrivateKey); err != nil {
+		return c.JSON(http.StatusUnprocessableEntity, map[string]string{"error": "Certificate validation failed: " + err.Error()})
+	}
+
+	cert, err := crypto.ParseCertFromPEM(req.CertPEM)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid certificate PEM: " + err.Error()})
+	}
+
+	// Re-derive KID from the new cert thumbprint
+	newKID, err := crypto.CertThumbprintS256(req.CertPEM)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to compute cert thumbprint: " + err.Error()})
+	}
+
+	oldKID := key.KID
+	key.CertPEM = req.CertPEM
+	key.KID = newKID
+	key.ExpiresAt = cert.NotAfter
+
+	if err := h.store.UpdateSigningKey(key); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update key: " + err.Error()})
+	}
+
+	h.logAdminAudit(models.AuditActionAdminKeysRotated, models.AuditActorAdmin, h.getAdminActor(c),
+		"key", newKID, models.AuditStatusSuccess, c.RealIP(), c.Request().UserAgent(),
+		map[string]interface{}{
+			"action":       "import_cert",
+			"old_kid":      oldKID,
+			"new_kid":      newKID,
+			"cert_subject": cert.Subject.CommonName,
+			"cert_issuer":  cert.Issuer.CommonName,
+			"not_before":   cert.NotBefore,
+			"not_after":    cert.NotAfter,
+		})
+
+	fp, _ := crypto.CertThumbprintS256(req.CertPEM)
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "Certificate imported successfully",
+		"kid":     newKID,
+		"cert": map[string]interface{}{
+			"subject":     cert.Subject.CommonName,
+			"issuer":      cert.Issuer.CommonName,
+			"serial":      cert.SerialNumber.Text(16),
+			"not_before":  cert.NotBefore,
+			"not_after":   cert.NotAfter,
+			"fingerprint": fp,
 		},
 	})
 }
