@@ -40,11 +40,11 @@ type appState struct {
 	RedirectURI  string
 
 	// Authorization Code flow
-	CodeVerifier    string // PKCE
-	CodeChallenge   string
-	StateParam      string
-	AuthCode        string
-	AuthCodeRawURL  string // full URL that was built
+	CodeVerifier   string // PKCE
+	CodeChallenge  string
+	StateParam     string
+	AuthCode       string
+	AuthCodeRawURL string // full URL that was built
 
 	// Tokens (auth code flow)
 	AccessToken  string
@@ -121,7 +121,7 @@ func apiPost(rawURL, contentType string, body io.Reader, authHeader string) (int
 	if err != nil {
 		return 0, nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, b, nil
 }
@@ -138,7 +138,7 @@ func apiGet(rawURL, authHeader string) (int, []byte, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, b, nil
 }
@@ -258,14 +258,14 @@ var stepDefs = []stepDef{
 
 func buildStepPills() string {
 	done := map[string]bool{
-		"discovery": state.DiscoveryDoc != nil,
-		"register":  state.ClientID != "",
-		"auth-code": state.AuthCode != "",
-		"token":     state.AccessToken != "",
-		"userinfo":  state.UserInfoJSON != "",
+		"discovery":  state.DiscoveryDoc != nil,
+		"register":   state.ClientID != "",
+		"auth-code":  state.AuthCode != "",
+		"token":      state.AccessToken != "",
+		"userinfo":   state.UserInfoJSON != "",
 		"introspect": state.IntrospectJSON != "",
-		"implicit":  state.ImplicitIDToken != "",
-		"revoke":    state.RevocationDone,
+		"implicit":   state.ImplicitIDToken != "",
+		"revoke":     state.RevocationDone,
 	}
 	var b strings.Builder
 	for _, st := range stepDefs {
@@ -273,7 +273,7 @@ func buildStepPills() string {
 		if done[st.id] {
 			cls = "done"
 		}
-		b.WriteString(fmt.Sprintf(`<span class="step-pill %s">%s</span>`, cls, st.label))
+		fmt.Fprintf(&b, `<span class="step-pill %s">%s</span>`, cls, st.label)
 	}
 	return b.String()
 }
@@ -332,7 +332,7 @@ func handleHome(w http.ResponseWriter, _ *http.Request) {
 
   <a href="/step/discovery" class="btn btn-primary">Begin → Step 1: Discovery</a>
 </div>`
-	fmt.Fprint(w, pageWrap("Home", body))
+	_, _ = fmt.Fprint(w, pageWrap("Home", body))
 }
 
 func handleDiscovery(w http.ResponseWriter, _ *http.Request) {
@@ -393,7 +393,7 @@ Clients can adapt automatically if the server configuration changes.`),
 		status,
 		codeBlock(respStr),
 	)
-	fmt.Fprint(w, pageWrap("Discovery", content))
+	_, _ = fmt.Fprint(w, pageWrap("Discovery", content))
 }
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -410,14 +410,14 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	state.mu.Unlock()
 
 	reqBody := map[string]interface{}{
-		"client_name":              "OIDC Demo Client (dynamic)",
-		"redirect_uris":            []string{"http://localhost:9090/callback"},
-		"grant_types":              []string{"authorization_code", "implicit"},
-		"response_types":           []string{"code", "id_token", "id_token token"},
-		"scope":                    "openid profile email",
+		"client_name":                "OIDC Demo Client (dynamic)",
+		"redirect_uris":              []string{"http://localhost:9090/callback"},
+		"grant_types":                []string{"authorization_code", "implicit"},
+		"response_types":             []string{"code", "id_token", "id_token token"},
+		"scope":                      "openid profile email",
 		"token_endpoint_auth_method": "client_secret_basic",
-		"application_type":         "web",
-		"contacts":                 []string{"demo@example.com"},
+		"application_type":           "web",
+		"contacts":                   []string{"demo@example.com"},
 	}
 	reqJSON, _ := json.MarshalIndent(reqBody, "", "  ")
 
@@ -469,15 +469,15 @@ Normally a developer registers a client in a dashboard and gets a <code>client_i
 We POST a JSON metadata document to the <code>registration_endpoint</code>. The server responds
 with the assigned <code>client_id</code>, <code>client_secret</code>, and echoes back the
 configuration it accepted.`)+
-			func() string {
-				if errMsg != "" {
-					return fmt.Sprintf(`<div class="tag-error">✗ Registration failed: %s</div>`, html.EscapeString(errMsg))
-				}
-				return `<div class="tag-success">✓ Registered successfully</div><br>` +
-					kv("client_id", state.ClientID)+
-					kv("client_secret", state.ClientSecret)+
-					`<br><a href="/step/auth-code" class="btn btn-success">Next → Step 3: Authorization Code Flow</a>`
-			}(),
+				func() string {
+					if errMsg != "" {
+						return fmt.Sprintf(`<div class="tag-error">✗ Registration failed: %s</div>`, html.EscapeString(errMsg))
+					}
+					return `<div class="tag-success">✓ Registered successfully</div><br>` +
+						kv("client_id", state.ClientID) +
+						kv("client_secret", state.ClientSecret) +
+						`<br><a href="/step/auth-code" class="btn btn-success">Next → Step 3: Authorization Code Flow</a>`
+				}(),
 		),
 		card("Registration Request", "", fmt.Sprintf("%s%s",
 			explain(`We send the client's metadata: its name, allowed redirect URIs, grant types, and scopes.
@@ -487,7 +487,7 @@ The server validates this and assigns credentials.`),
 		card("Server Response", fmt.Sprintf("HTTP %d", status),
 			codeBlock(prettyJSON(respBytes))),
 	)
-	fmt.Fprint(w, pageWrap("Dynamic Registration", content))
+	_, _ = fmt.Fprint(w, pageWrap("Dynamic Registration", content))
 }
 
 func handleAuthCode(w http.ResponseWriter, _ *http.Request) {
@@ -558,15 +558,15 @@ only <em>we</em> can prove we started this flow.`),
 		),
 		card("PKCE Values (generated just now)", "",
 			kv("code_verifier (secret, never sent first)", verifier)+
-			kv("code_challenge (SHA-256 of verifier, sent)", challenge)+
-			kv("state (CSRF protection)", stateParam),
+				kv("code_challenge (SHA-256 of verifier, sent)", challenge)+
+				kv("state (CSRF protection)", stateParam),
 		),
 		card("Authorization URL", "This is the URL the browser will visit",
 			codeBlock(authURL),
 		),
 		authURL,
 	)
-	fmt.Fprint(w, pageWrap("Authorization Code Flow", content))
+	_, _ = fmt.Fprint(w, pageWrap("Authorization Code Flow", content))
 }
 
 func handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -584,7 +584,7 @@ func handleCallback(w http.ResponseWriter, r *http.Request) {
 Common causes: user denied consent, invalid parameters, or expired session.`,
 				html.EscapeString(errParam), html.EscapeString(errDesc))),
 		)
-		fmt.Fprint(w, pageWrap("Error", body))
+		_, _ = fmt.Fprint(w, pageWrap("Error", body))
 		return
 	}
 
@@ -622,9 +622,9 @@ immediately for tokens at the <code>/token</code> endpoint — and only from you
 (never from the browser).<br><br>
 The code itself carries no user data. It is meaningless to anyone who intercepts it
 because they would also need the <code>code_verifier</code> (PKCE) and the client secret.`)+
-				kv("code", code)+
-				kv("state", incomingState)+
-				`<br><a href="/step/token" class="btn btn-success">Next → Step 4: Token Exchange</a>`,
+					kv("code", code)+
+					kv("state", incomingState)+
+					`<br><a href="/step/token" class="btn btn-success">Next → Step 4: Token Exchange</a>`,
 			),
 			card("Redirect URI Parameters", "", codeBlock(r.URL.RawQuery)),
 			func() string {
@@ -635,7 +635,7 @@ because they would also need the <code>code_verifier</code> (PKCE) and the clien
 			}(),
 			"",
 		)
-		fmt.Fprint(w, pageWrap("Code Received", body))
+		_, _ = fmt.Fprint(w, pageWrap("Code Received", body))
 		return
 	}
 
@@ -691,7 +691,7 @@ browser — they are <em>never</em> sent to the redirect server. JavaScript must
 This is why the implicit flow is considered <em>less secure</em> and deprecated for new applications
 in favour of the authorization code flow with PKCE.`),
 	)
-	fmt.Fprint(w, pageWrap("Implicit Callback", body))
+	_, _ = fmt.Fprint(w, pageWrap("Implicit Callback", body))
 }
 
 func handleImplicitSave(w http.ResponseWriter, r *http.Request) {
@@ -726,7 +726,7 @@ func handleImplicitResult(w http.ResponseWriter, _ *http.Request) {
 The token is self-contained — no server lookup needed to verify it (just check the signature).`),
 		codeBlock(tok),
 	)
-	fmt.Fprint(w, pageWrap("Implicit Result", body))
+	_, _ = fmt.Fprint(w, pageWrap("Implicit Result", body))
 }
 
 func handleToken(w http.ResponseWriter, _ *http.Request) {
@@ -816,16 +816,16 @@ If everything matches, it returns three tokens:<br>
 • <strong>access_token</strong>: a bearer token for API calls<br>
 • <strong>id_token</strong>: a signed JWT with the user's identity<br>
 • <strong>refresh_token</strong>: a long-lived token to get new access tokens`)+
-			func() string {
-				if errMsg != "" {
-					return fmt.Sprintf(`<span class="tag-error">✗ %s</span><br><br>
+				func() string {
+					if errMsg != "" {
+						return fmt.Sprintf(`<span class="tag-error">✗ %s</span><br><br>
 <a href="/step/auth-code" class="btn btn-warning">← Restart Auth Code Flow</a>`, html.EscapeString(errMsg))
-				}
-				return `<span class="tag-success">✓ Tokens received!</span><br><br>` +
-					kv("access_token (first 40 chars)", at[:min(40, len(at))]+"…") +
-					kv("id_token (first 40 chars)", idt[:min(40, len(idt))]+"…") +
-					`<br><a href="/step/userinfo" class="btn btn-success">Next → Step 5: UserInfo</a>`
-			}(),
+					}
+					return `<span class="tag-success">✓ Tokens received!</span><br><br>` +
+						kv("access_token (first 40 chars)", at[:min(40, len(at))]+"…") +
+						kv("id_token (first 40 chars)", idt[:min(40, len(idt))]+"…") +
+						`<br><a href="/step/userinfo" class="btn btn-success">Next → Step 5: UserInfo</a>`
+				}(),
 		),
 		card("Token Request", "",
 			codeBlock(reqStr),
@@ -834,7 +834,7 @@ If everything matches, it returns three tokens:<br>
 			codeBlock(prettyJSON(respBytes)),
 		),
 	)
-	fmt.Fprint(w, pageWrap("Token Exchange", content))
+	_, _ = fmt.Fprint(w, pageWrap("Token Exchange", content))
 }
 
 func handleUserInfo(w http.ResponseWriter, _ *http.Request) {
@@ -886,13 +886,13 @@ on the <em>scopes</em> that were granted (e.g., <code>profile</code> gives name/
 The access token is sent as a <strong>Bearer token</strong> in the Authorization header.
 The server validates the token, looks up the user, and returns the appropriate claims as JSON.
 This is an alternative to embedding all claims in the ID token.`)+
-			`<span class="tag-success">✓ Profile loaded</span><br><br>`+
-			`<a href="/step/introspect" class="btn btn-success">Next → Step 6: Token Introspection</a>`,
+				`<span class="tag-success">✓ Profile loaded</span><br><br>`+
+				`<a href="/step/introspect" class="btn btn-success">Next → Step 6: Token Introspection</a>`,
 		),
 		card("Request", "", codeBlock(reqStr)),
 		card("UserInfo Response", fmt.Sprintf("HTTP %d", status), codeBlock(uiJSON)),
 	)
-	fmt.Fprint(w, pageWrap("UserInfo", content))
+	_, _ = fmt.Fprint(w, pageWrap("UserInfo", content))
 }
 
 func handleIntrospect(w http.ResponseWriter, _ *http.Request) {
@@ -953,13 +953,13 @@ checks its database, verifies the token hasn't been revoked or expired, and retu
 • <code>scope</code>, <code>sub</code>, <code>client_id</code>, <code>exp</code> — token metadata<br><br>
 This is essential for <em>opaque tokens</em> (non-JWTs) and for detecting revoked tokens
 even if they haven't expired yet.`)+
-			`<span class="tag-success">✓ Introspection complete</span><br><br>`+
-			`<a href="/step/implicit" class="btn btn-success">Next → Step 7: Implicit Flow</a>`,
+				`<span class="tag-success">✓ Introspection complete</span><br><br>`+
+				`<a href="/step/implicit" class="btn btn-success">Next → Step 7: Implicit Flow</a>`,
 		),
 		card("Request", "", codeBlock(reqStr)),
 		card("Introspection Response", fmt.Sprintf("HTTP %d", status), codeBlock(intrJSON)),
 	)
-	fmt.Fprint(w, pageWrap("Introspection", content))
+	_, _ = fmt.Fprint(w, pageWrap("Introspection", content))
 }
 
 func handleImplicit(w http.ResponseWriter, _ *http.Request) {
@@ -1024,14 +1024,14 @@ referrer headers, and logs. Use <strong>authorization code + PKCE</strong> inste
 <strong>Nonce (required for implicit)</strong>: A random value we include in the request;
 the server must embed it in the ID token. When we receive the token, we verify the nonce
 matches — preventing replay attacks.`)+
-			kv("response_type", "id_token")+
-			kv("nonce", nonce)+
-			kv("state", implicitState),
+				kv("response_type", "id_token")+
+				kv("nonce", nonce)+
+				kv("state", implicitState),
 		),
 		card("Authorization URL", "", codeBlock(implicitURL)),
 		implicitURL,
 	)
-	fmt.Fprint(w, pageWrap("Implicit Flow", content))
+	_, _ = fmt.Fprint(w, pageWrap("Implicit Flow", content))
 }
 
 func handleRevoke(w http.ResponseWriter, _ *http.Request) {
@@ -1098,20 +1098,20 @@ After revocation:<br>
 • Introspection will return <code>active: false</code><br><br>
 Both <strong>access tokens</strong> and <strong>refresh tokens</strong> can be revoked.
 Revoking a refresh token may also revoke all associated access tokens.`)+
-			func() string {
-				if isErr {
-					return fmt.Sprintf(`<span class="tag-error">✗ %s</span>`, html.EscapeString(resultMsg))
-				}
-				return `<span class="tag-success">✓ Token revoked!</span><br><br>` +
-					`<p style="font-size:.9rem;color:#555;margin-top:8px;">The access token is now invalid. Try UserInfo again to confirm.</p>` +
-					`<br><a href="/step/userinfo" class="btn btn-info" style="margin-right:8px;">↺ Re-test UserInfo (expect 401)</a>` +
-					`<a href="/log" class="btn btn-secondary">📋 View Full Session Log</a>`
-			}(),
+				func() string {
+					if isErr {
+						return fmt.Sprintf(`<span class="tag-error">✗ %s</span>`, html.EscapeString(resultMsg))
+					}
+					return `<span class="tag-success">✓ Token revoked!</span><br><br>` +
+						`<p style="font-size:.9rem;color:#555;margin-top:8px;">The access token is now invalid. Try UserInfo again to confirm.</p>` +
+						`<br><a href="/step/userinfo" class="btn btn-info" style="margin-right:8px;">↺ Re-test UserInfo (expect 401)</a>` +
+						`<a href="/log" class="btn btn-secondary">📋 View Full Session Log</a>`
+				}(),
 		),
 		card("Revocation Request", "", codeBlock(reqStr)),
 		card("Response", "", codeBlock(resultMsg)),
 	)
-	fmt.Fprint(w, pageWrap("Token Revocation", content))
+	_, _ = fmt.Fprint(w, pageWrap("Token Revocation", content))
 }
 
 func handleLog(w http.ResponseWriter, _ *http.Request) {
@@ -1131,7 +1131,7 @@ func handleLog(w http.ResponseWriter, _ *http.Request) {
 			cls = "tag-error"
 			icon = "✗"
 		}
-		logHTML.WriteString(fmt.Sprintf(`
+		fmt.Fprintf(&logHTML, `
 <div class="log-entry">
   <div class="log-header">
     <span class="timestamp" style="color:#6c757d;font-weight:normal">%s</span>
@@ -1144,7 +1144,7 @@ func handleLog(w http.ResponseWriter, _ *http.Request) {
     %s
   </div>
 </div>`, e.Timestamp, cls, icon, html.EscapeString(e.Label),
-			codeBlock(e.Request), codeBlock(e.Response)))
+			codeBlock(e.Request), codeBlock(e.Response))
 	}
 
 	body := fmt.Sprintf(`<div class="card">
@@ -1152,7 +1152,7 @@ func handleLog(w http.ResponseWriter, _ *http.Request) {
   <p class="subtitle">Every API call made during this session, in chronological order.</p>
   %s
 </div>`, logHTML.String())
-	fmt.Fprint(w, pageWrap("Session Log", body))
+	_, _ = fmt.Fprint(w, pageWrap("Session Log", body))
 }
 
 func handleReset(w http.ResponseWriter, r *http.Request) {
