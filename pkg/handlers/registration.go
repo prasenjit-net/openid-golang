@@ -291,13 +291,13 @@ func (h *Handlers) validateGrantTypesAndResponseTypes(req *models.ClientRegistra
 
 	// Validate response_types values
 	validResponseTypes := map[string]bool{
-		"code":                true,
-		"token":               true,
-		"id_token":            true,
-		"code token":          true,
-		"code id_token":       true,
-		"id_token token":      true,
-		"code id_token token": true,
+		ResponseTypeCode:             true,
+		ResponseTypeToken:            true,
+		ResponseTypeIDToken:          true,
+		ResponseTypeCodeToken:        true,
+		ResponseTypeCodeIDToken:      true,
+		ResponseTypeTokenIDToken:     true,
+		ResponseTypeCodeTokenIDToken: true,
 	}
 
 	for _, rt := range responseTypes {

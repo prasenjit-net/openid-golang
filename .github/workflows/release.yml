@@ -40,13 +40,15 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
-    - name: Get current version
+    - name: Get current version from latest tag
       id: get_version
       run: |
-        if [ -f VERSION ]; then
-          CURRENT_VERSION=$(cat VERSION)
-        else
+        # Get the latest semver tag; fall back to 0.0.0 if none exists
+        LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -1)
+        if [ -z "$LATEST_TAG" ]; then
           CURRENT_VERSION="0.0.0"
+        else
+          CURRENT_VERSION="${LATEST_TAG#v}"
         fi
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
         echo "Current version: $CURRENT_VERSION"
@@ -78,12 +80,6 @@ jobs:
         NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
         echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
         echo "New version: $NEW_VERSION"
-        
-    - name: Update VERSION file
-      run: |
-        echo "${{ steps.calc_version.outputs.new_version }}" > VERSION
-        git add VERSION
-        git commit -m "chore: bump version to ${{ steps.calc_version.outputs.new_version }}"
         
     - name: Create and push tag
       run: |
@@ -179,6 +175,11 @@ jobs:
             goos: windows
             goarch: amd64
             binary: openid-server-windows-amd64.exe
+          - os: windows-latest
+            platform: windows-arm64
+            goos: windows
+            goarch: arm64
+            binary: openid-server-windows-arm64.exe
             
     steps:
     - name: Checkout code
@@ -265,6 +266,7 @@ jobs:
           "openid-server-darwin-amd64"
           "openid-server-darwin-arm64"
           "openid-server-windows-amd64.exe"
+          "openid-server-windows-arm64.exe"
         )
         
         MISSING=0
@@ -335,6 +337,7 @@ jobs:
           
           ### Windows (with CGO/SQLite support)
           - AMD64: `openid-server-windows-amd64.exe`
+          - ARM64: `openid-server-windows-arm64.exe`
           
           ## Quick Start
           
@@ -382,3 +385,4 @@ jobs:
         echo "- ✅ macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Windows AMD64" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Windows ARM64" >> $GITHUB_STEP_SUMMARY

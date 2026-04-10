@@ -53,7 +53,7 @@ func TestDiscovery_WithoutRegistration(t *testing.T) {
 	// Verify supported features
 	assert.Contains(t, response.ResponseTypesSupported, "code")
 	assert.Contains(t, response.ResponseTypesSupported, "id_token")
-	assert.Contains(t, response.ResponseTypesSupported, "token id_token")
+	assert.Contains(t, response.ResponseTypesSupported, "id_token token")
 	assert.Contains(t, response.SubjectTypesSupported, "public")
 	assert.Contains(t, response.IDTokenSigningAlgValuesSupported, "RS256")
 
