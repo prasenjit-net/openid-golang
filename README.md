@@ -2,351 +2,396 @@
 
 [![CI](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml/badge.svg)](https://github.com/prasenjit-net/openid-golang/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](backend/go.mod)
-[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](https://github.com/prasenjit-net/openid-golang/blob/main/LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://prasenjit-net.github.io/openid-golang/)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/prasenjit-net/openid-golang)](go.mod)
+[![License](https://img.shields.io/github/license/prasenjit-net/openid-golang)](LICENSE)
 
-A lightweight, production-ready OpenID Connect (OIDC) identity provider implementation in Go with an embedded React admin UI.
+A lightweight, production-ready **OpenID Connect (OIDC) identity provider** written in Go with an embedded React admin UI.  
+No external key-management tooling needed — RSA key pairs and X.509 certificates are generated in pure Go.
 
-## 📚 Documentation
-
-**📖 [Complete Documentation on GitHub Pages](https://prasenjit-net.github.io/openid-golang/)**
-
-### Quick Links
-
-- **[Getting Started Guide](https://prasenjit-net.github.io/openid-golang/GETTING_STARTED.html)** ⭐ - Step-by-step setup tutorial
-- **[Quick Start](https://prasenjit-net.github.io/openid-golang/QUICKSTART.html)** - Quick reference for experienced developers
-- **[Docker Guide](https://prasenjit-net.github.io/openid-golang/DOCKER.html)** 🐳 - Run with Docker
-- **[API Reference](https://prasenjit-net.github.io/openid-golang/API.html)** - Complete API documentation
-- **[Architecture](https://prasenjit-net.github.io/openid-golang/ARCHITECTURE.html)** - System design and architecture
-- **[Contributing](https://prasenjit-net.github.io/openid-golang/CONTRIBUTING.html)** - How to contribute
-
-> 💡 **Tip:** All documentation is organized in the [`docs/`](docs/) folder and published on GitHub Pages for easy browsing!
-
-## 🚀 Quick Start
-
-### Option 1: Docker (Easiest)
-
-```bash
-# Using Docker Compose
-docker-compose up -d
-
-# Access the server
-# http://localhost:8080
-```
-
-See **[Docker Documentation](https://prasenjit-net.github.io/openid-golang/DOCKER.html)** for detailed instructions.
-
-### Option 2: Using the Setup Wizard (Recommended for Binary)
-
-Download the binary from [GitHub Releases](https://github.com/prasenjit-net/openid-golang/releases) and run:
-
-```bash
-# Make it executable (Linux/macOS)
-chmod +x openid-server-*
-
-# Run the setup wizard (REQUIRED - first time only)
-./openid-server-linux-amd64 --setup
-
-# Start the server
-./openid-server-linux-amd64
-```
-
-The `--setup` wizard is **mandatory** and will:
-- Generate RSA key pairs for JWT signing (no OpenSSL required!)
-- Create configuration file (config.toml) interactively
-- Choose storage backend (MongoDB or JSON file)
-- Initialize storage
-- Create an admin user
-- Optionally create your first OAuth client
-
-After setup, just run `./openid-server-linux-amd64` to start the server.
-
-### Option 3: Development Setup
-
-```bash
-# 1. Run the setup script (does everything including --setup wizard)
-./setup.sh
-
-# This will:
-# - Download Go dependencies
-# - Build the binary
-# - Run the interactive setup wizard
-# - Generate keys, create config.toml, admin user, etc.
-
-# 2. Create test data (optional)
-go run scripts/seed.go
-
-# 3. Start the server
-./bin/openid-server
-# OR
-make run
-```
-
-**Note:** The `setup.sh` script automatically runs `--setup` for you, so everything is configured in one step. No OpenSSL dependency required!
-
-Visit http://localhost:8080/health to verify the server is running.
-Access the admin UI at http://localhost:8080/
+---
 
 ## ✨ Features
 
-- **OpenID Connect Core 1.0** implementation
-- Authorization Code Flow with PKCE support
-- Token endpoint for access tokens, refresh tokens, and ID tokens
-- UserInfo endpoint
-- OpenID Connect Discovery (/.well-known/openid-configuration)
-- JWT-based ID tokens (RS256 signing)
-- Client authentication and management
-- User authentication with bcrypt password hashing
-- **Flexible Storage Backends:**
-  - MongoDB for production (scalable, high-performance)
-  - JSON file storage for development and small deployments
-  - No CGO dependency - pure Go implementation
-- **React Admin UI** with:
-  - User management
-  - OAuth client registration and management
-  - Server settings configuration
-  - Signing key rotation
-  - Initial setup wizard
-  - Dashboard with statistics
+### OpenID Connect / OAuth 2.0
+| Feature | Status |
+|---|---|
+| Authorization Code Flow | ✅ |
+| Implicit Flow (id_token, token id_token) | ✅ |
+| PKCE (S256 + plain) | ✅ |
+| Refresh Token Grant | ✅ |
+| Token Revocation (`/revoke`) | ✅ |
+| Token Introspection (`/introspect`) | ✅ |
+| Dynamic Client Registration (RFC 7591/7592) | ✅ |
+| OpenID Connect Discovery (`/.well-known/openid-configuration`) | ✅ |
+| JWKS Endpoint (`/.well-known/jwks.json`) with `x5c` / `x5t#S256` | ✅ |
+| Scopes: `openid`, `profile`, `email`, `address`, `phone`, `offline_access` | ✅ |
+| Nonce replay protection | ✅ |
+| `auth_time` claim | ✅ |
 
-## Project Structure
+### Signing Keys
+| Feature | Status |
+|---|---|
+| RSA 2048-bit key generation (pure Go) | ✅ |
+| Self-signed X.509 certificate per key | ✅ |
+| KID derived from cert SHA-256 fingerprint (`x5t#S256`, RFC 7517) | ✅ |
+| Configurable certificate validity (default 90 days) | ✅ |
+| Key rotation — old keys kept until cert expires | ✅ |
+| Generate PKCS#10 CSR for CA submission | ✅ |
+| Import CA-signed certificate (replaces self-signed) | ✅ |
+| JWKS serves all valid keys with `x5c` + `x5t#S256` | ✅ |
 
-```
-.
-├── cmd/
-│   └── server/          # Application entry point
-├── internal/
-│   ├── config/          # Configuration management
-│   ├── handlers/        # HTTP handlers for OIDC endpoints
-│   ├── middleware/      # HTTP middleware (logging, auth, etc.)
-│   ├── models/          # Data models
-│   ├── storage/         # Database/storage interfaces
-│   └── crypto/          # Cryptographic utilities (JWT, signing)
-├── pkg/
-│   └── oidc/            # Public OIDC utilities
-├── config/              # Configuration files
-├── go.mod
-└── README.md
-```
+### Storage
+| Backend | Use case |
+|---|---|
+| JSON file | Development, small deployments |
+| MongoDB | Production, high-traffic |
 
-## 📋 Prerequisites
+### Admin UI
+- Modern **"Secure Slate"** design with light / dark theme
+- Dashboard with live statistics
+- User management (CRUD, password reset)
+- OAuth client management + secret rotation
+- Token management — search, filter, revoke
+- Signing key management — rotate, generate CSR, import cert
+- Audit log viewer
+- Server settings
+- First-run setup wizard
 
-- **For Production (Binary)**: No prerequisites! Everything is self-contained.
-- **For Development**: Go 1.21 or higher
+---
 
-**Note:** No OpenSSL required - RSA keys are generated using pure Go crypto!
+## 🚀 Quick Start
 
-## 🛠️ Installation
+### Docker (recommended)
 
-### Binary Distribution (Recommended for Production)
-
-1. Download the latest binary for your platform from [GitHub Releases](https://github.com/prasenjit-net/openid-golang/releases)
-
-2. Run the interactive setup wizard:
 ```bash
-# Linux/macOS
+# JSON-file storage (no external dependencies)
+docker-compose --profile json-storage up -d
+
+# MongoDB storage
+MONGO_USER=admin MONGO_PASSWORD=secret docker-compose --profile with-mongodb up -d
+```
+
+The server starts at **http://localhost:8080**.  
+On first launch, the setup wizard runs automatically at `http://localhost:8080/setup`.
+
+### Binary
+
+```bash
+# Download from GitHub Releases and make executable
 chmod +x openid-server-*
+
+# Interactive first-run wizard (creates config + admin user)
 ./openid-server-* --setup
 
-# Windows
-openid-server-windows-amd64.exe --setup
-```
-
-3. Start the server:
-```bash
-# Linux/macOS
+# Start
 ./openid-server-*
-
-# Windows
-openid-server-windows-amd64.exe
 ```
 
-### Development Setup
-
-Run the automated setup script:
+### Development
 
 ```bash
-./setup.sh
+# Install Go + Node dependencies, build frontend, run server
+make deps
+make run
 ```
 
-This will:
-- Create necessary directories
-- Generate RSA key pairs for JWT signing
-- Create `config.toml` configuration file
-- Download Go dependencies
-- Build the application
+---
+
+## 📁 Project Structure
+
+```
+openid-golang/
+├── cmd/
+│   ├── root.go          # CLI entry point (cobra)
+│   └── serve.go         # Server startup, route registration
+├── pkg/
+│   ├── configstore/     # Configuration loading (TOML / env / MongoDB)
+│   ├── crypto/          # RSA keygen, cert gen, CSR, JWT, PKCE, bcrypt
+│   ├── handlers/
+│   │   ├── admin.go     # Admin REST API (users, clients, keys, tokens, audit)
+│   │   ├── authorize.go # /authorize endpoint
+│   │   ├── bootstrap.go # Setup wizard handler
+│   │   ├── discovery.go # /.well-known/* + JWKS
+│   │   ├── handlers.go  # Shared handler wiring
+│   │   ├── token.go     # /token, /revoke, /introspect
+│   │   └── userinfo.go  # /userinfo
+│   ├── middleware/      # JWT auth middleware for OIDC endpoints
+│   ├── models/          # Data models (User, Client, Token, SigningKey, AuditLog…)
+│   ├── session/         # Server-side session store + cookie middleware
+│   └── storage/
+│       ├── storage.go   # Storage interface
+│       ├── json.go      # JSON file implementation
+│       └── mongodb.go   # MongoDB implementation
+├── frontend/            # React + TypeScript + Ant Design admin UI
+│   └── src/
+│       ├── pages/       # Dashboard, Users, Clients, Tokens, KeyManagement, AuditLog…
+│       └── hooks/       # useApi.ts — all React Query hooks
+├── public/              # Embedded HTML templates (login, consent, setup wizard)
+├── embed.go             # go:embed declarations
+├── main.go
+├── Dockerfile
+├── docker-compose.yml
+└── Makefile
+```
+
+---
 
 ## 🔧 Configuration
 
-### Using config.toml (Recommended)
+The server reads configuration from (in priority order):
+1. Environment variables
+2. `data/config.json` (written by setup wizard)
+3. Built-in defaults
 
-Create a `config/config.toml` file:
+### Key environment variables
 
-```toml
-issuer = "http://localhost:8080"
+| Variable | Default | Description |
+|---|---|---|
+| `SERVER_HOST` | `0.0.0.0` | Listen address |
+| `SERVER_PORT` | `8080` | Listen port |
+| `MONGODB_URI` | — | MongoDB connection string (enables MongoDB storage) |
+| `MONGODB_DATABASE` | `openid` | MongoDB database name |
 
-[server]
-host = "0.0.0.0"
-port = 8080
+When `MONGODB_URI` is set, all data (config + storage) is persisted to MongoDB.  
+Without it, the JSON file backend (`data/openid.json`) is used.
 
-[storage]
-type = "json"  # or "mongodb"
-json_file_path = "data/openid.json"
-# For MongoDB:
-# type = "mongodb"
-# mongo_uri = "mongodb://localhost:27017/openid"
+### First-run Setup Wizard
 
-[jwt]
-private_key_path = "config/keys/private.key"
-public_key_path = "config/keys/public.key"
-expiry_minutes = 60
+Visit **`http://localhost:8080/setup`** (or pass `--setup` to the binary) to:
+- Set the issuer URL
+- Choose storage backend
+- Create the first admin user
+- Optionally pre-create an OAuth client
+
+---
+
+## 🔐 OpenID Connect Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/.well-known/openid-configuration` | GET | OIDC Discovery document |
+| `/.well-known/jwks.json` | GET | JSON Web Key Set (all valid keys) |
+| `/authorize` | GET | Authorization endpoint |
+| `/token` | POST | Token endpoint |
+| `/userinfo` | GET / POST | UserInfo endpoint |
+| `/revoke` | POST | Token revocation (RFC 7009) |
+| `/introspect` | POST | Token introspection (RFC 7662) |
+| `/login` | GET / POST | Login page (rendered server-side) |
+| `/consent` | GET / POST | Consent page (rendered server-side) |
+
+### Dynamic Client Registration
+
+Enabled by default at `/register`:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/register` | POST | Register a new client (RFC 7591) |
+| `/register/:client_id` | GET | Read registration (RFC 7592) |
+| `/register/:client_id` | PUT | Update registration (RFC 7592) |
+| `/register/:client_id` | DELETE | Delete registration |
+
+---
+
+## 🛠️ Admin API
+
+All admin API routes are under `/api/` and require a Bearer token obtained via `POST /api/auth/login`.
+
+> The admin portal uses session-based authentication (no token issued) to keep admin sessions out of the OIDC token store.
+
+### Auth
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/auth/login` | Admin login |
+| POST | `/api/auth/logout` | Admin logout |
+
+### Users
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/users` | List users |
+| POST | `/api/users` | Create user |
+| GET | `/api/users/:id` | Get user |
+| PUT | `/api/users/:id` | Update user |
+| DELETE | `/api/users/:id` | Delete user |
+
+### OAuth Clients
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/clients` | List clients |
+| POST | `/api/clients` | Create client |
+| GET | `/api/clients/:id` | Get client |
+| PUT | `/api/clients/:id` | Update client |
+| DELETE | `/api/clients/:id` | Delete client |
+| POST | `/api/clients/:id/regenerate-secret` | Rotate client secret |
+
+### Signing Keys
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/keys` | List all signing keys with cert details |
+| POST | `/api/settings/rotate-keys` | Rotate active key (body: `{"validity_days":90}`) |
+| GET | `/api/keys/:id/csr` | Generate PKCS#10 CSR for the key |
+| POST | `/api/keys/:id/import-cert` | Import CA-signed cert (body: `{"cert_pem":"..."}`) |
+
+### Tokens
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/tokens` | List tokens (filter by subject, client, type, active) |
+| DELETE | `/api/tokens/:id` | Revoke token |
+
+### Audit Log
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/audit` | Query audit log (filter by action, actor, date range) |
+
+### Settings
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/settings` | Get server settings |
+| PUT | `/api/settings` | Update server settings |
+
+---
+
+## 🔑 Signing Key Lifecycle
+
+```
+Generate key pair + self-signed cert
+           │
+           ▼
+    KID = x5t#S256(cert)        ← RFC 7517 §4.9
+    ExpiresAt = cert.NotAfter
+    JWKS includes x5c + x5t#S256
+           │
+           ├── (optional) Generate CSR ──► Submit to CA
+           │                                    │
+           │                         Receive signed cert
+           │                                    │
+           └────────────── Import Cert ◄─────────
+                                │
+                    KID re-derived from new cert
+                    ExpiresAt updated from new cert
+                    JWKS updated automatically
+           │
+           ▼
+    Rotate Key
+    Old key stays in JWKS until its cert expires
+    New key becomes active
 ```
 
-### Using Environment Variables (Legacy)
+---
 
-You can still use environment variables:
+## 📋 Development Commands
 
 ```bash
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8080
-STORAGE_TYPE=json
-JSON_FILE_PATH=data/openid.json
-# or for MongoDB:
-# STORAGE_TYPE=mongodb
-# MONGO_URI=mongodb://localhost:27017/openid
-JWT_PRIVATE_KEY=config/keys/private.key
-JWT_PUBLIC_KEY=config/keys/public.key
-JWT_EXPIRY_MINUTES=60
-ISSUER=http://localhost:8080
+make build-all     # Build frontend then Go binary
+make build         # Build Go binary only (requires frontend/dist)
+make build-frontend # Build React admin UI
+make run           # Build frontend + run server
+make test          # Run all Go tests
+make lint          # Run golangci-lint
+make fmt           # Run gofmt
+make deps          # Download Go + npm dependencies
+make clean         # Remove build artifacts
+make install-tools # Install golangci-lint v2.5.0
 ```
 
-### Storage Options
+---
 
-See [Storage Documentation](docs/STORAGE.md) for detailed information about MongoDB and JSON storage backends.
+## 🧪 Test Client
 
-**Quick comparison:**
-- **JSON Storage** (`--json-store` flag or `type = "json"`): Simple file-based storage, perfect for development and small deployments
-- **MongoDB Storage** (`type = "mongodb"`): Production-grade database, recommended for high-traffic production environments
+An interactive test client for exploring OIDC flows is included:
 
-## 🧪 Testing
-
-Create test data:
-```bash
-go run scripts/seed.go
-```
-
-Start the server:
-```bash
-make run
-# or
-./test.sh
-```
-
-Run the test OAuth client:
 ```bash
 go run examples/test-client.go
+# Visit http://localhost:9090
 ```
 
-Then visit http://localhost:9090 in your browser.
+The test client walks through:
+- Dynamic client registration
+- Authorization Code Flow with PKCE
+- Implicit Flow
+- Token refresh
+- UserInfo fetch
+- Token introspection
 
-## OpenID Connect Endpoints
+---
 
-- **Discovery**: `GET /.well-known/openid-configuration`
-- **Authorization**: `GET /authorize`
-- **Token**: `POST /token`
-- **UserInfo**: `GET /userinfo`
-- **JWKS**: `GET /.well-known/jwks.json`
+## 📊 Audit Events
 
-## Configuration
+All security-relevant operations produce structured audit log entries:
 
-The server can be configured using a YAML configuration file or environment variables.
+| Category | Actions |
+|---|---|
+| **User** | `user.login`, `user.login_failed`, `user.consent_granted`, `user.consent_denied` |
+| **Token** | `token.issued`, `token.revoked` |
+| **Client** | `client.registered` |
+| **Admin** | `admin.login`, `admin.user.*`, `admin.client.*`, `admin.settings.updated`, `admin.keys.rotated` |
 
-Key configuration options:
-- `server.host` - Server host address
-- `server.port` - Server port
-- `issuer` - OIDC issuer URL
-- `database.type` - Database type (sqlite, postgres)
-- `database.connection` - Database connection string
-- `jwt.signing_key` - JWT signing key (RS256)
+Each entry records: timestamp, action, actor (type + ID), resource, status, IP address, user agent, and optional metadata.
 
-## 💻 Development Commands
+---
+
+## 🐳 Docker
 
 ```bash
-# Basic commands
-make build         # Build the application
-make run           # Run the server
-make test          # Run tests
-make fmt           # Format code
-make lint          # Run linters
-make clean         # Clean build artifacts
-make deps          # Download dependencies
+# Build image locally
+docker build -t openid-server .
 
-# Tool management
-make install-tools # Install golangci-lint v2.5.0 and other dev tools
-make check-tools   # Check versions of installed tools
+# JSON-file storage (development)
+docker-compose --profile json-storage up -d
 
-# Or use the shell script
-./lint.sh          # Run all quality checks (fmt, vet, test, lint)
+# MongoDB-backed (production-like)
+MONGO_USER=admin MONGO_PASSWORD=secret \
+  docker-compose --profile with-mongodb up -d
+
+# Logs
+docker logs openid-server -f
 ```
 
-### Code Quality Tools
+Data is persisted to the `./data` volume mount.
 
-This project uses **golangci-lint v2.5.0** consistently across:
-- ✅ Local development (Makefile)
-- ✅ CI/CD pipeline (GitHub Actions)
-- ✅ Shell scripts (lint.sh)
+---
 
-To install or upgrade golangci-lint to the correct version:
-```bash
-make install-tools
-```
+## 🏗️ Storage Backends
 
-To check your installed version:
-```bash
-make check-tools
-golangci-lint version  # Should show v2.5.0
-```
+### JSON File (default)
 
-## 🔐 Security Considerations
+- Zero dependencies — single file on disk (`data/openid.json`)
+- Suitable for development and small single-instance deployments
+- Not suitable for multi-instance or high-write workloads
 
-⚠️ This is a development/learning implementation. For production:
+### MongoDB
 
-- Use HTTPS/TLS
-- Switch to PostgreSQL
-- Implement proper session management
-- Add rate limiting
-- Enable CSRF protection
-- Implement account lockout
-- Add audit logging
-- Use HSM/KMS for key management
-- Add monitoring and backups
+Set `MONGODB_URI` to switch. Supports:
+- Multi-instance deployments
+- High-throughput workloads
+- TTL indexes for automatic token expiry
 
-See [docs/QUICKSTART.md](docs/QUICKSTART.md) for complete production checklist.
+---
 
-## 📖 Learn More
+## 🔒 Security Notes
 
-- Read the [Getting Started Guide](docs/GETTING_STARTED.md) for detailed instructions
-- Check the [API Documentation](docs/API.md) for endpoint details
-- Study the [Architecture](docs/ARCHITECTURE.md) to understand the design
-- Follow the [Testing Guide](docs/TESTING.md) to test all features
+- Passwords hashed with **bcrypt** (cost 10)
+- PKCE enforced for public clients
+- Nonce stored and checked to prevent replay attacks
+- `auth_time` propagated through session for `max_age` enforcement
+- Admin session uses server-side session store (not OIDC tokens)
+- Signing keys backed by X.509 certificates; KIDs are RFC 7517-compliant thumbprints
+- Old signing keys retained in JWKS until certificate expiry to avoid token validation gaps
+
+For production hardening, additionally consider: TLS termination, rate limiting, MongoDB authentication, and HSM/KMS for key storage.
+
+---
 
 ## 📄 License
 
-MIT License - Free for personal and commercial use
+MIT — free for personal and commercial use.
 
 ## 🤝 Contributing
 
-Contributions are welcome! The codebase is well-structured and documented.
-
-- Check [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) for technical details
-- Review the code - it's well-commented
-- Submit issues and pull requests
-
-## 🌟 Standards Compliance
-
-- OpenID Connect Core 1.0
-- OAuth 2.0 (RFC 6749)
-- JWT (RFC 7519)
-- PKCE (RFC 7636)
-- JWKS (RFC 7517)
+Pull requests and issues are welcome. See `docs/CONTRIBUTING.md` for guidelines.
