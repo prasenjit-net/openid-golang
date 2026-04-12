@@ -85,7 +85,7 @@ func runSetupModeWithReload(configStoreInstance configstore.ConfigStore, loaderC
 	e.HidePort = true
 
 	// Middleware
-	e.Use(middleware.Logger())
+	e.Use(requestLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
@@ -231,7 +231,7 @@ func runNormalMode(configData *configstore.ConfigData) {
 	e.HidePort = true
 
 	// Middleware
-	e.Use(middleware.Logger())
+	e.Use(requestLogger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 	e.Use(sessionManager.Middleware()) // Add session middleware
@@ -369,4 +369,28 @@ func getVersion() string {
 		version = "dev"
 	}
 	return version
+}
+
+// requestLogger returns an Echo middleware that logs each request in a
+// structured JSON format using the non-deprecated RequestLoggerWithConfig API.
+func requestLogger() echo.MiddlewareFunc {
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:       true,
+		LogMethod:    true,
+		LogStatus:    true,
+		LogError:     true,
+		LogLatency:   true,
+		LogRemoteIP:  true,
+		LogUserAgent: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			errStr := ""
+			if v.Error != nil {
+				errStr = v.Error.Error()
+			}
+			log.Printf(`{"time":%q,"remote_ip":%q,"method":%q,"uri":%q,"status":%d,"latency_human":%q,"error":%q}`,
+				v.StartTime.Format("2006-01-02T15:04:05.000000Z07:00"),
+				v.RemoteIP, v.Method, v.URI, v.Status, v.Latency, errStr)
+			return nil
+		},
+	})
 }

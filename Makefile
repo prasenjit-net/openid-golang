@@ -67,7 +67,7 @@ check-tools:
 # Run linter
 lint:
 	@echo "Running Go linter..."
-	@golangci-lint run --timeout=5m
+	@golangci-lint run --timeout=5m ./cmd/... ./pkg/...
 	@echo "Running frontend linter..."
 	@cd frontend && npm run lint || true
 

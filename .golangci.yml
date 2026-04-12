@@ -26,3 +26,9 @@ formatters:
 
 run:
   timeout: 5m
+
+issues:
+  # Exclude vendored/generated directories that should not be linted
+  exclude-dirs:
+    - frontend
+    - vendor
